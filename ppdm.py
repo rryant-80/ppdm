@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 from datetime import datetime
+from streamlit_plotly_events import plotly_events
 
 # Konfigurasi Halaman
 st.set_page_config(layout="wide", page_title="Dashboard Pemantauan Berkas")
@@ -20,10 +21,10 @@ except Exception as e:
 df['tgl_mulai'] = pd.to_datetime(df['tgl_mulai'], errors='coerce')
 df['durasi'] = pd.to_numeric(df['durasi'], errors='coerce').fillna(0)
 
-# Acuan tanggal hari ini untuk hitung SOP
+# Acuan tanggal hari ini untuk hitung SOP (Tahun 2026)
 hari_ini = pd.Timestamp(datetime.now().date())
 df['tgl_deadline'] = df['tgl_mulai'] + pd.to_timedelta(df['durasi'], unit='D')
-df['lewat_sop'] = clarified_status = hari_ini > df['tgl_deadline']
+df['lewat_sop'] = hari_ini > df['tgl_deadline']
 
 # Filter hanya untuk 4 posisi berkas
 kategori_posisi = ['Kakan', 'Kasi SP', 'Kasi PHP', 'Loket']
@@ -78,6 +79,7 @@ st.markdown("---")
 
 # --- 4. PEMBUATAN GRAFIK BATANG MULTI-KATEGORI ---
 st.subheader("📈 Grafik Jumlah Prosedur berdasarkan Kabupaten/Kota dan Posisi Berkas")
+st.info("⚡ **Interaktif:** Klik langsung pada salah satu batang grafik di bawah untuk memunculkan tabel detail.")
 
 df_filtered['no_thn_berkas'] = df_filtered['nmr_berkas'].astype(str) + "/" + df_filtered['thn_berkas'].astype(str)
 
@@ -87,7 +89,8 @@ df_grouped = df_filtered.groupby(['kabupaten_kota', 'posisi_berkas', 'nama_prose
 ).reset_index()
 
 fig = go.Figure()
-daftar_kab_kota = df_grouped['kabupaten_kota'].unique()
+# Mengurutkan nama kabupaten/kota agar indeks pencocokan koordinat stabil
+daftar_kab_kota = sorted(df_grouped['kabupaten_kota'].unique())
 
 for posisi in kategori_posisi:
     df_trace = df_grouped[df_grouped['posisi_berkas'] == posisi]
@@ -130,29 +133,27 @@ fig.update_layout(
     height=500
 )
 
-# Tampilkan grafik secara statis standar (Lebih kompatibel)
-st.plotly_chart(fig, use_container_width=True)
+# Menggunakan plotly_events untuk menangkap data koordinat klik secara real-time
+selected_point = plotly_events(fig, click_event=True, hover_event=False, select_event=False)
 
 st.markdown("---")
 
-# --- 5. PANEL FILTER DRILLDOWN (PENGGANTI KLIK GRAFIK) ---
-st.subheader("🔍 Drilldown Detail Berkas")
-col_f1, col_f2 = st.columns(2)
-
-with col_f1:
-    pilihan_kab = st.selectbox("Pilih Kabupaten/Kota untuk Detail:", ["-- Pilih Kabupaten/Kota --"] + list(daftar_kab_kota))
-with col_f2:
-    pilihan_pos = st.selectbox("Pilih Posisi Berkas untuk Detail:", ["-- Pilih Posisi Berkas --"] + kategori_posisi)
-
-# Logika pemicu tabel drilldown berdasarkan pilihan selectbox
-if pilihan_kab != "-- Pilih Kabupaten/Kota --" and pilihan_pos != "-- Pilih Posisi Berkas --":
+# --- 5. TABEL DRILLDOWN OTOMATIS BERDASARKAN KLIK GRAFIK ---
+if selected_point:
+    # Mengambil indeks data dari event klik grafik
+    point_index = selected_point[0]['pointNumber']
+    trace_index = selected_point[0]['curveNumber']
     
-    st.subheader(f"📋 Detail Berkas: Kabupaten/Kota {pilihan_kab} - Posisi {pilihan_pos}")
+    # Menemukan nama Kabupaten/Kota dan Posisi Berkas berdasarkan indeks yang diklik
+    klik_kabupaten = daftar_kab_kota[point_index]
+    klik_posisi = kategori_posisi[trace_index]
+    
+    st.subheader(f"📋 Detail Berkas: Kabupaten/Kota {klik_kabupaten} - Posisi {klik_posisi}")
     
     # Filter data utama
     df_drilldown = df[
-        (df['kabupaten_kota'] == pilihan_kab) & 
-        (df['posisi_berkas'] == pilihan_pos)
+        (df['kabupaten_kota'] == klik_kabupaten) & 
+        (df['posisi_berkas'] == klik_posisi)
     ].copy()
     
     if not df_drilldown.empty:
@@ -165,9 +166,9 @@ if pilihan_kab != "-- Pilih Kabupaten/Kota --" and pilihan_pos != "-- Pilih Posi
         # Penomoran otomatis kolom "No."
         df_drilldown_display.insert(0, 'No.', range(1, len(df_drilldown_display) + 1))
         
-        # Tampilkan Tabel
+        # Tampilkan Tabel Drilldown
         st.dataframe(df_drilldown_display, use_container_width=True, hide_index=True)
     else:
         st.info("Tidak ada data berkas yang terdaftar untuk kombinasi ini.")
 else:
-    st.info("Silakan tentukan Kabupaten/Kota dan Posisi Berkas pada pilihan di atas untuk memunculkan tabel detail.")
+    st.info("Silakan klik pada salah satu batang di grafik Kabupaten/Kota untuk menampilkan detail data di sini.")
