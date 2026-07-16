@@ -89,6 +89,7 @@ if not df_pros_filtered.empty:
         }
         
         fig_strobo = go.Figure()
+        has_traces = False  # Penanda data visual terisi
         
         for posisi in kategori_target:
             df_sub = df_chart[df_chart['kategori_clean'] == posisi]
@@ -116,29 +117,32 @@ if not df_pros_filtered.empty:
                         "<extra></extra>"
                     )
                 ))
-        
-        # PERBAIKAN DI SINI: Mengganti parameter yaxis yang invalid
-        fig_strobo.update_layout(
-            height=450,
-            margin=dict(t=20, b=20, l=10, r=10),
-            xaxis=dict(
-                title=None, 
-                type='category', 
-                categoryorder='array', 
-                categoryarray=kategori_target,
-                tickfont=dict(size=12, fontweight='bold')
-            ),
-            yaxis=dict(
-                title=None, 
-                type='category',
-                categoryorder='category ascending' # Mengurutkan nama Kantah dari A-Z secara aman
-            ),
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-            plot_bgcolor="#f8fafc",
-            paper_bgcolor="#ffffff"
-        )
-        
-        st.plotly_chart(fig_strobo, use_container_width=True, key="dashboard_lampu_strobo")
+                has_traces = True
+
+        # PENGAMAN UTAMA: Layout hanya dipicu jika ada grafik yang valid dibuat
+        if has_traces:
+            fig_strobo.update_layout(
+                height=450,
+                margin=dict(t=20, b=20, l=10, r=10),
+                xaxis=dict(
+                    title=None, 
+                    type='category', 
+                    categoryorder='array', 
+                    categoryarray=kategori_target,
+                    tickfont=dict(size=12, fontweight='bold')
+                ),
+                yaxis=dict(
+                    title=None, 
+                    type='category',
+                    categoryorder='category ascending'
+                ),
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+                plot_bgcolor="#f8fafc",
+                paper_bgcolor="#ffffff"
+            )
+            st.plotly_chart(fig_strobo, use_container_width=True, key="dashboard_lampu_strobo")
+        else:
+            st.info("ℹ️ Terdapat berkas melewati batas waktu, namun posisi berkas belum masuk ke dalam 4 instansi target utama (Kakan, Kasi SP, Kasi PHP, Loket).")
         
     else:
         st.success("🎉 Seluruh berkas di semua Kantah dalam posisi aman & sesuai durasi SOP.")
@@ -165,12 +169,12 @@ if not df_pros_filtered.empty:
                                .format("{:,}"),
                 use_container_width=True
             )
-        except ImportError:
+        except Exception:
+            # Fallback mutlak jika bermasalah dengan render style gradasi di cloud
             st.dataframe(df_matrix, use_container_width=True)
-            st.caption("💡 *Tips: Tambahkan 'jinja2' di requirements.txt untuk gradasi warna tabel.*")
             
     else:
-        st.success("🎉 Luar biasa! Seluruh berkas di semua Kantah dalam posisi aman & sesuai durasi SOP.")
+        st.info("Tidak ada rekapitulasi penumpukan berkas saat ini.")
     
     st.markdown("---")
     st.markdown("### 🔍 Detail Distribusi Visual per Kantah")
