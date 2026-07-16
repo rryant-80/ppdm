@@ -55,7 +55,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.subheader("🚨 Indikator Kepatuhan SOP Kontinuitas Berkas")
 cols = st.columns(4)
 
 # Menampilkan status strobo untuk masing-masing posisi berkas secara agregat
