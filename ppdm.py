@@ -53,7 +53,7 @@ st.markdown("""
     background-color: #28a745; color: white; padding: 15px; border-radius: 10px; text-align: center; font-weight: bold;
 }
 </style>
-""", unsafe_scale=True)
+""", unsafe_allow_html=True)
 
 st.subheader("🚨 Indikator Kepatuhan SOP Kontinuitas Berkas")
 cols = st.columns(4)
