@@ -3,78 +3,6 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 
-st.markdown("""
-<style>
-    .profile-box {
-        border: 1px solid #e2e8f0;
-        border-radius: 8px;
-        padding: 14px;
-        margin-bottom: 12px;
-        background-color: #ffffff;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-    }
-    .profile-name {
-        font-weight: bold;
-        font-size: 14px;
-        color: #1e293b;
-    }
-    .profile-title {
-        font-size: 12px;
-        color: #64748b;
-        margin-bottom: 4px;
-    }
-    .profile-target {
-        font-size: 11px;
-        color: #059669;
-        margin-bottom: 4px;
-    }
-    .custom-card {
-        background-color: #f8fafc;
-        border-left: 4px solid #3b82f6;
-        padding: 10px 14px;
-        border-radius: 6px;
-    }
-    .card-title {
-        font-size: 11px;
-        color: #64748b;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-    .card-value {
-        font-size: 18px;
-        font-weight: 700;
-        color: #0f172a;
-        margin: 2px 0;
-    }
-    .card-subtext {
-        font-size: 10px;
-        color: #94a3b8;
-    }
-    /* Efek Kedip Lampu Strobo Merah */
-    @keyframes strobo-red {
-        0% { background-color: #ef4444; box-shadow: 0 0 4px #ef4444; }
-        50% { background-color: #b91c1c; box-shadow: 0 0 16px #b91c1c; }
-        100% { background-color: #ef4444; box-shadow: 0 0 4px #ef4444; }
-    }
-    .strobo-lamp {
-        width: 14px;
-        height: 14px;
-        border-radius: 50%;
-        display: inline-block;
-        animation: strobo-red 1s infinite;
-        margin-right: 8px;
-        vertical-align: middle;
-    }
-    .strobo-container {
-        border: 1px solid #fca5a5;
-        border-radius: 8px;
-        padding: 12px;
-        background-color: #fef2f2;
-        margin-bottom: 16px;
-    }
-</style>
-""", unsafe_allow_html=True)
 # =========================================================================
 # 1. KONEKSI & LOAD DATA DARI GOOGLE SHEETS
 # =========================================================================
@@ -170,12 +98,17 @@ if not df_pros_filtered.empty:
         df_matrix['TOTAL OVER SOP'] = df_matrix.sum(axis=1)
         df_matrix = df_matrix.sort_values(by='TOTAL OVER SOP', ascending=False)
         
-        # Menampilkan tabel interaktif warna gradasi merah yang muat di satu layar
-        st.dataframe(
-            df_matrix.style.background_gradient(cmap='Reds', subset=kategori_target)
-                           .format("{:,}"),
-            use_container_width=True
-        )
+        # Menggunakan try-except sebagai proteksi jika Jinja2 belum sukses terinstall di cloud
+        try:
+            st.dataframe(
+                df_matrix.style.background_gradient(cmap='Reds', subset=kategori_target)
+                               .format("{:,}"),
+                use_container_width=True
+            )
+        except ImportError:
+            # Skenario cadangan (Fallback) jika library visualisasi background_gradient (jinja2) bermasalah
+            st.dataframe(df_matrix, use_container_width=True)
+            st.caption("💡 *Tips: Tambahkan 'jinja2' di requirements.txt untuk mengaktifkan gradasi warna pada tabel.*")
     else:
         st.success("🎉 Luar biasa! Seluruh berkas di semua Kantah dalam posisi aman & sesuai durasi SOP.")
     
