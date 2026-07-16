@@ -6,7 +6,6 @@ import plotly.graph_objects as go
 # =========================================================================
 # 1. KONEKSI & LOAD DATA DARI GOOGLE SHEETS
 # =========================================================================
-# Mengambil id sheet dari secrets. Skenario fallback jika nama key berbeda.
 sheet_id = st.secrets.get("sheet_id", st.secrets.get("SHEET_ID", None))
 gid = "1447858691"
 
@@ -14,10 +13,9 @@ if sheet_id is None:
     st.error("❌ 'id sheet' belum ditemukan di Streamlit Secrets. Pastikan nama key di secrets sesuai (misal: sheet_id = 'YOUR_ID').")
     st.stop()
 
-# Membentuk URL export CSV khusus untuk GID target
 sheet_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid={gid}"
 
-@st.cache_data(ttl=300) # Simpan data di cache selama 5 menit agar aplikasi cepat load
+@st.cache_data(ttl=300)
 def load_data_from_sheets(url):
     try:
         df = pd.read_csv(url)
@@ -26,15 +24,12 @@ def load_data_from_sheets(url):
         st.error(f"⚠️ Gagal mengambil data dari Google Sheets: {e}")
         return pd.DataFrame()
 
-# Membaca data dasar
 df_source = load_data_from_sheets(sheet_url)
 
-# Validasi jika data kosong
 if df_source.empty:
     st.warning("Data kosong atau gagal dimuat. Periksa kembali konfigurasi ID Sheet dan koneksi internet Anda.")
     st.stop()
 
-# Menyesuaikan penamaan jika variabel utama sistem Anda menggunakan `df_pros_filtered`
 df_pros_filtered = df_source.copy()
 
 
@@ -68,7 +63,7 @@ if not df_pros_filtered.empty:
         
     df_strobo['kategori_clean'] = df_strobo['posisi_berkas'].apply(cek_kategori)
     
-    # Filter hanya berkas yang OVER SOP dan berada pada 4 jabatan target
+    # Filter berkas yang OVER SOP & masuk 4 kategori target
     df_alert = df_strobo[(df_strobo['over_sop'] == True) & (df_strobo['kategori_clean'].notna())].copy()
     
     # Pastikan ketersediaan kolom daerah
@@ -76,30 +71,27 @@ if not df_pros_filtered.empty:
         df_alert['kantah_kab'] = df_alert.get('kantah', 'Belum Terdata')
 
     if not df_alert.empty:
-        # Gabungkan nomor dan tahun berkas untuk keperluan hover
+        # Gabungkan nomor dan tahun berkas untuk hover
         df_alert['nmr_thn'] = df_alert['nmr_berkas'].astype(str) + "/" + df_alert['thn_berkas'].astype(str)
         
-        # 3. Grouping Data untuk Pembuatan Struktur Lampu Strobo
-        # Dapatkan jumlah berkas dan daftar nomor berkas digabung dengan tag <br>
+        # Grouping untuk grafik bubble strobo matrix
         df_chart = df_alert.groupby(['kantah_kab', 'kategori_clean']).agg(
             jumlah_berkas=('nmr_berkas', 'count'),
             daftar_berkas=('nmr_thn', lambda x: "<br>".join(x))
         ).reset_index()
         
-        # 4. Skema Warna Seragam Global Berdasarkan Posisi Berkas (Workflow)
+        # Skema warna seragam global per posisi berkas
         warna_posisi = {
             "Kakan": "#dc2626",    # Merah Terang
             "Kasi SP": "#ea580c",  # Oranye Tua
             "Kasi PHP": "#eab308", # Kuning Strobo
-            "Loket": "#2563eb"     # Biru Intelijen
+            "Loket": "#2563eb"     # Biru
         }
         
-        # Pembuatan Grafis Bubble Strobo Matrix
         fig_strobo = go.Figure()
         
         for posisi in kategori_target:
             df_sub = df_chart[df_chart['kategori_clean'] == posisi]
-            
             if not df_sub.empty:
                 fig_strobo.add_trace(go.Scatter(
                     x=df_sub['kategori_clean'],
@@ -107,14 +99,14 @@ if not df_pros_filtered.empty:
                     mode='markers+text',
                     name=posisi,
                     marker=dict(
-                        size=df_sub['jumlah_berkas'] * 4 + 25, # Ukuran lingkaran membesar dinamis sesuai penumpukan
+                        size=df_sub['jumlah_berkas'] * 4 + 25, 
                         color=warna_posisi[posisi],
-                        line=dict(width=3, color='#ffffff'),  # Border putih kontras agar mirip lampu
+                        line=dict(width=2, color='#ffffff'),
                         opacity=0.85
                     ),
-                    text=df_sub['jumlah_berkas'], # Angka jumlah berkas tampil di dalam lampu
+                    text=df_sub['jumlah_berkas'], 
                     textposition="middle center",
-                    textfont=dict(color="white", size=12, family="Arial Black"),
+                    textfont=dict(color="white", size=11, family="Arial Black"),
                     customdata=df_sub['daftar_berkas'],
                     hovertemplate=(
                         "<b>🏢 Kantah:</b> %{y}<br>"
@@ -125,16 +117,15 @@ if not df_pros_filtered.empty:
                     )
                 ))
         
-        # Mengatur Tata Letak Grafik Agar Muat di Satu Layar Penuh
         fig_strobo.update_layout(
-            height=500,
+            height=450,
             margin=dict(t=20, b=20, l=10, r=10),
             xaxis=dict(
                 title=None, 
                 type='category', 
                 categoryorder='array', 
                 categoryarray=kategori_target,
-                tickfont=dict(size=13, fontweight='bold')
+                tickfont=dict(size=12, fontweight='bold')
             ),
             yaxis=dict(title=None, autocastoptions=dict(autoorder='reversed')),
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
@@ -142,13 +133,10 @@ if not df_pros_filtered.empty:
             paper_bgcolor="#ffffff"
         )
         
-        # Tampilkan langsung ke Dashboard
         st.plotly_chart(fig_strobo, use_container_width=True, key="dashboard_lampu_strobo")
         
     else:
         st.success("🎉 Seluruh berkas di semua Kantah dalam posisi aman & sesuai durasi SOP.")
-else:
-    st.info("Tidak ada data pelacakan durasi prosedur berkas saat ini.")
 
     # =====================================================================
     # PENDEKATAN SATU LAYAR: MATRIKS REKAPITULASI TOTAL OVER SOP PER KANTAH
@@ -156,20 +144,16 @@ else:
     st.markdown("### 📊 Ringkasan Eksekutif (Dashboard Matriks)")
     
     if not df_alert.empty:
-        # Mengelompokkan data berdasarkan Kantah dan Kategori Jabatan
         df_matrix = df_alert.groupby(['kantah_kab', 'kategori_clean']).size().unstack(fill_value=0)
         
-        # Memastikan semua kategori target muncul di kolom matriks meskipun 0
         for kat in kategori_target:
             if kat not in df_matrix.columns:
                 df_matrix[kat] = 0
                 
-        # Mengurutkan kolom sesuai urutan SOP workflow
         df_matrix = df_matrix[kategori_target]
         df_matrix['TOTAL OVER SOP'] = df_matrix.sum(axis=1)
         df_matrix = df_matrix.sort_values(by='TOTAL OVER SOP', ascending=False)
         
-        # Menggunakan try-except sebagai proteksi jika Jinja2 belum sukses terinstall di cloud
         try:
             st.dataframe(
                 df_matrix.style.background_gradient(cmap='Reds', subset=kategori_target)
@@ -177,27 +161,24 @@ else:
                 use_container_width=True
             )
         except ImportError:
-            # Skenario cadangan (Fallback) jika library visualisasi background_gradient (jinja2) bermasalah
             st.dataframe(df_matrix, use_container_width=True)
-            st.caption("💡 *Tips: Tambahkan 'jinja2' di requirements.txt untuk mengaktifkan gradasi warna pada tabel.*")
+            st.caption("💡 *Tips: Tambahkan 'jinja2' di requirements.txt untuk gradasi warna tabel.*")
+            
     else:
         st.success("🎉 Luar biasa! Seluruh berkas di semua Kantah dalam posisi aman & sesuai durasi SOP.")
     
     st.markdown("---")
     st.markdown("### 🔍 Detail Distribusi Visual per Kantah")
 
-    # Pastikan mengambil list kolom penanda daerah/kantah dari data awal agar yang 'Aman' tetap muncul
     kolom_kantah_induk = 'kantah_kab' if 'kantah_kab' in df_pros_filtered.columns else ('kantah' if 'kantah' in df_pros_filtered.columns else None)
     
     if kolom_kantah_induk:
         semua_kantah = sorted(df_pros_filtered[kolom_kantah_induk].dropna().unique())
         
-        # Menggunakan container expander horizontal agar hemat space layar
         for kantah in semua_kantah:
             df_kantah = df_alert[df_alert['kantah_kab'] == kantah]
             total_kantah_over = len(df_kantah)
             
-            # Penamaan status header kantah
             if total_kantah_over > 0:
                 header_text = f"🏢 {str(kantah).upper()} 🔴 ({total_kantah_over} Berkas Over SOP)"
             else:
