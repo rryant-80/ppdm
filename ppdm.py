@@ -117,6 +117,7 @@ if not df_pros_filtered.empty:
                     )
                 ))
         
+        # PERBAIKAN DI SINI: Mengganti parameter yaxis yang invalid
         fig_strobo.update_layout(
             height=450,
             margin=dict(t=20, b=20, l=10, r=10),
@@ -127,7 +128,11 @@ if not df_pros_filtered.empty:
                 categoryarray=kategori_target,
                 tickfont=dict(size=12, fontweight='bold')
             ),
-            yaxis=dict(title=None, autocastoptions=dict(autoorder='reversed')),
+            yaxis=dict(
+                title=None, 
+                type='category',
+                categoryorder='category ascending' # Mengurutkan nama Kantah dari A-Z secara aman
+            ),
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
             plot_bgcolor="#f8fafc",
             paper_bgcolor="#ffffff"
