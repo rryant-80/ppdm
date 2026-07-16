@@ -1,229 +1,153 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
 import plotly.graph_objects as go
+from datetime import datetime
 
-# =========================================================================
-# 1. KONEKSI & LOAD DATA DARI GOOGLE SHEETS
-# =========================================================================
-sheet_id = st.secrets.get("sheet_id", st.secrets.get("SHEET_ID", None))
-gid = "1447858691"
+# Konfigurasi Halaman
+st.set_page_config(layout="wide", page_title="Dashboard Pemantauan Berkas")
 
-if sheet_id is None:
-    st.error("❌ 'id sheet' belum ditemukan di Streamlit Secrets. Pastikan nama key di secrets sesuai (misal: sheet_id = 'YOUR_ID').")
+# --- 1. MEMBACA DATA DARI GOOGLE SHEETS ---
+# Mengambil ID Sheet dari Streamlit Secrets
+try:
+    SHEET_ID = st.secrets["gsheet_id"] # Sesuaikan dengan nama key di secret Anda
+    GID = "1447858691"
+    url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid={GID}"
+    df = pd.read_csv(url)
+except Exception as e:
+    st.error(f"Gagal memuat data. Pastikan ID Sheet di Secret sudah benar. Error: {e}")
     st.stop()
 
-sheet_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid={gid}"
+# --- 2. PREPROCESSING DATA ---
+# Konversi tanggal ke datetime
+df['tgl_mulai'] = pd.to_datetime(df['tgl_mulai'], errors='coerce')
+df['durasi'] = pd.to_numeric(df['durasi'], errors='coerce').fillna(0)
 
-@st.cache_data(ttl=300)
-def load_data_from_sheets(url):
-    try:
-        df = pd.read_csv(url)
-        return df
-    except Exception as e:
-        st.error(f"⚠️ Gagal mengambil data dari Google Sheets: {e}")
-        return pd.DataFrame()
+# Hitung batas SOP dan status melebihi SOP
+# Menggunakan tanggal hari ini (2026) sebagai acuan posisi berkas saat ini
+hari_ini = pd.Timestamp(datetime.now().date())
+df['tgl_deadline'] = df['tgl_mulai'] + pd.to_timedelta(df['durasi'], unit='D')
+df['lewat_sop'] = clarified_status = hari_ini > df['tgl_deadline']
 
-df_source = load_data_from_sheets(sheet_url)
-
-if df_source.empty:
-    st.warning("Data kosong atau gagal dimuat. Periksa kembali konfigurasi ID Sheet dan koneksi internet Anda.")
-    st.stop()
-
-df_pros_filtered = df_source.copy()
+# Filter hanya untuk 4 posisi berkas yang diinginkan
+kategori_posisi = ['Kakan', 'Kasi SP', 'Kasi PHP', 'Loket']
+df_filtered = df[df['posisi_berkas'].isin(kategori_posisi)].copy()
 
 
-# =========================================================================
-# --- MODEL MONITORING LAMPU STROBO SOP (DIBAWAH PROFIL & GRAFIK PERSIL) ---
-# =========================================================================
-st.subheader("🚨 Monitoring Lampu Strobo: Berkas Melebihi Durasi SOP")
+# --- 3. TAMPILAN UTAMA & INDIKATOR STROBO ---
+st.title("📊 Dashboard Pemantauan Berkas Kabupaten/Kota")
+st.markdown("---")
 
-if not df_pros_filtered.empty:
-    df_strobo = df_pros_filtered.copy()
+# Gaya CSS untuk Lampu Strobo Berkedip (Merah untuk Lewat SOP, Hijau untuk Aman)
+st.markdown("""
+<style>
+@keyframes blink-red {
+    0% { background-color: #ff4b4b; box-shadow: 0 0 10px #ff4b4b; }
+    50% { background-color: #8b0000; box-shadow: 0 0 0px #8b0000; }
+    100% { background-color: #ff4b4b; box-shadow: 0 0 10px #ff4b4b; }
+}
+.strobo-red {
+    animation: blink-red 1s infinite;
+    color: white; padding: 15px; border-radius: 10px; text-align: center; font-weight: bold;
+}
+.box-green {
+    background-color: #28a745; color: white; padding: 15px; border-radius: 10px; text-align: center; font-weight: bold;
+}
+</style>
+""", unsafe_scale=True)
+
+st.subheader("🚨 Indikator Kepatuhan SOP Kontinuitas Berkas")
+cols = st.columns(4)
+
+# Menampilkan status strobo untuk masing-masing posisi berkas secara agregat
+for i, posisi in enumerate(kategori_posisi):
+    df_pos = df_filtered[df_filtered['posisi_berkas'] == posisi]
+    total_lewat = df_pos['lewat_sop'].sum()
     
-    # 1. Parsing Tanggal & Kalkulasi Batas Toleransi SOP
-    df_strobo['tgl_mulai'] = pd.to_datetime(df_strobo['tgl_mulai'], errors='coerce')
-    df_strobo['durasi'] = pd.to_numeric(df_strobo['durasi'], errors='coerce').fillna(0)
-    df_strobo['batas_sop'] = df_strobo['tgl_mulai'] + pd.to_timedelta(df_strobo['durasi'], unit='D')
-    
-    # Deteksi Over SOP
-    waktu_sekarang = pd.Timestamp.now()
-    df_strobo['over_sop'] = df_strobo['batas_sop'] < waktu_sekarang
-    
-    # 2. Pemetaan Posisi Berkas ke 4 Kategori Target
-    kategori_target = ["Kakan", "Kasi SP", "Kasi PHP", "Loket"]
-    
-    def cek_kategori(posisi):
-        pos_clean = str(posisi).strip().lower()
-        if "kakan" in pos_clean: return "Kakan"
-        if "sp" in pos_clean: return "Kasi SP"
-        if "php" in pos_clean: return "Kasi PHP"
-        if "loket" in pos_clean: return "Loket"
-        return None
-        
-    df_strobo['kategori_clean'] = df_strobo['posisi_berkas'].apply(cek_kategori)
-    
-    # Filter berkas yang OVER SOP & masuk 4 kategori target
-    df_alert = df_strobo[(df_strobo['over_sop'] == True) & (df_strobo['kategori_clean'].notna())].copy()
-    
-    # Pastikan ketersediaan kolom daerah
-    if 'kantah_kab' not in df_alert.columns:
-        df_alert['kantah_kab'] = df_alert.get('kantah', 'Belum Terdata')
-
-    if not df_alert.empty:
-        # Gabungkan nomor dan tahun berkas untuk hover
-        df_alert['nmr_thn'] = df_alert['nmr_berkas'].astype(str) + "/" + df_alert['thn_berkas'].astype(str)
-        
-        # Grouping untuk grafik bubble strobo matrix
-        df_chart = df_alert.groupby(['kantah_kab', 'kategori_clean']).agg(
-            jumlah_berkas=('nmr_berkas', 'count'),
-            daftar_berkas=('nmr_thn', lambda x: "<br>".join(x))
-        ).reset_index()
-        
-        # Skema warna seragam global per posisi berkas
-        warna_posisi = {
-            "Kakan": "#dc2626",    # Merah Terang
-            "Kasi SP": "#ea580c",  # Oranye Tua
-            "Kasi PHP": "#eab308", # Kuning Strobo
-            "Loket": "#2563eb"     # Biru
-        }
-        
-        fig_strobo = go.Figure()
-        has_traces = False  
-        
-        for posisi in kategori_target:
-            df_sub = df_chart[df_chart['kategori_clean'] == posisi]
-            if not df_sub.empty:
-                fig_strobo.add_trace(go.Scatter(
-                    x=df_sub['kategori_clean'],
-                    y=df_sub['kantah_kab'],
-                    mode='markers+text',
-                    name=posisi,
-                    marker=dict(
-                        size=df_sub['jumlah_berkas'] * 4 + 25, 
-                        color=warna_posisi[posisi],
-                        line=dict(width=2, color='#ffffff'),
-                        opacity=0.85
-                    ),
-                    text=df_sub['jumlah_berkas'], 
-                    textposition="middle center",
-                    textfont=dict(color="white", size=11, family="Arial Black"),
-                    customdata=df_sub['daftar_berkas'],
-                    hovertemplate=(
-                        "<b>🏢 Kantah:</b> %{y}<br>"
-                        "<b>📌 Posisi:</b> %{x}<br>"
-                        "<b>🚨 Total Hambatan:</b> %{text} Berkas<br>"
-                        "<br><b>📋 Daftar Berkas (No/Thn):</b><br>%{customdata}"
-                        "<extra></extra>"
-                    )
-                ))
-                has_traces = True
-
-        if has_traces:
-            # SOLUSI UTAMA: Menggunakan pengurutan otomatis kategori (category ascending) 
-            # untuk menghindari ValueError akibat ketidakcocokan array sumbu kustom.
-            fig_strobo.update_layout(
-                height=450,
-                margin=dict(t=20, b=20, l=10, r=10),
-                xaxis=dict(
-                    title=None, 
-                    type='category', 
-                    categoryorder='category ascending',
-                    tickfont=dict(size=12, fontweight='bold')
-                ),
-                yaxis=dict(
-                    title=None, 
-                    type='category',
-                    categoryorder='category ascending'
-                ),
-                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-                plot_bgcolor="#f8fafc",
-                paper_bgcolor="#ffffff"
-            )
-            st.plotly_chart(fig_strobo, use_container_width=True, key="dashboard_lampu_strobo")
+    with cols[i]:
+        if total_lewat > 0:
+            st.markdown(f"""
+            <div class="strobo-red">
+                {posisi}<br>
+                <span style="font-size:20px;">{total_lewat} Berkas Lewat SOP</span>
+            </div>
+            """, unsafe_allow_html=True)
         else:
-            st.info("ℹ️ Terdapat berkas melewati batas waktu SOP, namun jabatannya belum masuk dalam klasifikasi utama.")
-        
-    else:
-        st.success("🎉 Seluruh berkas di semua Kantah dalam posisi aman & sesuai durasi SOP.")
+            st.markdown(f"""
+            <div class="box-green">
+                {posisi}<br>
+                <span style="font-size:20px;">Semua Aman</span>
+            </div>
+            """, unsafe_allow_html=True)
 
-    # =====================================================================
-    # PENDEKATAN SATU LAYAR: MATRIKS REKAPITULASI TOTAL OVER SOP PER KANTAH
-    # =====================================================================
-    st.markdown("### 📊 Ringkasan Eksekutif (Dashboard Matriks)")
+st.markdown("---")
+
+
+# --- 4. PEMBUATAN GRAFIK BATANG MULTI-KATEGORI ---
+st.subheader("📈 Grafik Jumlah Prosedur berdasarkan Kabupaten/Kota dan Posisi Berkas")
+
+# Agregasi data untuk kebutuhan grafik dan hover template
+# Kita gabungkan nomor berkas dan tahun untuk keperluan hover
+df_filtered['no_thn_berkas'] = df_filtered['nmr_berkas'].astype(str) + "/" + df_filtered['thn_berkas'].astype(str)
+
+# Kelompokkan data
+df_grouped = df_filtered.groupby(['kabupaten_kota', 'posisi_berkas', 'nama_prosedur']).agg(
+    banyak_berkas=('nmr_berkas', 'count'),
+    daftar_berkas=('no_thn_berkas', lambda x: ", ".join(x.unique()))
+).reset_index()
+
+# Membuat figure Plotly
+fig = go.Figure()
+
+# Urutan kabupaten_kota yang unik untuk sumbu X
+daftar_kab_kota = df_grouped['kabupaten_kota'].unique()
+
+# Generate chart untuk setiap posisi berkas agar terkelompok (grouped bar)
+for posisi in kategori_posisi:
+    df_trace = df_grouped[df_grouped['posisi_berkas'] == posisi]
     
-    if not df_alert.empty:
-        df_matrix = df_alert.groupby(['kantah_kab', 'kategori_clean']).size().unstack(fill_value=0)
-        
-        for kat in kategori_target:
-            if kat not in df_matrix.columns:
-                df_matrix[kat] = 0
-                
-        df_matrix = df_matrix[kategori_target]
-        df_matrix['TOTAL OVER SOP'] = df_matrix.sum(axis=1)
-        df_matrix = df_matrix.sort_values(by='TOTAL OVER SOP', ascending=False)
-        
-        try:
-            st.dataframe(
-                df_matrix.style.background_gradient(cmap='Reds', subset=kategori_target)
-                               .format("{:,}"),
-                use_container_width=True
+    # Sinkronisasi sumbu X agar konsisten meski ada kabupaten yang tidak memiliki posisi berkas tertentu
+    x_data = []
+    y_data = []
+    hover_text = []
+    
+    for kab in daftar_kab_kota:
+        row = df_trace[df_trace['kabupaten_kota'] == kab]
+        x_data.append(kab)
+        if not row.empty:
+            # Mengambil data jumlah berkas
+            y_data.append(row['banyak_berkas'].sum())
+            
+            # Menyusun kustom hover text sesuai permintaan
+            prosedur_list = "<br>".join([f"- {p}" for p in row['nama_prosedur'].unique()])
+            text = (
+                f"<b>Posisi: {posisi}</b><br>"
+                f"Prosedur:<br>{prosedur_list}<br>"
+                f"Banyak Berkas: {row['banyak_berkas'].sum()}<br>"
+                f"No/Thn Berkas: {row['daftar_berkas'].iloc[0]}"
             )
-        except Exception:
-            st.dataframe(df_matrix, use_container_width=True)
-            
-    else:
-        st.info("Tidak ada rekapitulasi penumpukan berkas saat ini.")
-    
-    st.markdown("---")
-    st.markdown("### 🔍 Detail Distribusi Visual per Kantah")
+            hover_text.append(text)
+        else:
+            y_data.append(0)
+            hover_text.append(f"<b>Posisi: {posisi}</b><br>Tidak ada berkas")
 
-    kolom_kantah_induk = 'kantah_kab' if 'kantah_kab' in df_pros_filtered.columns else ('kantah' if 'kantah' in df_pros_filtered.columns else None)
-    
-    if kolom_kantah_induk:
-        semua_kantah = sorted(df_pros_filtered[kolom_kantah_induk].dropna().unique())
-        
-        for kantah in semua_kantah:
-            df_kantah = df_alert[df_alert['kantah_kab'] == kantah]
-            total_kantah_over = len(df_kantah)
-            
-            if total_kantah_over > 0:
-                header_text = f"🏢 {str(kantah).upper()} 🔴 ({total_kantah_over} Berkas Over SOP)"
-            else:
-                header_text = f"🏢 {str(kantah).upper()} 🟢 (Semua Berkas Aman)"
-                
-            with st.expander(header_text, expanded=(total_kantah_over > 0)):
-                if total_kantah_over > 0:
-                    c1, c2, c3, c4 = st.columns(4)
-                    blocks = [("Kakan", c1), ("Kasi SP", c2), ("Kasi PHP", c3), ("Loket", c4)]
-                    
-                    for nama_kat, kolom_tujuan in blocks:
-                        with kolom_tujuan:
-                            df_kat_spesifik = df_kantah[df_kantah['kategori_clean'] == nama_kat].copy()
-                            jumlah_over = len(df_kat_spesifik)
-                            
-                            if jumlah_over > 0:
-                                st.markdown(
-                                    f'<div style="border:1px solid #fca5a5; border-radius:6px; padding:6px 10px; background-color:#fef2f2; margin-bottom:5px;">'
-                                    f'<span style="font-weight:bold; color:#991b1b; font-size:12px;">🔴 {nama_kat.upper()}: {jumlah_over} brks</span>'
-                                    f'</div>', 
-                                    unsafe_allow_html=True
-                                )
-                                df_kat_spesifik['nmr_thn'] = df_kat_spesifik['nmr_berkas'].astype(str) + "/" + df_kat_spesifik['thn_berkas'].astype(str)
-                                list_brk = ", ".join(df_kat_spesifik['nmr_thn'].tolist())
-                                st.caption(f"No: {list_brk}")
-                            else:
-                                st.markdown(
-                                    f'<div style="border:1px solid #e2e8f0; border-radius:6px; padding:6px 10px; background-color:#f8fafc; margin-bottom:5px;">'
-                                    f'<span style="color:#64748b; font-size:12px;">🟢 {nama_kat.upper()}: 0</span>'
-                                    f'</div>', 
-                                    unsafe_allow_html=True
-                                )
-                else:
-                    st.success(f"Tidak ada penumpukan berkas melebihi durasi SOP di {kantah}.")
-    else:
-        st.info("Kolom wilayah/kantah tidak terdeteksi pada struktur data sheet.")
+    fig.add_trace(go.Bar(
+        name=posisi,
+        x=x_data,
+        y=y_data,
+        hoverinfo="text",
+        hovertext=hover_text
+    ))
 
-else:
-    st.info("Tidak ada data pelacakan durasi prosedur berkas saat ini.")
-st.markdown("<br><hr><br>", unsafe_allow_html=True)
+# Modifikasi Layout Grafik
+fig.update_layout(
+    barmode='group', # Membuat grafik batang bersebelahan per Kabupaten/Kota
+    xaxis_title="Kabupaten / Kota",
+    yaxis_title="Jumlah Prosedur (Banyak Berkas)",
+    legend_title="Posisi Berkas",
+    hoverlabel=dict(bgcolor="white", font_size=12),
+    margin=dict(l=40, r=40, t=40, b=40),
+    height=600
+)
+
+# Tampilkan Grafik di Streamlit
+st.plotly_chart(fig, use_container_width=True)
