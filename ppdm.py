@@ -89,7 +89,7 @@ if not df_pros_filtered.empty:
         }
         
         fig_strobo = go.Figure()
-        has_traces = False  # Penanda data visual terisi
+        has_traces = False  
         
         for posisi in kategori_target:
             df_sub = df_chart[df_chart['kategori_clean'] == posisi]
@@ -119,16 +119,16 @@ if not df_pros_filtered.empty:
                 ))
                 has_traces = True
 
-        # PENGAMAN UTAMA: Layout hanya dipicu jika ada grafik yang valid dibuat
         if has_traces:
+            # SOLUSI UTAMA: Menggunakan pengurutan otomatis kategori (category ascending) 
+            # untuk menghindari ValueError akibat ketidakcocokan array sumbu kustom.
             fig_strobo.update_layout(
                 height=450,
                 margin=dict(t=20, b=20, l=10, r=10),
                 xaxis=dict(
                     title=None, 
                     type='category', 
-                    categoryorder='array', 
-                    categoryarray=kategori_target,
+                    categoryorder='category ascending',
                     tickfont=dict(size=12, fontweight='bold')
                 ),
                 yaxis=dict(
@@ -142,7 +142,7 @@ if not df_pros_filtered.empty:
             )
             st.plotly_chart(fig_strobo, use_container_width=True, key="dashboard_lampu_strobo")
         else:
-            st.info("ℹ️ Terdapat berkas melewati batas waktu, namun posisi berkas belum masuk ke dalam 4 instansi target utama (Kakan, Kasi SP, Kasi PHP, Loket).")
+            st.info("ℹ️ Terdapat berkas melewati batas waktu SOP, namun jabatannya belum masuk dalam klasifikasi utama.")
         
     else:
         st.success("🎉 Seluruh berkas di semua Kantah dalam posisi aman & sesuai durasi SOP.")
@@ -170,7 +170,6 @@ if not df_pros_filtered.empty:
                 use_container_width=True
             )
         except Exception:
-            # Fallback mutlak jika bermasalah dengan render style gradasi di cloud
             st.dataframe(df_matrix, use_container_width=True)
             
     else:
