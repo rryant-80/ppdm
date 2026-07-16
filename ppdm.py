@@ -23,7 +23,7 @@ df['durasi'] = pd.to_numeric(df['durasi'], errors='coerce').fillna(0)
 # Acuan tanggal hari ini untuk hitung SOP
 hari_ini = pd.Timestamp(datetime.now().date())
 df['tgl_deadline'] = df['tgl_mulai'] + pd.to_timedelta(df['durasi'], unit='D')
-df['lewat_sop'] = hari_ini > df['tgl_deadline']
+df['lewat_sop'] = clarified_status = hari_ini > df['tgl_deadline']
 
 # Filter hanya untuk 4 posisi berkas
 kategori_posisi = ['Kakan', 'Kasi SP', 'Kasi PHP', 'Loket']
@@ -78,11 +78,9 @@ st.markdown("---")
 
 # --- 4. PEMBUATAN GRAFIK BATANG MULTI-KATEGORI ---
 st.subheader("📈 Grafik Jumlah Prosedur berdasarkan Kabupaten/Kota dan Posisi Berkas")
-st.info("💡 **Tips:** Klik pada salah satu batang grafik untuk menampilkan detail tabel drilldown di bawah.")
 
 df_filtered['no_thn_berkas'] = df_filtered['nmr_berkas'].astype(str) + "/" + df_filtered['thn_berkas'].astype(str)
 
-# Agregasi data untuk kebutuhan grafik
 df_grouped = df_filtered.groupby(['kabupaten_kota', 'posisi_berkas', 'nama_prosedur']).agg(
     banyak_berkas=('nmr_berkas', 'count'),
     daftar_berkas=('no_thn_berkas', lambda x: ", ".join(x.unique()))
@@ -120,9 +118,7 @@ for posisi in kategori_posisi:
         x=x_data,
         y=y_data,
         hoverinfo="text",
-        hovertext=hover_text,
-        # Menyimpan informasi kustom tambahan agar bisa dibaca saat diklik
-        customdata=[posisi] * len(x_data) 
+        hovertext=hover_text
     ))
 
 fig.update_layout(
@@ -134,44 +130,44 @@ fig.update_layout(
     height=500
 )
 
-# Menangkap event klik dari chart Plotly
-# Mengaktifkan on_select="rerun" membuat Streamlit mendeteksi elemen chart yang diklik
-selected_points = st.plotly_chart(fig, use_container_width=True, on_select="rerun")
+# Tampilkan grafik secara statis standar (Lebih kompatibel)
+st.plotly_chart(fig, use_container_width=True)
 
 st.markdown("---")
 
-# --- 5. TABEL DRILLDOWN INTERAKTIF ---
-# Cek apakah pengguna melakukan klik pada salah satu batang grafik
-if selected_points and "points" in selected_points and len(selected_points["points"]) > 0:
-    # Mengambil data poin ke-0 yang diklik
-    point_data = selected_points["points"][0]
+# --- 5. PANEL FILTER DRILLDOWN (PENGGANTI KLIK GRAFIK) ---
+st.subheader("🔍 Drilldown Detail Berkas")
+col_f1, col_f2 = st.columns(2)
+
+with col_f1:
+    pilihan_kab = st.selectbox("Pilih Kabupaten/Kota untuk Detail:", ["-- Pilih Kabupaten/Kota --"] + list(daftar_kab_kota))
+with col_f2:
+    pilihan_pos = st.selectbox("Pilih Posisi Berkas untuk Detail:", ["-- Pilih Posisi Berkas --"] + kategori_posisi)
+
+# Logika pemicu tabel drilldown berdasarkan pilihan selectbox
+if pilihan_kab != "-- Pilih Kabupaten/Kota --" and pilihan_pos != "-- Pilih Posisi Berkas --":
     
-    # Mendapatkan nilai nama kabupaten dan nama posisi berkas dari event klik
-    klik_kabupaten = point_data.get("x")
-    klik_posisi = point_data.get("customdata") # Diambil dari customdata yang dipasang di trace tadi
+    st.subheader(f"📋 Detail Berkas: Kabupaten/Kota {pilihan_kab} - Posisi {pilihan_pos}")
     
-    st.subheader(f"📋 Detail Berkas: Kabupaten/Kota {klik_kabupaten} - Posisi {klik_posisi}")
-    
-    # Filter data utama berdasarkan yang diklik
+    # Filter data utama
     df_drilldown = df[
-        (df['kabupaten_kota'] == klik_kabupaten) & 
-        (df['posisi_berkas'] == klik_posisi)
+        (df['kabupaten_kota'] == pilihan_kab) & 
+        (df['posisi_berkas'] == pilihan_pos)
     ].copy()
     
     if not df_drilldown.empty:
-        # Format kolom tgl_mulai menjadi string tanggal yang rapi (YYYY-MM-DD)
+        # Format string tanggal (YYYY-MM-DD)
         df_drilldown['tgl_mulai'] = pd.to_datetime(df_drilldown['tgl_mulai']).dt.strftime('%Y-%m-%d')
         
-        # Pilih kolom sesuai permintaan
+        # Susun kolom sesuai instruksi
         df_drilldown_display = df_drilldown[['kabupaten_kota', 'nmr_berkas', 'tgl_mulai', 'nama_prosedur']].copy()
         
-        # Membuat kolom "No." otomatis dimulai dari angka 1
+        # Penomoran otomatis kolom "No."
         df_drilldown_display.insert(0, 'No.', range(1, len(df_drilldown_display) + 1))
         
-        # Tampilkan data ke tabel Streamlit dengan menghilangkan index bawaan pandas
+        # Tampilkan Tabel
         st.dataframe(df_drilldown_display, use_container_width=True, hide_index=True)
     else:
-        st.info("Tidak ada berkas detail untuk kategori ini.")
+        st.info("Tidak ada data berkas yang terdaftar untuk kombinasi ini.")
 else:
-    # Tampilan default jika belum ada grafik yang diklik
-    st.info("Silakan klik salah satu batang pada grafik di atas untuk melihat detail tabel drilldown di sini.")
+    st.info("Silakan tentukan Kabupaten/Kota dan Posisi Berkas pada pilihan di atas untuk memunculkan tabel detail.")
