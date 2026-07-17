@@ -21,12 +21,15 @@ except Exception as e:
 df['tgl_mulai'] = pd.to_datetime(df['tgl_mulai'], errors='coerce')
 df['durasi'] = pd.to_numeric(df['durasi'], errors='coerce').fillna(0)
 
+# Bersihkan data kabupaten_kota dari spasi berlebih agar pengelompokan stabil
+df['kabupaten_kota'] = df['kabupaten_kota'].astype(str).str.strip()
+
 # Acuan tanggal hari ini untuk hitung SOP (Tahun 2026)
 hari_ini = pd.Timestamp(datetime.now().date())
 df['tgl_deadline'] = df['tgl_mulai'] + pd.to_timedelta(df['durasi'], unit='D')
 df['lewat_sop'] = hari_ini > df['tgl_deadline']
 
-# Filter hanya untuk 4 posisi berkas
+# Filter untuk 4 posisi berkas utama
 kategori_posisi = ['Kakan', 'Kasi SP', 'Kasi PHP', 'Loket']
 df_filtered = df[df['posisi_berkas'].isin(kategori_posisi)].copy()
 
