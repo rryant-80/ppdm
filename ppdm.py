@@ -36,6 +36,8 @@ df_filtered_strobo = df[df['posisi_berkas'].isin(kategori_posisi_strobo)].copy()
 
 
 # --- 3. TAMPILAN UTAMA & INDIKATOR STROBO (URAI SEMUA KABUPATEN/KOTA) ---
+
+st.markdown("""
 <style>
 @keyframes blink-red {
     0% { background-color: #ff4b4b; box-shadow: 0 0 8px #ff4b4b; }
