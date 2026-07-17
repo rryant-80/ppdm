@@ -78,7 +78,7 @@ st.markdown("<hr style='margin: 5px 0 15px 0;'>", unsafe_allow_html=True)
 
 # Perulangan wajib memetakan TOTAL seluruh Kabupaten/Kota tanpa terkecuali
 for kab in daftar_kab_ind:
-    col_b0, col_b1, col_b2, col_b3, col_b4 = st.columns([2, 1, 1, 1, 1])
+    col_b0, col_b1, col_b2, col_b3, col_b4 = st.columns([1, 1, 1, 1, 1])
     
     with col_b0:
         st.markdown(f"<div class='kantah-header'>📍 {kab}</div>", unsafe_allow_html=True)
