@@ -116,63 +116,63 @@ for kab in daftar_kab_ind:
 
 st.markdown("---")
 
-# --- 4. PEMBUATAN GRAFIK BATANG MULTI-KATEGORI (NAMA PROSEDUR) ---
-st.subheader("📈 Grafik Jumlah Berkas berdasarkan Kabupaten/Kota dan Nama Prosedur")
+# --- 4. PEMBUATAN GRAFIK BATANG TUNGGAL (URUTAN TERBANYAK KANAN-KIRI) ---
+st.subheader("📈 Grafik Total Berkas Prosedur berdasarkan Kabupaten/Kota")
 
-df['no_thn_berkas'] = df['nmr_berkas'].astype(str) + "/" + df['thn_berkas'].astype(str)
+# 1. Hitung total berkas per Kabupaten/Kota untuk pengurutan
+df_total_kab = df.groupby('kabupaten_kota')['nmr_berkas'].count().reset_index()
+df_total_kab = df_total_kab.sort_values(by='nmr_berkas', ascending=False)
 
-# Mengelompokkan data berdasarkan seluruh nama prosedur
-df_grouped = df.groupby(['kabupaten_kota', 'nama_prosedur']).agg(
-    banyak_berkas=('nmr_berkas', 'count'),
-    daftar_berkas=('no_thn_berkas', lambda x: ", ".join(x.unique().astype(str)))
-).reset_index()
+# Mengambil daftar kabupaten yang sudah terurut dari terbanyak ke tersedikit
+daftar_kab_terurut = df_total_kab['kabupaten_kota'].tolist()
 
+# 2. Agregasi data untuk menyusun isi hover template (nama_prosedur : jumlah)
+df_hover_prep = df.groupby(['kabupaten_kota', 'nama_prosedur']).size().reset_index(name='jumlah')
+
+x_data = []
+y_data = []
+hover_text = []
+
+# Loop berdasarkan urutan kabupaten terbanyak
+for kab in daftar_kab_terurut:
+    df_kab_prosedur = df_hover_prep[df_hover_prep['kabupaten_kota'] == kab]
+    
+    total_berkas = df_kab_prosedur['jumlah'].sum()
+    
+    x_data.append(kab)
+    y_data.append(total_berkas)
+    
+    # Menyusun format hover template: nama_prosedur : jumlah
+    detail_hover_list = []
+    for row in df_kab_prosedur.itertuples():
+        detail_hover_list.append(f"{row.nama_prosedur}: {row.jumlah}")
+        
+    prosedur_hover_string = "<br>".join(detail_hover_list)
+    
+    text = (
+        f"<b>{kab}</b><br>"
+        f"Total Berkas: {total_berkas}<br><br>"
+        f"<b>Detail Prosedur:</b><br>{prosedur_hover_string}"
+    )
+    hover_text.append(text)
+
+# 3. Membuat grafik batang tunggal
 fig = go.Figure()
 
-# Mendapatkan seluruh kategori nama prosedur unik di database
-daftar_prosedur = sorted([p for p in df['nama_prosedur'].unique() if pd.notna(p) and p.strip() != ''])
-
-for prosedur in daftar_prosedur:
-    df_trace = df_grouped[df_grouped['nama_prosedur'] == prosedur]
-    
-    x_data = []
-    y_data = []
-    hover_text = []
-    
-    # PERBAIKAN: Menggunakan daftar_kab_ind yang sudah didefinisikan secara absolut di atas
-    for kab in daftar_kab_ind:
-        row = df_trace[df_trace['kabupaten_kota'] == kab]
-        x_data.append(kab)
-        if not row.empty:
-            jumlah = row['banyak_berkas'].sum()
-            y_data.append(jumlah)
-            
-            text = (
-                f"<b>Prosedur: {prosedur}</b><br>"
-                f"Kabupaten/Kota: {kab}<br>"
-                f"Banyak Berkas: {jumlah}<br>"
-                f"No/Thn Berkas: {row['daftar_berkas'].iloc[0]}"
-            )
-            hover_text.append(text)
-        else:
-            y_data.append(0)
-            hover_text.append(f"<b>Prosedur: {prosedur}</b><br>Tidak ada berkas")
-
-    fig.add_trace(go.Bar(
-        name=prosedur,
-        x=x_data,
-        y=y_data,
-        hoverinfo="text",
-        hovertext=hover_text
-    ))
+fig.add_trace(go.Bar(
+    x=x_data,
+    y=y_data,
+    hoverinfo="text",
+    hovertext=hover_text,
+    marker_color='#1f77b4'  # Warna batang biru seragam agar bersih
+))
 
 fig.update_layout(
-    barmode='group',
-    xaxis_title="Kabupaten / Kota",
-    yaxis_title="Jumlah Berkas",
-    legend_title="Nama Prosedur",
+    xaxis_title="Kabupaten / Kota (Diurutkan dari Terbanyak)",
+    yaxis_title="Total Jumlah Berkas Prosedur",
     hoverlabel=dict(bgcolor="white", font_size=12),
-    height=600
+    height=550,
+    margin=dict(l=40, r=40, t=40, b=40)
 )
 
 st.plotly_chart(fig, use_container_width=True)
