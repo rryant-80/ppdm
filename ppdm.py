@@ -178,7 +178,7 @@ st.plotly_chart(fig, use_container_width=True)
 
 st.markdown("---")
 
-# --- 5. PANEL FILTER DRILLDOWN (SEMUA KATEGORI DATABASE) ---
+# --- 5. PANEL FILTER DRILLDOWN (SEMUA KATEGORI DATABASE DENGAN AUTO-WIDTH) ---
 st.subheader("🔍 Drilldown Detail Berkas")
 col_f1, col_f2 = st.columns(2)
 
@@ -242,38 +242,37 @@ if pilihan_kab != "-- Pilih Kabupaten/Kota --" and pilihan_pos != "-- Pilih Posi
         # Penomoran otomatis kolom "No."
         df_drilldown_display.insert(0, 'No.', range(1, len(df_drilldown_display) + 1))
         
-        # 4. INJEKSI CSS: Membuat teks header di tabel menjadi posisi tengah (center), berwarna biru, dan bold
+        # 4. INJEKSI CSS: Teks header tengah, warna biru, bold
         st.markdown("""
         <style>
-            /* Menargetkan kontainer header sel tabel data di Streamlit */
             div[data-testid="stTable"] th, 
             div[data-testid="stDataFrameData"] th,
             .stDataFrame table thead th,
             th[data-testid="stDataFrameHeaderCell"] {
-                color: #1f77b4 !important; /* Warna biru formal */
-                font-weight: bold !important; /* Teks tebal */
-                text-align: center !important; /* Posisi teks tengah */
+                color: #1f77b4 !important; 
+                font-weight: bold !important; 
+                text-align: center !important; 
             }
         </style>
         """, unsafe_allow_html=True)
         
-        # 5. MENGATUR ALIGNMENT ISI KOLOM INDIVIDU
-        # Sesuai permintaan: Kabupaten/Kota, Nama Prosedur, dan Posisi Berkas disetel rata kiri (left).
-        # Kolom angka dan tanggal lainnya disetel rata tengah (center).
+        # 5. MENGATUR ALIGNMENT & UKURAN LEBAR KOLOM (AUTO & DYNAMIC EXPAND)
+        # Kita biarkan lebar kolom 'No.', 'Nomor Berkas', dan 'Tanggal Mulai' menyesuaikan otomatis, 
+        # sedangkan kolom teks panjang diset fleksibel agar meregang mengikuti teks di bawahnya tanpa tersembunyi.
         konfigurasi_kolom = {
-            'No.': st.column_config.Column(alignment="center"),
-            'Kabupaten / Kota': st.column_config.Column(alignment="left"),
-            'Nomor Berkas': st.column_config.Column(alignment="center"),
-            'Tanggal Mulai': st.column_config.Column(alignment="center"),
-            'Nama Prosedur': st.column_config.Column(alignment="left"),
-            'Posisi Berkas': st.column_config.Column(alignment="left"),
-            'Hari Berjalan (SOP)': st.column_config.Column(alignment="center"),
+            'No.': st.column_config.Column(alignment="center", width="small"),
+            'Kabupaten / Kota': st.column_config.Column(alignment="left", width="medium"),
+            'Nomor Berkas': st.column_config.Column(alignment="center", width="medium"),
+            'Tanggal Mulai': st.column_config.Column(alignment="center", width="medium"),
+            'Nama Prosedur': st.column_config.Column(alignment="left", width="large"), # Memberikan ruang paling besar agar teks prosedur tidak terpotong
+            'Posisi Berkas': st.column_config.Column(alignment="left", width="medium"),
+            'Hari Berjalan (SOP)': st.column_config.Column(alignment="center", width="medium"),
         }
         
         # Tampilkan Tabel Drilldown final
         st.dataframe(
             df_drilldown_display, 
-            use_container_width=True, 
+            use_container_width=True, # Memaksa tabel memanfaatkan seluruh lebar grid halaman
             hide_index=True,
             column_config=konfigurasi_kolom
         )
