@@ -35,9 +35,6 @@ df_filtered = df[df['posisi_berkas'].isin(kategori_posisi)].copy()
 
 
 # --- 3. TAMPILAN UTAMA & INDIKATOR STROBO (URAI SEMUA KABUPATEN/KOTA) ---
-st.title("📊 Dashboard Pemantauan Berkas Kabupaten/Kota")
-st.markdown("---")
-
 # Gaya CSS untuk Lampu Strobo Berkedip & layout kartu mini
 st.markdown("""
 <style>
@@ -60,8 +57,8 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.subheader("🚨 Peta Kepatuhan SOP Kontinuitas Berkas per Kantor Pertanahan")
-st.caption("💡 **Tips:** Arahkan kursor (*hover*) ke kotak strobo merah untuk melihat detail nomor berkas dan nama prosedur.")
+st.subheader("🚨 Berkas Melebihi Durasi SOP")
+st.caption("💡 **Tips:** Arahkan kursor ke kotak merah untuk melihat detail nomor berkas dan nama prosedur.")
 
 # PERBAIKAN UTAMA: Mengambil daftar kabupaten langsung dari master data 'df' asli 
 # dan mengeliminasi teks kosong atau string penanda kosong seperti 'nan'
@@ -76,7 +73,7 @@ with col_h0: st.markdown("**Kantor Pertanahan (Kab/Kota)**")
 with col_h1: st.markdown("<center><b>Kakan</b></center>", unsafe_allow_html=True)
 with col_h2: st.markdown("<center><b>Kasi SP</b></center>", unsafe_allow_html=True)
 with col_h3: st.markdown("<center><b>Kasi PHP</b></center>", unsafe_allow_html=True)
-with col_h4: st.markdown("<center><b>Loket</b></center>", unsafe_allow_html=True)
+with col_h4: st.markdown("<center><b>Loket Penyerahan</b></center>", unsafe_allow_html=True)
 st.markdown("<hr style='margin: 5px 0 15px 0;'>", unsafe_allow_html=True)
 
 # Perulangan wajib memetakan TOTAL seluruh Kabupaten/Kota tanpa terkecuali
@@ -99,9 +96,9 @@ for kab in daftar_kab_ind:
         
         with target_col:
             if total_lewat > 0:
-                detail_hover = "Detail Berkas Terlambat:\n"
+                detail_hover = "Berkas melebihi SOP :\n"
                 for idx, row in enumerate(df_lewat.itertuples(), 1):
-                    detail_hover += f"{idx}. No: {row.nmr_berkas}/{row.thn_berkas} - {row.nama_prosedur}\n"
+                    detail_hover += f"{idx}. No : {row.nmr_berkas}/{row.thn_berkas} - {row.nama_prosedur}\n"
                 
                 st.markdown(f"""
                 <div class="strobo-red-mini" title="{detail_hover.strip()}">
@@ -112,7 +109,7 @@ for kab in daftar_kab_ind:
                 # Jika kabupaten tidak punya berkas sama sekali di posisi ini, otomatis berstatus Aman
                 st.markdown("""
                 <div class="box-green-mini">
-                    ✅ Aman
+                    ✅ Tuntas
                 </div>
                 """, unsafe_allow_html=True)
                 
