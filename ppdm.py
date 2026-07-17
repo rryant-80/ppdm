@@ -177,9 +177,8 @@ st.plotly_chart(fig, use_container_width=True)
 
 st.markdown("---")
 
-
 # --- 5. PANEL FILTER DRILLDOWN (SEMUA KATEGORI DATABASE) ---
-st.subheader("🔍 Detail Berkas")
+st.subheader("🔍 Drilldown Detail Berkas")
 col_f1, col_f2 = st.columns(2)
 
 # Mengambil seluruh kategori posisi berkas yang unik dari database tanpa filter
@@ -191,28 +190,53 @@ daftar_seluruh_posisi = sorted([
 with col_f1:
     pilihan_kab = st.selectbox("Pilih Kabupaten/Kota untuk Detail:", ["-- Pilih Kabupaten/Kota --"] + list(daftar_kab_ind))
 with col_f2:
-    pilihan_pos = st.selectbox("Pilih Posisi Berkas untuk Detail:", ["-- Pilih Posisi Berkas --"] + daftar_seluruh_posisi)
+    # PERBAIKAN 1: Menambahkan opsi "-- Semua Posisi --" ke dalam selectbox
+    pilihan_pos = st.selectbox("Pilih Posisi Berkas untuk Detail:", ["-- Pilih Posisi Berkas --", "-- Semua Posisi --"] + daftar_seluruh_posisi)
 
-if pilihan_kab != "-- Pilih Kabupaten/Kota --" and pilihan_pos != "-- Pilih Posisi Berkas --":    
+if pilihan_kab != "-- Pilih Kabupaten/Kota --" and pilihan_pos != "-- Pilih Posisi Berkas --":
     
-    # Filter data menggunakan data master asli 'df' agar mencakup semua kategori posisi
-    df_drilldown = df[
-        (df['kabupaten_kota'] == pilihan_kab) & 
-        (df['posisi_berkas'] == pilihan_pos)
-    ].copy()
+    st.subheader(f"📋 Detail Berkas: Kabupaten/Kota {pilihan_kab} - {pilihan_pos if pilihan_pos != '-- Semua Posisi --' else 'Semua Posisi Berkas'}")
+    
+    # Filter awal berdasarkan Kabupaten/Kota
+    df_drilldown = df[df['kabupaten_kota'] == pilihan_kab].copy()
+    
+    # Jika memilih posisi berkas spesifik (bukan Semua Posisi)
+    if pilihan_pos != "-- Semua Posisi --":
+        df_drilldown = df_drilldown[df_drilldown['posisi_berkas'] == pilihan_pos].copy()
     
     if not df_drilldown.empty:
-        # Format string tanggal (YYYY-MM-DD)
-        df_drilldown['tgl_mulai'] = pd.to_datetime(df_drilldown['tgl_mulai']).dt.strftime('%Y-%m-%d')
+        # PERBAIKAN 2: Mengurutkan tabel berdasarkan tanggal lama ke baru (tgl_mulai)
+        df_drilldown = df_drilldown.sort_values(by='tgl_mulai', ascending=True)
         
-        # Susun kolom sesuai instruksi
-        df_drilldown_display = df_drilldown[['kabupaten_kota', 'nmr_berkas', 'tgl_mulai', 'nama_prosedur']].copy()
+        # PERBAIKAN 4: Menambahkan kolom di belakang durasi asli (tgl_mulai dikurangi tanggal hari ini)
+        # Catatan: Karena hasilnya negatif jika dikurangi hari ini, kita gunakan hitungan selisih hari
+        df_drilldown['Hari Berjalan'] = (df_drilldown['tgl_mulai'].dt.date - hari_ini.date()).apply(lambda x: x.days)
+        
+        # Format string tanggal asal agar rapi (YYYY-MM-DD) setelah proses pengurutan & kalkulasi
+        df_drilldown['tgl_mulai'] = df_drilldown['tgl_mulai'].dt.strftime('%Y-%m-%d')
+        
+        # Menyiapkan kolom durasi bawaan lembar data untuk tampilan rapi
+        df_drilldown['durasi'] = df_drilldown['durasi'].astype(int)
+        
+        # Memilih kolom yang akan ditampilkan
+        df_drilldown_display = df_drilldown[['kabupaten_kota', 'nmr_berkas', 'tgl_mulai', 'nama_prosedur', 'durasi', 'Hari Berjalan']].copy()
+        
+        # PERBAIKAN 3: Mengubah nama-nama judul tabel agar lebih rapi dan kapital formal
+        df_drilldown_display.columns = [
+            'Kabupaten / Kota', 
+            'Nomor Berkas', 
+            'Tanggal Mulai', 
+            'Nama Prosedur', 
+            'Durasi Berkas (HK)', 
+            'Hari Berjalan (SOP)'
+        ]
         
         # Penomoran otomatis kolom "No."
         df_drilldown_display.insert(0, 'No.', range(1, len(df_drilldown_display) + 1))
         
+        # Tampilkan Tabel Drilldown final
         st.dataframe(df_drilldown_display, use_container_width=True, hide_index=True)
     else:
-        st.info("Tidak ada data berkas yang terdaftar untuk kombinasi ini.")
+        st.info("Tidak ada data berkas yang terdaftar untuk kombinasi wilayah dan posisi ini.")
 else:
     st.info("Silakan tentukan Kabupaten/Kota dan Posisi Berkas pada pilihan di atas untuk memunculkan tabel detail.")
