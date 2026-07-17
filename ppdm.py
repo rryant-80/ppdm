@@ -115,7 +115,7 @@ for kab in daftar_kab_ind:
 st.markdown("---")
 
 # --- 4. PEMBUATAN GRAFIK BATANG TUNGGAL (URUTAN TERBANYAK KANAN-KIRI) ---
-st.subheader("📈 Grafik Total Berkas Prosedur berdasarkan Kabupaten/Kota")
+st.subheader("📈 Grafik Berkas Permohonan melebihi Durasi SOP")
 
 # 1. Hitung total berkas per Kabupaten/Kota untuk pengurutan
 df_total_kab = df.groupby('kabupaten_kota')['nmr_berkas'].count().reset_index()
@@ -149,8 +149,8 @@ for kab in daftar_kab_terurut:
     
     text = (
         f"<b>{kab}</b><br>"
-        f"Total Berkas: {total_berkas}<br><br>"
-        f"<b>Detail Prosedur:</b><br>{prosedur_hover_string}"
+        f"Total Berkas : {total_berkas}<br><br>"
+        f"<b>Detail Prosedur :</b><br>{prosedur_hover_string}"
     )
     hover_text.append(text)
 
@@ -179,7 +179,7 @@ st.markdown("---")
 
 
 # --- 5. PANEL FILTER DRILLDOWN (SEMUA KATEGORI DATABASE) ---
-st.subheader("🔍 Drilldown Detail Berkas")
+st.subheader("🔍 Detail Berkas")
 col_f1, col_f2 = st.columns(2)
 
 # Mengambil seluruh kategori posisi berkas yang unik dari database tanpa filter
@@ -193,9 +193,7 @@ with col_f1:
 with col_f2:
     pilihan_pos = st.selectbox("Pilih Posisi Berkas untuk Detail:", ["-- Pilih Posisi Berkas --"] + daftar_seluruh_posisi)
 
-if pilihan_kab != "-- Pilih Kabupaten/Kota --" and pilihan_pos != "-- Pilih Posisi Berkas --":
-    
-    st.subheader(f"📋 Detail Berkas: Kabupaten/Kota {pilihan_kab} - Posisi {pilihan_pos}")
+if pilihan_kab != "-- Pilih Kabupaten/Kota --" and pilihan_pos != "-- Pilih Posisi Berkas --":    
     
     # Filter data menggunakan data master asli 'df' agar mencakup semua kategori posisi
     df_drilldown = df[
