@@ -262,11 +262,11 @@ if pilihan_kab != "-- Pilih Kabupaten/Kota --" and pilihan_pos != "-- Pilih Posi
         konfigurasi_kolom = {
             'No.': st.column_config.Column(alignment="center", width="small"),
             'Kabupaten / Kota': st.column_config.Column(alignment="left", width="medium"),
-            'Nomor Berkas': st.column_config.Column(alignment="center", width="medium"),
+            'Nomor Berkas': st.column_config.Column(alignment="center", width="small"),
             'Tanggal Mulai': st.column_config.Column(alignment="center", width="medium"),
             'Nama Prosedur': st.column_config.Column(alignment="left", width="large"), # Memberikan ruang paling besar agar teks prosedur tidak terpotong
             'Posisi Berkas': st.column_config.Column(alignment="left", width="medium"),
-            'Hari Berjalan (SOP)': st.column_config.Column(alignment="center", width="medium"),
+            'Durasi (hari)': st.column_config.Column(alignment="center", width="small"),
         }
         
         # Tampilkan Tabel Drilldown final
