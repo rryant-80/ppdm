@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
+import numpy as np
 from datetime import datetime
 
 # Konfigurasi Halaman
@@ -190,7 +191,6 @@ daftar_seluruh_posisi = sorted([
 with col_f1:
     pilihan_kab = st.selectbox("Pilih Kabupaten/Kota untuk Detail:", ["-- Pilih Kabupaten/Kota --"] + list(daftar_kab_ind))
 with col_f2:
-    # PERBAIKAN 1: Menambahkan opsi "-- Semua Posisi --" ke dalam selectbox
     pilihan_pos = st.selectbox("Pilih Posisi Berkas untuk Detail:", ["-- Pilih Posisi Berkas --", "-- Semua Posisi --"] + daftar_seluruh_posisi)
 
 if pilihan_kab != "-- Pilih Kabupaten/Kota --" and pilihan_pos != "-- Pilih Posisi Berkas --":
@@ -205,37 +205,58 @@ if pilihan_kab != "-- Pilih Kabupaten/Kota --" and pilihan_pos != "-- Pilih Posi
         df_drilldown = df_drilldown[df_drilldown['posisi_berkas'] == pilihan_pos].copy()
     
     if not df_drilldown.empty:
-        # PERBAIKAN 2: Mengurutkan tabel berdasarkan tanggal lama ke baru (tgl_mulai)
+        # 1. Mengurutkan tabel berdasarkan tanggal lama ke baru (tgl_mulai)
         df_drilldown = df_drilldown.sort_values(by='tgl_mulai', ascending=True)
         
-        # PERBAIKAN 4: Menambahkan kolom di belakang durasi asli (tgl_mulai dikurangi tanggal hari ini)
-        # Catatan: Karena hasilnya negatif jika dikurangi hari ini, kita gunakan hitungan selisih hari
-        df_drilldown['Hari Berjalan'] = (df_drilldown['tgl_mulai'].dt.date - hari_ini.date()).apply(lambda x: x.days)
+        # 2. Menghitung Hari Berjalan mengecualikan hari Sabtu & Minggu (5 Hari Kerja Seminggu)
+        tgl_hari_ini = hari_ini.date()
         
-        # Format string tanggal asal agar rapi (YYYY-MM-DD) setelah proses pengurutan & kalkulasi
+        def hitung_hari_kerja(tgl_mulai_row):
+            tgl_awal = tgl_mulai_row.date()
+            # numpy.busday_count(awal, akhir) menghitung selisih hari kerja (Senin-Jumat)
+            # Jika tgl_awal sebelum hari ini, hasilnya positif. Jika setelah hari ini, hasilnya negatif.
+            try:
+                if tgl_awal <= tgl_hari_ini:
+                    return int(np.busday_count(tgl_awal, tgl_hari_ini))
+                else:
+                    return int(-np.busday_count(tgl_hari_ini, tgl_awal))
+            except Exception:
+                return 0
+
+        df_drilldown['Hari Berjalan'] = df_drilldown['tgl_mulai'].apply(hitung_hari_kerja)
+        
+        # Format string tanggal asal agar rapi (YYYY-MM-DD)
         df_drilldown['tgl_mulai'] = df_drilldown['tgl_mulai'].dt.strftime('%Y-%m-%d')
         
-        # Menyiapkan kolom durasi bawaan lembar data untuk tampilan rapi
-        df_drilldown['durasi'] = df_drilldown['durasi'].astype(int)
+        # 3. MEMILIH KOLOM BARU: Mengubah 'durasi' menjadi 'posisi_berkas'
+        df_drilldown_display = df_drilldown[['kabupaten_kota', 'nmr_berkas', 'tgl_mulai', 'nama_prosedur', 'posisi_berkas', 'Hari Berjalan']].copy()
         
-        # Memilih kolom yang akan ditampilkan
-        df_drilldown_display = df_drilldown[['kabupaten_kota', 'nmr_berkas', 'tgl_mulai', 'nama_prosedur', 'durasi', 'Hari Berjalan']].copy()
-        
-        # PERBAIKAN 3: Mengubah nama-nama judul tabel agar lebih rapi dan kapital formal
+        # mengubah nama-nama judul tabel formal
         df_drilldown_display.columns = [
             'Kabupaten / Kota', 
             'Nomor Berkas', 
             'Tanggal Mulai', 
             'Nama Prosedur', 
-            'Durasi Berkas (HK)', 
+            'Posisi Berkas',       # Perubahan kolom durasi menjadi Posisi Berkas
             'Hari Berjalan (SOP)'
         ]
         
         # Penomoran otomatis kolom "No."
         df_drilldown_display.insert(0, 'No.', range(1, len(df_drilldown_display) + 1))
         
-        # Tampilkan Tabel Drilldown final
-        st.dataframe(df_drilldown_display, use_container_width=True, hide_index=True)
+        # 4. MENGATUR POSISI TEKS KELUARAN KE TENGAH (CENTER ALIGNMENT)
+        konfigurasi_kolom = {
+            col: st.column_config.Column(alignment="center") 
+            for col in df_drilldown_display.columns
+        }
+        
+        # Tampilkan Tabel Drilldown final dengan teks posisi tengah
+        st.dataframe(
+            df_drilldown_display, 
+            use_container_width=True, 
+            hide_index=True,
+            column_config=konfigurasi_kolom
+        )
     else:
         st.info("Tidak ada data berkas yang terdaftar untuk kombinasi wilayah dan posisi ini.")
 else:
