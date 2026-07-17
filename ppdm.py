@@ -213,8 +213,6 @@ if pilihan_kab != "-- Pilih Kabupaten/Kota --" and pilihan_pos != "-- Pilih Posi
         
         def hitung_hari_kerja(tgl_mulai_row):
             tgl_awal = tgl_mulai_row.date()
-            # numpy.busday_count(awal, akhir) menghitung selisih hari kerja (Senin-Jumat)
-            # Jika tgl_awal sebelum hari ini, hasilnya positif. Jika setelah hari ini, hasilnya negatif.
             try:
                 if tgl_awal <= tgl_hari_ini:
                     return int(np.busday_count(tgl_awal, tgl_hari_ini))
@@ -228,29 +226,51 @@ if pilihan_kab != "-- Pilih Kabupaten/Kota --" and pilihan_pos != "-- Pilih Posi
         # Format string tanggal asal agar rapi (YYYY-MM-DD)
         df_drilldown['tgl_mulai'] = df_drilldown['tgl_mulai'].dt.strftime('%Y-%m-%d')
         
-        # 3. MEMILIH KOLOM BARU: Mengubah 'durasi' menjadi 'posisi_berkas'
+        # 3. MEMILIH KOLOM BARU
         df_drilldown_display = df_drilldown[['kabupaten_kota', 'nmr_berkas', 'tgl_mulai', 'nama_prosedur', 'posisi_berkas', 'Hari Berjalan']].copy()
         
-        # mengubah nama-nama judul tabel formal
+        # Mengubah nama-nama judul tabel formal
         df_drilldown_display.columns = [
             'Kabupaten / Kota', 
             'Nomor Berkas', 
             'Tanggal Mulai', 
             'Nama Prosedur', 
-            'Posisi Berkas',       # Perubahan kolom durasi menjadi Posisi Berkas
+            'Posisi Berkas',       
             'Hari Berjalan (SOP)'
         ]
         
         # Penomoran otomatis kolom "No."
         df_drilldown_display.insert(0, 'No.', range(1, len(df_drilldown_display) + 1))
         
-        # 4. MENGATUR POSISI TEKS KELUARAN KE TENGAH (CENTER ALIGNMENT)
+        # 4. INJEKSI CSS: Membuat teks header di tabel menjadi posisi tengah (center), berwarna biru, dan bold
+        st.markdown("""
+        <style>
+            /* Menargetkan kontainer header sel tabel data di Streamlit */
+            div[data-testid="stTable"] th, 
+            div[data-testid="stDataFrameData"] th,
+            .stDataFrame table thead th,
+            th[data-testid="stDataFrameHeaderCell"] {
+                color: #1f77b4 !important; /* Warna biru formal */
+                font-weight: bold !important; /* Teks tebal */
+                text-align: center !important; /* Posisi teks tengah */
+            }
+        </style>
+        """, unsafe_allow_html=True)
+        
+        # 5. MENGATUR ALIGNMENT ISI KOLOM INDIVIDU
+        # Sesuai permintaan: Kabupaten/Kota, Nama Prosedur, dan Posisi Berkas disetel rata kiri (left).
+        # Kolom angka dan tanggal lainnya disetel rata tengah (center).
         konfigurasi_kolom = {
-            col: st.column_config.Column(alignment="center") 
-            for col in df_drilldown_display.columns
+            'No.': st.column_config.Column(alignment="center"),
+            'Kabupaten / Kota': st.column_config.Column(alignment="left"),
+            'Nomor Berkas': st.column_config.Column(alignment="center"),
+            'Tanggal Mulai': st.column_config.Column(alignment="center"),
+            'Nama Prosedur': st.column_config.Column(alignment="left"),
+            'Posisi Berkas': st.column_config.Column(alignment="left"),
+            'Hari Berjalan (SOP)': st.column_config.Column(alignment="center"),
         }
         
-        # Tampilkan Tabel Drilldown final dengan teks posisi tengah
+        # Tampilkan Tabel Drilldown final
         st.dataframe(
             df_drilldown_display, 
             use_container_width=True, 
