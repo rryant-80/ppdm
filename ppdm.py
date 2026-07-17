@@ -30,7 +30,7 @@ df['lewat_sop'] = hari_ini > df['tgl_deadline']
 kategori_posisi = ['Kakan', 'Kasi SP', 'Kasi PHP', 'Loket']
 df_filtered = df[df['posisi_berkas'].isin(kategori_posisi)].copy()
 
-# --- 3. TAMPILAN UTAMA & INDIKATOR STROBO (URAI PER KABUPATEN/KOTA) ---
+# --- 3. TAMPILAN UTAMA & INDIKATOR STROBO (URAI PER KABUPATEN/KOTA DENGAN TOOLTIP) ---
 st.title("📊 Dashboard Pemantauan Berkas Kabupaten/Kota")
 st.markdown("---")
 
@@ -45,6 +45,7 @@ st.markdown("""
 .strobo-red-mini {
     animation: blink-red 1s infinite;
     color: white; padding: 8px; border-radius: 6px; text-align: center; font-weight: bold; font-size: 13px;
+    cursor: help; /* Mengubah kursor menjadi tanda tanya/bantuan saat hover */
 }
 .box-green-mini {
     background-color: #28a745; color: white; padding: 8px; border-radius: 6px; text-align: center; font-weight: bold; font-size: 13px;
@@ -56,9 +57,9 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.subheader("🚨 Peta Kepatuhan SOP Kontinuitas Berkas per Kantor Pertanahan")
-st.caption("Menampilkan detail status kepatuhan berkas di seluruh wilayah Kabupaten/Kota secara lengkap.")
+st.caption("💡 **Tips:** Arahkan kursor (*hover*) ke kotak strobo merah untuk melihat detail nomor berkas dan nama prosedur.")
 
-# Mengambil seluruh kabupaten_kota dari dataframe utama (bukan hanya yang terfilter lewat SOP)
+# MEMASTIKAN SEMUA KABUPATEN TERLIHAT: Ambil dari df master asli
 daftar_kab_ind = sorted(df['kabupaten_kota'].dropna().unique())
 
 # Membuat header kolom tabel indikator
@@ -70,30 +71,36 @@ with col_h3: st.markdown("<center><b>Kasi PHP</b></center>", unsafe_allow_html=T
 with col_h4: st.markdown("<center><b>Loket</b></center>", unsafe_allow_html=True)
 st.markdown("<hr style='margin: 5px 0 15px 0;'>", unsafe_allow_html=True)
 
-# Perulangan untuk memetakan status kepatuhan dari seluruh Kabupaten/Kota
+# Perulangan untuk memetakan seluruh Kabupaten/Kota
 for kab in daftar_kab_ind:
-    # Filter data berdasarkan kabupaten saat ini
-    df_kab = df_filtered[df_filtered['kabupaten_kota'] == kab]
-    
-    # Buat baris layout baru untuk tiap daerah
+    # Buat baris layout baru untuk daerah ini
     col_b0, col_b1, col_b2, col_b3, col_b4 = st.columns([2, 1, 1, 1, 1])
     
     with col_b0:
         st.markdown(f"<div class='kantah-header'>📍 {kab}</div>", unsafe_allow_html=True)
         
-    # Periksa kondisi status masing-masing posisi berkas
+    # Periksa kondisi status masing-masing posisi berkas berdasarkan df_filtered
     for i, posisi in enumerate(kategori_posisi):
-        df_pos = df_kab[df_kab['posisi_berkas'] == posisi]
+        # Filter berkas yang spesifik di kabupaten, posisi ini, dan berstatus LEWAT SOP
+        df_lewat = df_filtered[
+            (df_filtered['kabupaten_kota'] == kab) & 
+            (df_filtered['posisi_berkas'] == posisi) & 
+            (df_filtered['lewat_sop'] == True)
+        ]
         
-        # Hitung jumlah berkas yang melebihi SOP
-        total_lewat = df_pos['lewat_sop'].sum() if not df_pos.empty else 0
-        
+        total_lewat = len(df_lewat)
         target_col = [col_b1, col_b2, col_b3, col_b4][i]
         
         with target_col:
             if total_lewat > 0:
+                # Membuat teks detail berkas & prosedur untuk memicu tooltip saat hover
+                detail_hover = "Detail Berkas Terlambat:\n"
+                for idx, row in enumerate(df_lewat.itertuples(), 1):
+                    detail_hover += f"{idx}. No: {row.nmr_berkas}/{row.thn_berkas} - {row.nama_prosedur}\n"
+                
+                # Menggunakan atribut title untuk memunculkan efek hover text
                 st.markdown(f"""
-                <div class="strobo-red-mini">
+                <div class="strobo-red-mini" title="{detail_hover.strip()}">
                     🚨 {total_lewat} Berkas
                 </div>
                 """, unsafe_allow_html=True)
