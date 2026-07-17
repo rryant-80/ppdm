@@ -206,7 +206,7 @@ if pilihan_kab != "-- Pilih Kabupaten/Kota --" and pilihan_pos != "-- Pilih Posi
         df_drilldown['tgl_mulai'] = pd.to_datetime(df_drilldown['tgl_mulai']).dt.strftime('%Y-%m-%d')
         
         # Susun kolom sesuai instruksi
-        df_drilldown_display = df_drilldown[['kabupaten_kota', 'nmr_berkas', 'tgl_mulai', 'nama_prosedur']].copy()
+        df_drilldown_display = df_drilldown[['Kantah Kab/Kota', 'nmr_berkas', 'tgl_mulai', 'nama_prosedur']].copy()
         
         # Penomoran otomatis kolom "No."
         df_drilldown_display.insert(0, 'No.', range(1, len(df_drilldown_display) + 1))
