@@ -26,15 +26,19 @@ df['kabupaten_kota'] = df['kabupaten_kota'].astype(str).str.strip()
 df['posisi_berkas'] = df['posisi_berkas'].astype(str).str.strip()
 df['nama_prosedur'] = df['nama_prosedur'].astype(str).str.strip()
 
+# PERBAIKAN UTAMA: Konversi kolom nomor dan tahun ke format Integer tanpa desimal (.0)
+# Menggunakan 'Int64' (kapital I) agar aman jika ada baris data yang kosong di spreadsheet
+df['nmr_berkas'] = pd.to_numeric(df['nmr_berkas'], errors='coerce').astype('Int64')
+df['thn_berkas'] = pd.to_numeric(df['thn_berkas'], errors='coerce').astype('Int64')
+
 # Acuan tanggal hari ini untuk hitung SOP (Tahun 2026)
 hari_ini = pd.Timestamp(datetime.now().date())
 df['tgl_deadline'] = df['tgl_mulai'] + pd.to_timedelta(df['durasi'], unit='D')
 df['lewat_sop'] = hari_ini > df['tgl_deadline']
 
-# Filter khusus indikator strobo (tetap menggunakan 4 kategori utama sesuai instruksi sebelumnya)
+# Filter khusus indikator strobo
 kategori_posisi_strobo = ['Kakan', 'Kasi SP', 'Kasi PHP', 'Loket']
 df_filtered_strobo = df[df['posisi_berkas'].isin(kategori_posisi_strobo)].copy()
-
 
 # --- 3. TAMPILAN UTAMA & INDIKATOR STROBO (URAI SEMUA KABUPATEN/KOTA) ---
 
