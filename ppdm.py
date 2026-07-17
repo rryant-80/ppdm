@@ -59,7 +59,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.subheader("🚨 Berkas Melebihi Durasi SOP (Tgl. 16/07/2026")
+st.subheader("🚨 Berkas Melebihi Durasi SOP (Tgl. 16/07/2026)")
 st.caption("💡 **Tips:** Arahkan kursor ke kotak merah untuk melihat detail nomor berkas dan nama prosedur.")
 
 # Mengambil daftar seluruh kabupaten dari data master asli
