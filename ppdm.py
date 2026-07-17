@@ -4,7 +4,7 @@ import plotly.graph_objects as go
 from datetime import datetime
 
 # Konfigurasi Halaman
-st.set_page_config(layout="wide", page_title="Dashboard Pemantauan Berkas")
+st.set_page_config(layout="wide", page_title="Monitoring SOP Pertanahan")
 
 # --- 1. MEMBACA DATA DARI GOOGLE SHEETS ---
 try:
@@ -36,10 +36,6 @@ df_filtered_strobo = df[df['posisi_berkas'].isin(kategori_posisi_strobo)].copy()
 
 
 # --- 3. TAMPILAN UTAMA & INDIKATOR STROBO (URAI SEMUA KABUPATEN/KOTA) ---
-st.title("📊 Dashboard Pemantauan Berkas Kabupaten/Kota")
-st.markdown("---")
-
-st.markdown("""
 <style>
 @keyframes blink-red {
     0% { background-color: #ff4b4b; box-shadow: 0 0 8px #ff4b4b; }
