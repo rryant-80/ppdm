@@ -116,7 +116,6 @@ for kab in daftar_kab_ind:
 
 st.markdown("---")
 
-
 # --- 4. PEMBUATAN GRAFIK BATANG MULTI-KATEGORI (NAMA PROSEDUR) ---
 st.subheader("📈 Grafik Jumlah Berkas berdasarkan Kabupaten/Kota dan Nama Prosedur")
 
@@ -140,7 +139,8 @@ for prosedur in daftar_prosedur:
     y_data = []
     hover_text = []
     
-    for kab in daftar_kab_kota:
+    # PERBAIKAN: Menggunakan daftar_kab_ind yang sudah didefinisikan secara absolut di atas
+    for kab in daftar_kab_ind:
         row = df_trace[df_trace['kabupaten_kota'] == kab]
         x_data.append(kab)
         if not row.empty:
