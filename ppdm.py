@@ -30,50 +30,78 @@ df['lewat_sop'] = hari_ini > df['tgl_deadline']
 kategori_posisi = ['Kakan', 'Kasi SP', 'Kasi PHP', 'Loket']
 df_filtered = df[df['posisi_berkas'].isin(kategori_posisi)].copy()
 
-# --- 3. TAMPILAN UTAMA & INDIKATOR STROBO ---
+# --- 3. TAMPILAN UTAMA & INDIKATOR STROBO (URAI PER KABUPATEN/KOTA) ---
 st.title("📊 Dashboard Pemantauan Berkas Kabupaten/Kota")
 st.markdown("---")
 
-# Gaya CSS untuk Lampu Strobo Berkedip
+# Gaya CSS untuk Lampu Strobo Berkedip & layout kartu mini
 st.markdown("""
 <style>
 @keyframes blink-red {
-    0% { background-color: #ff4b4b; box-shadow: 0 0 10px #ff4b4b; }
+    0% { background-color: #ff4b4b; box-shadow: 0 0 8px #ff4b4b; }
     50% { background-color: #8b0000; box-shadow: 0 0 0px #8b0000; }
-    100% { background-color: #ff4b4b; box-shadow: 0 0 10px #ff4b4b; }
+    100% { background-color: #ff4b4b; box-shadow: 0 0 8px #ff4b4b; }
 }
-.strobo-red {
+.strobo-red-mini {
     animation: blink-red 1s infinite;
-    color: white; padding: 15px; border-radius: 10px; text-align: center; font-weight: bold;
+    color: white; padding: 8px; border-radius: 6px; text-align: center; font-weight: bold; font-size: 13px;
 }
-.box-green {
-    background-color: #28a745; color: white; padding: 15px; border-radius: 10px; text-align: center; font-weight: bold;
+.box-green-mini {
+    background-color: #28a745; color: white; padding: 8px; border-radius: 6px; text-align: center; font-weight: bold; font-size: 13px;
+}
+.kantah-header {
+    font-size: 16px; font-weight: bold; color: #1E1E1E; padding-top: 5px;
 }
 </style>
 """, unsafe_allow_html=True)
 
-st.subheader("🚨 Indikator Kepatuhan SOP Kontinuitas Berkas")
-cols = st.columns(4)
+st.subheader("🚨 Peta Kepatuhan SOP Kontinuitas Berkas per Kantor Pertanahan")
+st.caption("Menampilkan detail langsung jumlah berkas menunggak yang melebihi durasi SOP di masing-masing wilayah.")
 
-for i, posisi in enumerate(kategori_posisi):
-    df_pos = df_filtered[df_filtered['posisi_berkas'] == posisi]
-    total_lewat = df_pos['lewat_sop'].sum()
+# Dapatkan daftar kabupaten_kota unik yang ada di data
+daftar_kab_ind = sorted(df_filtered['kabupaten_kota'].unique())
+
+# Membuat header kolom tabel indikator
+col_h0, col_h1, col_h2, col_h3, col_h4 = st.columns([2, 1, 1, 1, 1])
+with col_h0: st.markdown("**Kantor Pertanahan (Kab/Kota)**")
+with col_h1: st.markdown("<center><b>Kakan</b></center>", unsafe_allow_html=True)
+with col_h2: st.markdown("<center><b>Kasi SP</b></center>", unsafe_allow_html=True)
+with col_h3: st.markdown("<center><b>Kasi PHP</b></center>", unsafe_allow_html=True)
+with col_h4: st.markdown("<center><b>Loket</b></center>", unsafe_allow_html=True)
+st.markdown("<hr style='margin: 5px 0 15px 0;'>", unsafe_allow_html=True)
+
+# Lakukan perulangan untuk menampilkan status per Kabupaten/Kota
+for kab in daftar_kab_ind:
+    df_kab = df_filtered[df_filtered['kabupaten_kota'] == kab]
     
-    with cols[i]:
-        if total_lewat > 0:
-            st.markdown(f"""
-            <div class="strobo-red">
-                {posisi}<br>
-                <span style="font-size:20px;">{total_lewat} Berkas Lewat SOP</span>
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.markdown(f"""
-            <div class="box-green">
-                {posisi}<br>
-                <span style="font-size:20px;">Semua Aman</span>
-            </div>
-            """, unsafe_allow_html=True)
+    # Buat baris layout baru untuk tiap daerah
+    col_b0, col_b1, col_b2, col_b3, col_b4 = st.columns([2, 1, 1, 1, 1])
+    
+    with col_b0:
+        st.markdown(f"<div class='kantah-header'>📍 {kab}</div>", unsafe_allow_html=True)
+        
+    # Cek masing-masing posisi berkas di kabupaten terkait
+    for i, posisi in enumerate(kategori_posisi):
+        df_pos = df_kab[df_kab['posisi_berkas'] == posisi]
+        total_lewat = df_pos['lewat_sop'].sum()
+        
+        target_col = [col_b1, col_b2, col_b3, col_b4][i]
+        
+        with target_col:
+            if total_lewat > 0:
+                st.markdown(f"""
+                <div class="strobo-red-mini">
+                    🚨 {total_lewat} Berkas
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown("""
+                <div class="box-green-mini">
+                    ✅ Aman
+                </div>
+                """, unsafe_allow_html=True)
+                
+    st.markdown("<div style='margin-bottom: 8px;'></div>", unsafe_allow_html=True)
 
 st.markdown("---")
 
