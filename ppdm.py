@@ -236,7 +236,7 @@ if pilihan_kab != "-- Pilih Kabupaten/Kota --" and pilihan_pos != "-- Pilih Posi
             'Tanggal Mulai', 
             'Nama Prosedur', 
             'Posisi Berkas',       
-            'Hari Berjalan (SOP)'
+            'Durasi (hari)'
         ]
         
         # Penomoran otomatis kolom "No."
