@@ -179,7 +179,7 @@ st.plotly_chart(fig, use_container_width=True)
 st.markdown("---")
 
 # --- 5. PANEL FILTER DRILLDOWN (SEMUA KATEGORI DATABASE DENGAN AUTO-WIDTH) ---
-st.subheader("🔍 Drilldown Detail Berkas")
+st.subheader("🔍 Detail Berkas melebihi Durasi SOP")
 col_f1, col_f2 = st.columns(2)
 
 # Mengambil seluruh kategori posisi berkas yang unik dari database tanpa filter
@@ -193,9 +193,7 @@ with col_f1:
 with col_f2:
     pilihan_pos = st.selectbox("Pilih Posisi Berkas untuk Detail:", ["-- Pilih Posisi Berkas --", "-- Semua Posisi --"] + daftar_seluruh_posisi)
 
-if pilihan_kab != "-- Pilih Kabupaten/Kota --" and pilihan_pos != "-- Pilih Posisi Berkas --":
-    
-    st.subheader(f"📋 Detail Berkas: Kabupaten/Kota {pilihan_kab} - {pilihan_pos if pilihan_pos != '-- Semua Posisi --' else 'Semua Posisi Berkas'}")
+if pilihan_kab != "-- Pilih Kabupaten/Kota --" and pilihan_pos != "-- Pilih Posisi Berkas --":    
     
     # Filter awal berdasarkan Kabupaten/Kota
     df_drilldown = df[df['kabupaten_kota'] == pilihan_kab].copy()
@@ -231,7 +229,7 @@ if pilihan_kab != "-- Pilih Kabupaten/Kota --" and pilihan_pos != "-- Pilih Posi
         
         # Mengubah nama-nama judul tabel formal
         df_drilldown_display.columns = [
-            'Kabupaten / Kota', 
+            'Kantor Pertanahan Kab/Kota', 
             'Nomor Berkas', 
             'Tanggal Mulai', 
             'Nama Prosedur', 
