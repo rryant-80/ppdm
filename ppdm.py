@@ -56,10 +56,10 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.subheader("🚨 Peta Kepatuhan SOP Kontinuitas Berkas per Kantor Pertanahan")
-st.caption("Menampilkan detail langsung jumlah berkas menunggak yang melebihi durasi SOP di masing-masing wilayah.")
+st.caption("Menampilkan detail status kepatuhan berkas di seluruh wilayah Kabupaten/Kota secara lengkap.")
 
-# Dapatkan daftar kabupaten_kota unik yang ada di data
-daftar_kab_ind = sorted(df_filtered['kabupaten_kota'].unique())
+# Mengambil seluruh kabupaten_kota dari dataframe utama (bukan hanya yang terfilter lewat SOP)
+daftar_kab_ind = sorted(df['kabupaten_kota'].dropna().unique())
 
 # Membuat header kolom tabel indikator
 col_h0, col_h1, col_h2, col_h3, col_h4 = st.columns([2, 1, 1, 1, 1])
@@ -70,8 +70,9 @@ with col_h3: st.markdown("<center><b>Kasi PHP</b></center>", unsafe_allow_html=T
 with col_h4: st.markdown("<center><b>Loket</b></center>", unsafe_allow_html=True)
 st.markdown("<hr style='margin: 5px 0 15px 0;'>", unsafe_allow_html=True)
 
-# Lakukan perulangan untuk menampilkan status per Kabupaten/Kota
+# Perulangan untuk memetakan status kepatuhan dari seluruh Kabupaten/Kota
 for kab in daftar_kab_ind:
+    # Filter data berdasarkan kabupaten saat ini
     df_kab = df_filtered[df_filtered['kabupaten_kota'] == kab]
     
     # Buat baris layout baru untuk tiap daerah
@@ -80,10 +81,12 @@ for kab in daftar_kab_ind:
     with col_b0:
         st.markdown(f"<div class='kantah-header'>📍 {kab}</div>", unsafe_allow_html=True)
         
-    # Cek masing-masing posisi berkas di kabupaten terkait
+    # Periksa kondisi status masing-masing posisi berkas
     for i, posisi in enumerate(kategori_posisi):
         df_pos = df_kab[df_kab['posisi_berkas'] == posisi]
-        total_lewat = df_pos['lewat_sop'].sum()
+        
+        # Hitung jumlah berkas yang melebihi SOP
+        total_lewat = df_pos['lewat_sop'].sum() if not df_pos.empty else 0
         
         target_col = [col_b1, col_b2, col_b3, col_b4][i]
         
