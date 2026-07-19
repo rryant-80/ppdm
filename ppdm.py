@@ -125,23 +125,25 @@ with st.sidebar:
     df_elek_singkat = singkat_kab(df_elektronik.copy())
 
     # ==========================================
-    # 1. GRAFIK: Distribusi Pegawai (Stacked Bar)
+    # 1. GRAFIK: Distribusi Pegawai (Stacked Bar - Terurut)
     # ==========================================
     if not df_sdm_singkat.empty and 'kategori_asn' in df_sdm_singkat.columns:
         # Rekap jumlah berdasarkan kabupaten dan kategori ASN
         df_sdm_rekap = df_sdm_singkat.groupby(['kab_singkat', 'kategori_asn']).size().reset_index(name='jumlah')
         
-        # Buat pivot untuk hover teks (menghitung total per kabupaten & breakdown jenisnya)
+        # Buat pivot untuk hover teks
         df_sdm_pivot = df_sdm_rekap.pivot(index='kab_singkat', columns='kategori_asn', values='jumlah').fillna(0).astype(int)
         
-        # Gabungkan kembali info total ke dataframe utama grafik
+        # Hitung total per kabupaten untuk sorting dan hover
         df_sdm_total = df_sdm_singkat.groupby('kab_singkat').size().reset_index(name='total_all')
         df_sdm_rekap = df_sdm_rekap.merge(df_sdm_pivot, on='kab_singkat').merge(df_sdm_total, on='kab_singkat')
         
-        # Dinamis teks hover sesuai dengan kolom kategori ASN yang tersedia (misal: PNS, PPPK, PPNPN, dll)
+        # Urutkan berdasarkan total_all tertinggi ke terendah
+        df_sdm_rekap = df_sdm_rekap.sort_values(by='total_all', ascending=False)
+        
+        # Dinamis teks hover
         hover_text = "<b>Kab/Kota: %{x}</b><br>Total ASN: %{customdata[0]} orang<br>"
         custom_data_cols = ['total_all']
-        
         for i, col in enumerate(df_sdm_pivot.columns):
             hover_text += f"{col}: %{{customdata[{i+1}]}} orang<br>"
             custom_data_cols.append(col)
@@ -155,6 +157,7 @@ with st.sidebar:
         fig_sdm.update_layout(
             showlegend=True, legend_title_text='', height=280,
             xaxis_title="", yaxis_title="",
+            xaxis={'categoryorder':'total descending'}, # Memastikan urutan bar menurun
             margin=dict(l=10, r=10, t=40, b=10),
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
         )
@@ -162,17 +165,17 @@ with st.sidebar:
 
 
     # ==========================================
-    # 2. GRAFIK: Berkas Lewat SOP
+    # 2. GRAFIK: Berkas Lewat SOP (Terurut)
     # ==========================================
     if not df_layanan_singkat.empty and 'nmr_berkas' in df_layanan_singkat.columns:
-        # Hitung total berkas per kabupaten
         df_layanan_total = df_layanan_singkat.groupby('kab_singkat')['nmr_berkas'].count().reset_index(name='total_berkas')
         
-        # Buat detail breakdown posisi_berkas jika kolomnya tersedia
+        # Urutkan dari tertinggi ke terendah
+        df_layanan_total = df_layanan_total.sort_values(by='total_berkas', ascending=False)
+        
         if 'posisi_berkas' in df_layanan_singkat.columns:
             df_layanan_pos = df_layanan_singkat.groupby(['kab_singkat', 'posisi_berkas']).size().reset_index(name='jml_pos')
             df_layanan_pivot = df_layanan_pos.pivot(index='kab_singkat', columns='posisi_berkas', values='jml_pos').fillna(0).astype(int)
-            
             df_layanan_total = df_layanan_total.merge(df_layanan_pivot, on='kab_singkat')
             
             hover_layanan = "<b>Kab/Kota: %{x}</b><br>Total Berkas: %{y}<br>--- Detail Posisi ---<br>"
@@ -193,35 +196,42 @@ with st.sidebar:
         fig_layanan.update_layout(
             showlegend=False, height=250,
             xaxis_title="", yaxis_title="",
+            xaxis={'categoryorder':'total descending'},
             margin=dict(l=10, r=10, t=40, b=10)
         )
         st.plotly_chart(fig_layanan, use_container_width=True)
 
 
     # ==========================================
-    # 3. GRAFIK: Persentase Prasertel
+    # 3. GRAFIK: Persentase Prasertel (Formula Diperbaiki & Terurut)
     # ==========================================
-    if not df_elek_singkat.empty and 'pra_btel' in df_elek_singkat.columns and 'bt_valid' in df_elek_singkat.columns:
-        df_elek_rekap = df_elek_singkat.groupby('kab_singkat')[['pra_btel', 'bt_valid']].sum().reset_index()
-        # Menghitung persentase
-        df_elek_rekap['Persentase'] = (df_elek_rekap['bt_valid'] / df_elek_rekap['pra_btel'].replace(0, 1)) * 100
+    if not df_elek_singkat.empty and 'pra_sertel' in df_elek_singkat.columns and 'bt_valid' in df_elek_singkat.columns:
+        df_elek_rekap = df_elek_singkat.groupby('kab_singkat')[['pra_sertel', 'bt_valid']].sum().reset_index()
+        
+        # Perbaikan Formula: pra_sertel / bt_valid
+        df_elek_rekap['Persentase'] = (df_elek_rekap['pra_sertel'] / df_elek_rekap['bt_valid'].replace(0, 1)) * 100
+        
+        # Urutkan dari persentase tertinggi ke terendah
+        df_elek_rekap = df_elek_rekap.sort_values(by='Persentase', ascending=False)
         
         fig_elek = px.bar(
             df_elek_rekap, x='kab_singkat', y='Persentase',
             title="Persentase Prasertel",
-            custom_data=df_elek_rekap[['bt_valid', 'pra_btel']]
+            custom_data=df_elek_rekap[['pra_sertel', 'bt_valid']]
         )
         fig_elek.update_traces(
-            hovertemplate="<b>Kab/Kota: %{x}</b><br>Persentase: %{y:.2f}%<br>Jumlah BT Valid: %{customdata[0]}<br>Jumlah Prasertel: %{customdata[1]}<extra></extra>",
+            # Format %{y:.2f}% untuk menampilkan dua angka di belakang koma pada hover
+            hovertemplate="<b>Kab/Kota: %{x}</b><br>Persentase: %{y:.2f}%<br>Jumlah Prasertel: %{customdata[0]}<br>Jumlah BT Valid: %{customdata[1]}<extra></extra>",
             marker_color='#00CC96'
         )
         fig_elek.update_layout(
             showlegend=False, height=250,
             xaxis_title="", yaxis_title="",
+            xaxis={'categoryorder':'total descending'},
+            yaxis=dict(tickformat=".2f"), # Format angka sumbu Y menjadi 2 desimal jika diperlukan
             margin=dict(l=10, r=10, t=40, b=10)
         )
         st.plotly_chart(fig_elek, use_container_width=True)
-
 
 # -----------------------------------------------------------------------------
 # 4. PROSES FILTERING DATA
