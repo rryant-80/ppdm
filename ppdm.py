@@ -108,7 +108,7 @@ with st.sidebar:
     KAB_MAP = {
         'Banggai': 'BG', 'Banggai Kepulauan': 'BK', 'Banggai Laut': 'BL',
         'Buol': 'BU', 'Donggala': 'DG', 'Parigi Moutong': 'PM',
-        'Poso': 'PS', 'Tojo Una-Una': 'TU', 'Tolitoli': 'TL',
+        'Poso': 'PS', 'Tojo Una-una': 'TU', 'Toli-toli': 'TL', 'Toli Toli': 'TL',
         'Morowali': 'MW', 'Morowali Utara': 'MU', 'Palu': 'PL', 'Kota Palu': 'PL', 
         'Sigi': 'SG', 'Sulawesi Tengah': 'ST', 'Provinsi Sulawesi Tengah': 'ST'
     }
@@ -197,6 +197,30 @@ with st.sidebar:
         )
         st.plotly_chart(fig_layanan, use_container_width=True)
 
+
+    # ==========================================
+    # 3. GRAFIK: Persentase Prasertel
+    # ==========================================
+    if not df_elek_singkat.empty and 'pra_btel' in df_elek_singkat.columns and 'bt_valid' in df_elek_singkat.columns:
+        df_elek_rekap = df_elek_singkat.groupby('kab_singkat')[['pra_btel', 'bt_valid']].sum().reset_index()
+        # Menghitung persentase
+        df_elek_rekap['Persentase'] = (df_elek_rekap['bt_valid'] / df_elek_rekap['pra_btel'].replace(0, 1)) * 100
+        
+        fig_elek = px.bar(
+            df_elek_rekap, x='kab_singkat', y='Persentase',
+            title="Persentase Prasertel",
+            custom_data=df_elek_rekap[['bt_valid', 'pra_btel']]
+        )
+        fig_elek.update_traces(
+            hovertemplate="<b>Kab/Kota: %{x}</b><br>Persentase: %{y:.2f}%<br>Jumlah BT Valid: %{customdata[0]}<br>Jumlah Prasertel: %{customdata[1]}<extra></extra>",
+            marker_color='#00CC96'
+        )
+        fig_elek.update_layout(
+            showlegend=False, height=250,
+            xaxis_title="", yaxis_title="",
+            margin=dict(l=10, r=10, t=40, b=10)
+        )
+        st.plotly_chart(fig_elek, use_container_width=True)
 
     # ==========================================
     # 3. GRAFIK: Persentase Prasertel
