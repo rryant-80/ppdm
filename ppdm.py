@@ -104,146 +104,30 @@ with st.sidebar:
     st.markdown("---")
     st.header("📊 Grafik Rekapitulasi (Sulteng)")
 
-    # Dikitonari untuk mempersingkat nama kabupaten
-    KAB_MAP = {
-        'Banggai': 'BG', 'Banggai Kepulauan': 'BK', 'Banggai Laut': 'BL',
-        'Buol': 'BU', 'Donggala': 'DG', 'Parigi Moutong': 'PM',
-        'Poso': 'PS', 'Tojo Una-una': 'TU', 'Toli-toli': 'TL', 'Toli Toli': 'TL',
-        'Morowali': 'MW', 'Morowali Utara': 'MU', 'Palu': 'PL', 'Kota Palu': 'PL', 
-        'Sigi': 'SG', 'Sulawesi Tengah': 'ST', 'Provinsi Sulawesi Tengah': 'ST'
-    }
-    
-    # Fungsi pembantu untuk menyingkat nama kabupaten di DataFrame
-    def singkat_kab(df):
-        if not df.empty and 'kabupaten_kota' in df.columns:
-            df['kab_singkat'] = df['kabupaten_kota'].map(lambda x: KAB_MAP.get(x, x))
-        return df
-
-    # Terapkan singkatan ke dataframe rekap
-    df_sdm_singkat = singkat_kab(df_sdm.copy())
-    df_layanan_singkat = singkat_kab(df_layanan.copy())
-    df_elek_singkat = singkat_kab(df_elektronik.copy())
-
-    # ==========================================
-    # 1. GRAFIK: Distribusi Pegawai (Stacked Bar)
-    # ==========================================
-    if not df_sdm_singkat.empty and 'kategori_asn' in df_sdm_singkat.columns:
-        # Rekap jumlah berdasarkan kabupaten dan kategori ASN
-        df_sdm_rekap = df_sdm_singkat.groupby(['kab_singkat', 'kategori_asn']).size().reset_index(name='jumlah')
-        
-        # Buat pivot untuk hover teks (menghitung total per kabupaten & breakdown jenisnya)
-        df_sdm_pivot = df_sdm_rekap.pivot(index='kab_singkat', columns='kategori_asn', values='jumlah').fillna(0).astype(int)
-        
-        # Gabungkan kembali info total ke dataframe utama grafik
-        df_sdm_total = df_sdm_singkat.groupby('kab_singkat').size().reset_index(name='total_all')
-        df_sdm_rekap = df_sdm_rekap.merge(df_sdm_pivot, on='kab_singkat').merge(df_sdm_total, on='kab_singkat')
-        
-        # Dinamis teks hover sesuai dengan kolom kategori ASN yang tersedia (misal: PNS, PPPK, PPNPN, dll)
-        hover_text = "<b>Kab/Kota: %{x}</b><br>Total ASN: %{customdata[0]} orang<br>"
-        custom_data_cols = ['total_all']
-        
-        for i, col in enumerate(df_sdm_pivot.columns):
-            hover_text += f"{col}: %{{customdata[{i+1}]}} orang<br>"
-            custom_data_cols.append(col)
-
-        fig_sdm = px.bar(
-            df_sdm_rekap, x='kab_singkat', y='jumlah', color='kategori_asn',
-            title="Distribusi Pegawai",
-            custom_data=df_sdm_rekap[custom_data_cols]
-        )
-        fig_sdm.update_traces(hovertemplate=hover_text + "<extra></extra>")
-        fig_sdm.update_layout(
-            showlegend=True, legend_title_text='', height=280,
-            xaxis_title="", yaxis_title="",
-            margin=dict(l=10, r=10, t=40, b=10),
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-        )
+    # --- GRAFIK 1: SDM (Jumlah Pegawai tiap Kabupaten) ---
+    if not df_sdm.empty:
+        df_sdm_rekap = df_sdm.groupby('kabupaten_kota').size().reset_index(name='Jumlah Pegawai')
+        fig_sdm = px.bar(df_sdm_rekap, x='kabupaten_kota', y='Jumlah Pegawai', 
+                         title="Jumlah Pegawai per Kab/Kota", labels={'kabupaten_kota': 'Kab/Kota'})
+        fig_sdm.update_layout(showlegend=False, height=250, margin=dict(l=10, r=10, t=30, b=10))
         st.plotly_chart(fig_sdm, use_container_width=True)
 
-
-    # ==========================================
-    # 2. GRAFIK: Berkas Lewat SOP
-    # ==========================================
-    if not df_layanan_singkat.empty and 'nmr_berkas' in df_layanan_singkat.columns:
-        # Hitung total berkas per kabupaten
-        df_layanan_total = df_layanan_singkat.groupby('kab_singkat')['nmr_berkas'].count().reset_index(name='total_berkas')
-        
-        # Buat detail breakdown posisi_berkas jika kolomnya tersedia
-        if 'posisi_berkas' in df_layanan_singkat.columns:
-            df_layanan_pos = df_layanan_singkat.groupby(['kab_singkat', 'posisi_berkas']).size().reset_index(name='jml_pos')
-            df_layanan_pivot = df_layanan_pos.pivot(index='kab_singkat', columns='posisi_berkas', values='jml_pos').fillna(0).astype(int)
-            
-            df_layanan_total = df_layanan_total.merge(df_layanan_pivot, on='kab_singkat')
-            
-            hover_layanan = "<b>Kab/Kota: %{x}</b><br>Total Berkas: %{y}<br>--- Detail Posisi ---<br>"
-            custom_data_layanan = ['total_berkas']
-            for i, col in enumerate(df_layanan_pivot.columns):
-                hover_layanan += f"{col}: %{{customdata[{i+1}]}}<br>"
-                custom_data_layanan.append(col)
-        else:
-            hover_layanan = "<b>Kab/Kota: %{x}</b><br>Total Berkas: %{y}<extra></extra>"
-            custom_data_layanan = ['total_berkas']
-
-        fig_layanan = px.bar(
-            df_layanan_total, x='kab_singkat', y='total_berkas',
-            title="Berkas Lewat SOP",
-            custom_data=df_layanan_total[custom_data_layanan] if custom_data_layanan else None
-        )
-        fig_layanan.update_traces(hovertemplate=hover_layanan + "<extra></extra>", marker_color='#EF553B')
-        fig_layanan.update_layout(
-            showlegend=False, height=250,
-            xaxis_title="", yaxis_title="",
-            margin=dict(l=10, r=10, t=40, b=10)
-        )
+    # --- GRAFIK 2: Layanan Pertanahan (Banyaknya nmr_berkas tiap Kabupaten) ---
+    if not df_layanan.empty:
+        df_layanan_rekap = df_layanan.groupby('kabupaten_kota')['nmr_berkas'].count().reset_index(name='Total Berkas')
+        fig_layanan = px.bar(df_layanan_rekap, x='kabupaten_kota', y='Total Berkas', 
+                             title="Banyaknya Berkas per Kab/Kota", labels={'kabupaten_kota': 'Kab/Kota'})
+        fig_layanan.update_layout(showlegend=False, height=250, margin=dict(l=10, r=10, t=30, b=10))
         st.plotly_chart(fig_layanan, use_container_width=True)
 
-
-    # ==========================================
-    # 3. GRAFIK: Persentase Prasertel
-    # ==========================================
-    if not df_elek_singkat.empty and 'pra_btel' in df_elek_singkat.columns and 'bt_valid' in df_elek_singkat.columns:
-        df_elek_rekap = df_elek_singkat.groupby('kab_singkat')[['pra_btel', 'bt_valid']].sum().reset_index()
-        # Menghitung persentase
-        df_elek_rekap['Persentase'] = (df_elek_rekap['bt_valid'] / df_elek_rekap['pra_btel'].replace(0, 1)) * 100
-        
-        fig_elek = px.bar(
-            df_elek_rekap, x='kab_singkat', y='Persentase',
-            title="Persentase Prasertel",
-            custom_data=df_elek_rekap[['bt_valid', 'pra_btel']]
-        )
-        fig_elek.update_traces(
-            hovertemplate="<b>Kab/Kota: %{x}</b><br>Persentase: %{y:.2f}%<br>Jumlah BT Valid: %{customdata[0]}<br>Jumlah Prasertel: %{customdata[1]}<extra></extra>",
-            marker_color='#00CC96'
-        )
-        fig_elek.update_layout(
-            showlegend=False, height=250,
-            xaxis_title="", yaxis_title="",
-            margin=dict(l=10, r=10, t=40, b=10)
-        )
-        st.plotly_chart(fig_elek, use_container_width=True)
-
-    # ==========================================
-    # 3. GRAFIK: Persentase Prasertel
-    # ==========================================
-    if not df_elek_singkat.empty and 'pra_btel' in df_elek_singkat.columns and 'bt_valid' in df_elek_singkat.columns:
-        df_elek_rekap = df_elek_singkat.groupby('kab_singkat')[['pra_btel', 'bt_valid']].sum().reset_index()
-        # Menghitung persentase
-        df_elek_rekap['Persentase'] = (df_elek_rekap['bt_valid'] / df_elek_rekap['pra_btel'].replace(0, 1)) * 100
-        
-        fig_elek = px.bar(
-            df_elek_rekap, x='kab_singkat', y='Persentase',
-            title="Persentase Prasertel",
-            custom_data=df_elek_rekap[['bt_valid', 'pra_btel']]
-        )
-        fig_elek.update_traces(
-            hovertemplate="<b>Kab/Kota: %{x}</b><br>Persentase: %{y:.2f}%<br>Jumlah BT Valid: %{customdata[0]}<br>Jumlah Prasertel: %{customdata[1]}<extra></extra>",
-            marker_color='#00CC96'
-        )
-        fig_elek.update_layout(
-            showlegend=False, height=250,
-            xaxis_title="", yaxis_title="",
-            margin=dict(l=10, r=10, t=40, b=10)
-        )
+    # --- GRAFIK 3: Sertipikat Elektronik (Persentase pra_btel dengan bt_valid) ---
+    if not df_elektronik.empty:
+        df_elek_rekap = df_elektronik.groupby('kabupaten_kota')[['pra_btel', 'bt_valid']].sum().reset_index()
+        # Menghindari pembagian dengan nol
+        df_elek_rekap['Persentase Valid (%)'] = (df_elek_rekap['bt_valid'] / df_elek_rekap['pra_btel'].replace(0, 1)) * 100
+        fig_elek = px.bar(df_elek_rekap, x='kabupaten_kota', y='Persentase Valid (%)', 
+                           title="Persentase BT Valid vs Pra BTel", labels={'kabupaten_kota': 'Kab/Kota'})
+        fig_elek.update_layout(showlegend=False, height=250, margin=dict(l=10, r=10, t=30, b=10))
         st.plotly_chart(fig_elek, use_container_width=True)
 
 
