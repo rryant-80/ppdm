@@ -108,7 +108,7 @@ with st.sidebar:
     KAB_MAP = {
         'Banggai': 'BG', 'Banggai Kepulauan': 'BK', 'Banggai Laut': 'BL',
         'Buol': 'BU', 'Donggala': 'DG', 'Parigi Moutong': 'PM',
-        'Poso': 'PS', 'Tojo Una-una': 'TU', 'Toli-toli': 'TL', 'Toli Toli': 'TL',
+        'Poso': 'PS', 'Tojo Una-Una': 'TU', 'Tojo Una-una': 'TU', 'Tolitoli': 'TL', 'Toli-toli': 'TL', 'Toli Toli': 'TL',
         'Morowali': 'MW', 'Morowali Utara': 'MU', 'Palu': 'PL', 'Kota Palu': 'PL', 
         'Sigi': 'SG', 'Sulawesi Tengah': 'ST', 'Provinsi Sulawesi Tengah': 'ST'
     }
