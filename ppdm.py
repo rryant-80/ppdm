@@ -108,7 +108,7 @@ with st.sidebar:
     KAB_MAP = {
         'Banggai': 'BG', 'Banggai Kepulauan': 'BK', 'Banggai Laut': 'BL',
         'Buol': 'BU', 'Donggala': 'DG', 'Parigi Moutong': 'PM',
-        'Poso': 'PS', 'Tojo Una-una': 'TU', 'Toli-toli': 'TL', 'Toli Toli': 'TL',
+        'Poso': 'PS', 'Tojo Una-Una': 'TU', 'Tolitoli': 'TL',
         'Morowali': 'MW', 'Morowali Utara': 'MU', 'Palu': 'PL', 'Kota Palu': 'PL', 
         'Sigi': 'SG', 'Sulawesi Tengah': 'ST', 'Provinsi Sulawesi Tengah': 'ST'
     }
@@ -204,7 +204,7 @@ with st.sidebar:
     if not df_elek_singkat.empty and 'pra_btel' in df_elek_singkat.columns and 'bt_valid' in df_elek_singkat.columns:
         df_elek_rekap = df_elek_singkat.groupby('kab_singkat')[['pra_btel', 'bt_valid']].sum().reset_index()
         # Menghitung persentase
-        df_elek_rekap['Persentase'] = (df_elek_rekap['bt_valid'] / df_elek_rekap['pra_btel'].replace(0, 1)) * 100
+        df_elek_rekap['Persentase'] = (df_elek_rekap['pra_sertel'] / df_elek_rekap['bt_valid'].replace(0, 1)) * 100
         
         fig_elek = px.bar(
             df_elek_rekap, x='kab_singkat', y='Persentase',
