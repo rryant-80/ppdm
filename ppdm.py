@@ -270,31 +270,41 @@ def render_psn_2026(df_filtered_psn):
     }
 
     def clean_num(val):
+        """Konversi teks angka standar Indonesia (koma desimal, titik ribuan) ke float Python"""
         if pd.isna(val): return 0.0
         if isinstance(val, (int, float)): return float(val)
-        clean_str = str(val).replace('.', '').replace(',', '').replace('Rp', '').strip()
-        try: return float(clean_str)
-        except: return 0.0
+        
+        # Hapus titik ribuan, ubah koma desimal menjadi titik
+        clean_str = str(val).replace('.', '').replace(',', '.').replace('Rp', '').strip()
+        try:
+            return float(clean_str)
+        except ValueError:
+            return 0.0
 
     def fmt_idr(val):
+        """Format angka bulat/ribuan dengan titik (contoh: 1.214)"""
         return f"{val:,.0f}".replace(',', '.')
 
-    def fmt_pct(val):
-        return f"{val:.2f}".replace('.', ',')
+    def fmt_decimal(val):
+        """Format desimal dengan titik ribuan dan koma desimal (contoh: 510,75)"""
+        parts = f"{val:,.2f}".split('.')
+        integer_part = parts[0].replace(',', '.')
+        decimal_part = parts[1]
+        return f"{integer_part},{decimal_part}"
 
-    # Copy data agar aman dan tambahkan singkatan kabupaten
+    # Copy data & tambahkan singkatan kabupaten
     df = df_filtered_psn.copy()
     if 'kabupaten_kota' in df.columns:
         df['kab_singkat'] = df['kabupaten_kota'].map(lambda x: KAB_MAP.get(x, x))
     else:
         df['kab_singkat'] = '-'
 
-    # Bersihkan seluruh kolom numerik yang digunakan
+    # Bersihkan kolom numerik
     cols_to_clean = [
         'target_pbt', 'realisasi_baru', 'realisasi_k4', 'realisasi_repo',
         'target_shat', 'puldadis', 'berkas', 'k1', 'diserahkan',
         'target_redis', 'pos_redis', 'sk_redis', 'sertipikat_redis',
-        'target_lintor', 'lintor_su', 'lintor_sk', 'lintor_sertipikat'
+        'target_lintor', 'lintor_su', 'lintor_sk', 'lintor_sertipikat', 'lintor_serah'
     ]
     for col in cols_to_clean:
         if col in df.columns:
@@ -302,12 +312,11 @@ def render_psn_2026(df_filtered_psn):
         else:
             df[col] = 0.0
 
-    # Agregasi data berdasarkan kabupaten
+    # Agregasi data per kabupaten
     df_rekap = df.groupby('kab_singkat')[cols_to_clean].sum().reset_index()
 
-    # Fungsi pembuat grafik batang grouped dengan hover kustom
-    def create_psn_chart(title, df_data, target_col, metrics_dict, color_sequence):
-        # Flatten data ke format panjang (long format) untuk Plotly Express
+    # Fungsi pembuat grafik dengan satuan dinamis (Ha / Bdg)
+    def create_psn_chart(title, df_data, target_col, metrics_dict, color_sequence, unit="Bdg"):
         long_rows = []
         for _, row in df_data.iterrows():
             kab = row['kab_singkat']
@@ -317,15 +326,19 @@ def render_psn_2026(df_filtered_psn):
                 real_val = row[col_name]
                 pct = (real_val / target_val * 100) if target_val > 0 else 0.0
                 
+                # Gunakan fmt_decimal untuk PBT (karena mengandung desimal), dan fmt_idr untuk satuan bidang
+                real_fmt_str = fmt_decimal(real_val) if unit == "Ha" else fmt_idr(real_val)
+                target_fmt_str = fmt_decimal(target_val) if unit == "Ha" else fmt_idr(target_val)
+
                 long_rows.append({
                     'Kab/Kota': kab,
                     'Indikator': label,
                     'Persentase': pct,
                     'Realisasi': real_val,
                     'Target': target_val,
-                    'Pct_Fmt': fmt_pct(pct),
-                    'Real_Fmt': fmt_idr(real_val),
-                    'Target_Fmt': fmt_idr(target_val)
+                    'Pct_Fmt': fmt_decimal(pct),
+                    'Real_Fmt': f"{real_fmt_str} {unit}",
+                    'Target_Fmt': f"{target_fmt_str} {unit}"
                 })
                 
         df_long = pd.DataFrame(long_rows)
@@ -370,7 +383,7 @@ def render_psn_2026(df_filtered_psn):
     row1_col1, row1_col2 = st.columns(2)
     row2_col1, row2_col2 = st.columns(2)
 
-    # 1. GRAFIK 1: Realisasi PBT
+    # 1. GRAFIK 1: Realisasi PBT (Satuan: Ha)
     with row1_col1:
         metrics_pbt = {
             'Realisasi Baru': 'realisasi_baru',
@@ -379,11 +392,11 @@ def render_psn_2026(df_filtered_psn):
         }
         fig_pbt = create_psn_chart(
             "1. Realisasi PBT", df_rekap, 'target_pbt', metrics_pbt, 
-            ['#636EFA', '#EF553B', '#00CC96']
+            ['#636EFA', '#EF553B', '#00CC96'], unit="Ha"
         )
         st.plotly_chart(fig_pbt, use_container_width=True)
 
-    # 2. GRAFIK 2: Realisasi SHAT
+    # 2. GRAFIK 2: Realisasi SHAT (Satuan: Bdg)
     with row1_col2:
         metrics_shat = {
             'Puldadis': 'puldadis',
@@ -393,11 +406,11 @@ def render_psn_2026(df_filtered_psn):
         }
         fig_shat = create_psn_chart(
             "2. Realisasi SHAT", df_rekap, 'target_shat', metrics_shat, 
-            ['#AB63FA', '#FFA15A', '#19D3F3', '#FF6692']
+            ['#AB63FA', '#FFA15A', '#19D3F3', '#FF6692'], unit="Bdg"
         )
         st.plotly_chart(fig_shat, use_container_width=True)
 
-    # 3. GRAFIK 3: Realisasi Redistribusi
+    # 3. GRAFIK 3: Realisasi Redistribusi (Satuan: Bdg)
     with row2_col1:
         metrics_redis = {
             'Subyek Obyek': 'pos_redis',
@@ -406,23 +419,23 @@ def render_psn_2026(df_filtered_psn):
         }
         fig_redis = create_psn_chart(
             "3. Realisasi Redistribusi", df_rekap, 'target_redis', metrics_redis, 
-            ['#17BECF', '#FECB52', '#B6E880']
+            ['#17BECF', '#FECB52', '#B6E880'], unit="Bdg"
         )
         st.plotly_chart(fig_redis, use_container_width=True)
 
-    # 4. GRAFIK 4: Realisasi Lintor
+    # 4. GRAFIK 4: Realisasi Lintor (Satuan: Bdg)
     with row2_col2:
+        lintor_serah_col = 'lintor_serah' if 'lintor_serah' in df_rekap.columns and df_rekap['lintor_serah'].sum() > 0 else 'lintor_sertipikat'
         metrics_lintor = {
             'Lintor SU': 'lintor_su',
             'Lintor SK': 'lintor_sk',
-            'Lintor Sertipikat': 'lintor_serah' if 'lintor_serah' in df_rekap.columns and df_rekap['lintor_serah'].sum() > 0 else 'lintor_sertipikat'
+            'Lintor Sertipikat': lintor_serah_col
         }
         fig_lintor = create_psn_chart(
             "4. Realisasi Lintor", df_rekap, 'target_lintor', metrics_lintor, 
-            ['#FF97FF', '#2CA02C', '#D62728']
+            ['#FF97FF', '#2CA02C', '#D62728'], unit="Bdg"
         )
-        st.plotly_chart(fig_lintor, use_container_width=True)    
-
+        st.plotly_chart(fig_lintor, use_container_width=True)
 
 def render_layanan_pertanahan(df_filtered_layanan):
     st.title("💼 Layanan Pertanahan")
