@@ -556,7 +556,33 @@ def render_layanan_pertanahan(df_filtered_layanan):
     df = df_filtered_layanan.copy()
 
     # ==========================================
-    # 1. FUNGSI PEMBANTU FORMAT BERKAS & TANGGAL
+    # 1. KAMUS PENYESUAIAN NAMA KABUPATEN
+    # ==========================================
+    KAB_NAME_CLEAN = {
+        'Kota Palu': 'Palu',
+        'Kab. Morowali Utara': 'Morowali Utara',
+        'Kab. Banggai': 'Banggai',
+        'Kab. Banggai Kepulauan': 'Banggai Kepulauan',
+        'Kab. Banggai Laut': 'Banggai Laut',
+        'Kab. Buol': 'Buol',
+        'Kab. Donggala': 'Donggala',
+        'Kab. Morowali': 'Morowali',
+        'Kab. Parigi Moutong': 'Parigi Moutong',
+        'Kab. Poso': 'Poso',
+        'Kab. Sigi': 'Sigi',
+        'Kab. Tojo Una-una': 'Tojo Una-una',
+        'Kab. Toli-toli': 'Tolitoli',
+        'Toli-toli': 'Tolitoli',
+        'Toli Toli': 'Tolitoli'
+    }
+
+    if 'kabupaten_kota' in df.columns:
+        df['kab_clean'] = df['kabupaten_kota'].astype(str).str.strip().map(lambda x: KAB_NAME_CLEAN.get(x, x))
+    else:
+        df['kab_clean'] = '-'
+
+    # ==========================================
+    # 2. PARSING NUMERIK & TANGGAL DUA FORMAT
     # ==========================================
     def clean_num(val):
         if pd.isna(val): return 0
@@ -564,7 +590,6 @@ def render_layanan_pertanahan(df_filtered_layanan):
         except: return 0
 
     def fmt_no_thn(val):
-        """Menghilangkan .0 pada nomor atau tahun berkas"""
         if pd.isna(val): return "-"
         s_val = str(val).strip()
         if s_val.endswith('.0'):
@@ -572,18 +597,20 @@ def render_layanan_pertanahan(df_filtered_layanan):
         return s_val
 
     df['durasi_clean'] = df['durasi'].apply(clean_num)
-    df['tgl_mulai_dt'] = pd.to_datetime(df['tgl_mulai'], errors='coerce')
+
+    # Parsing Tanggal Mulai dengan toleransi multi-format (DD/MM/YYYY & YYYY-MM-DD)
+    df['tgl_mulai_dt'] = pd.to_datetime(df['tgl_mulai'], dayfirst=True, errors='coerce')
     
-    # Tanggal hari ini
+    # Hari ini
     today = pd.to_datetime(datetime.date.today())
     
-    # Hitung batas SOP: tgl_mulai + durasi (hari)
+    # Hitung tanggal batas SOP
     df['tgl_batas_sop'] = df['tgl_mulai_dt'] + pd.to_timedelta(df['durasi_clean'], unit='D')
     
-    # Filter berkas yang MELEBIHI DURASI SOP
+    # Filter berkas yang MELEBIHI DURASI SOP (Hari ini > batas SOP atau tanpa batas durasi yang sudah lewat)
     df_overdue = df[today > df['tgl_batas_sop']].copy()
 
-    # Format nomor dan tahun berkas bersih tanpa desimal
+    # Bersihkan nomor & tahun berkas
     df_overdue['no_clean'] = df_overdue['nmr_berkas'].apply(fmt_no_thn)
     df_overdue['thn_clean'] = df_overdue['thn_berkas'].apply(fmt_no_thn)
     df_overdue['berkas_thn'] = df_overdue['no_clean'] + "/" + df_overdue['thn_clean']
@@ -591,7 +618,7 @@ def render_layanan_pertanahan(df_filtered_layanan):
     POSISI_TARGET = ["Kakan", "Kasi SP", "Kasi PHP", "Loket"]
 
     # ==========================================
-    # 2. CSS STROBO KOMPAK & DESAIN PADAT
+    # 3. STYLING COMPACT STROBO
     # ==========================================
     st.markdown("""
     <style>
@@ -635,11 +662,10 @@ def render_layanan_pertanahan(df_filtered_layanan):
     """, unsafe_allow_html=True)
 
     # ==========================================
-    # 3. MATRIKS STROBO (RINGKAS & COMPACT)
+    # 4. MATRIKS STROBO UTAMA
     # ==========================================
-    list_kab = sorted(df['kabupaten_kota'].dropna().unique().tolist())
+    list_kab = sorted(df['kab_clean'].dropna().unique().tolist())
 
-    # Header Tabel
     col_kab, col_p1, col_p2, col_p3, col_p4 = st.columns([2.2, 1.8, 1.8, 1.8, 1.8])
     with col_kab: st.markdown("<div class='table-hdr'>Kantor Pertanahan</div>", unsafe_allow_html=True)
     with col_p1: st.markdown("<div class='table-hdr'>Kakan</div>", unsafe_allow_html=True)
@@ -649,7 +675,6 @@ def render_layanan_pertanahan(df_filtered_layanan):
 
     st.markdown("<div style='margin-bottom: 4px;'></div>", unsafe_allow_html=True)
 
-    # Render Baris Strobo
     for kab in list_kab:
         c_kab, c_p1, c_p2, c_p3, c_p4 = st.columns([2.2, 1.8, 1.8, 1.8, 1.8])
         
@@ -660,16 +685,15 @@ def render_layanan_pertanahan(df_filtered_layanan):
         
         for idx, pos in enumerate(POSISI_TARGET):
             with cols_pos[idx]:
-                # Pencarian posisi berkas yang presisi dan fleksibel
+                # Pencarian fleksibel mencakup kata kunci posisi_berkas (case-insensitive)
                 sub_df = df_overdue[
-                    (df_overdue['kabupaten_kota'] == kab) & 
+                    (df_overdue['kab_clean'] == kab) & 
                     (df_overdue['posisi_berkas'].astype(str).str.contains(pos, case=False, na=False))
                 ]
                 
                 jml_berkas = len(sub_df)
                 
                 if jml_berkas > 0:
-                    # Susun rincian tooltip tanpa angka .0
                     tooltip_items = []
                     for _, r in sub_df.iterrows():
                         no_thn = r.get('berkas_thn', '-')
@@ -692,16 +716,16 @@ def render_layanan_pertanahan(df_filtered_layanan):
     st.markdown("<div style='margin-bottom: 8px;'></div>", unsafe_allow_html=True)
 
     # ==========================================
-    # 4. GRAFIK TUNGGAL UTAMA (RINGKAS)
+    # 5. GRAFIK REKAPITULASI POSISI BERKAS
     # ==========================================
     if not df_overdue.empty:
-        df_g1 = df_overdue.groupby(['kabupaten_kota', 'posisi_berkas']).agg(
+        df_g1 = df_overdue.groupby(['kab_clean', 'posisi_berkas']).agg(
             jml_berkas=('nmr_berkas', 'count'),
             list_berkas=('berkas_thn', lambda x: ", ".join(x.unique()[:6]))
         ).reset_index()
 
         fig_pos = px.bar(
-            df_g1, x='kabupaten_kota', y='jml_berkas', color='posisi_berkas',
+            df_g1, x='kab_clean', y='jml_berkas', color='posisi_berkas',
             title="Rekapitulasi Berkas Melebihi SOP per Posisi Berkas",
             custom_data=df_g1[['posisi_berkas', 'list_berkas']],
             barmode='group',
@@ -714,7 +738,7 @@ def render_layanan_pertanahan(df_filtered_layanan):
         )
         
         fig_pos.update_layout(
-            height=200, # Diperkecil agar muat penuh dalam 1 layar laptop
+            height=200,
             xaxis_title="",
             yaxis_title="",
             legend_title_text="",
