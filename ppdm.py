@@ -43,12 +43,10 @@ def render_profil_anggaran(df_filtered_sdm):
     # FUNGSI PEMBANTU KONVERSI NUMERIK AMAN
     # ==========================================
     def clean_number(val):
-        """Mengubah string/teks angka berformat menjadi float murni"""
         if pd.isna(val):
             return 0.0
         if isinstance(val, (int, float)):
             return float(val)
-        # Hapus titik/koma/spasi jika data berupa string
         clean_str = str(val).replace('.', '').replace(',', '').replace('Rp', '').strip()
         try:
             return float(clean_str)
@@ -60,7 +58,6 @@ def render_profil_anggaran(df_filtered_sdm):
     # ==========================================
     def get_pejabat_info(df, jabatan_name):
         match = df[df['jabatan'].astype(str).str.contains(jabatan_name, case=False, na=False)]
-        
         DEFAULT_IMG = "https://via.placeholder.com/150?text=No+Image"
         
         if not match.empty:
@@ -92,54 +89,79 @@ def render_profil_anggaran(df_filtered_sdm):
     pimpinan_2 = get_pejabat_info(df_filtered_sdm, "Kepala Kantor")
 
     # ==========================================
+    # FUNCTION PEMBANTU CARD MODERN AKSEN BIRU
+    # ==========================================
+    def render_modern_card(title, value, sub_value=""):
+        card_html = f"""
+        <div style="
+            background: linear-gradient(135deg, #ffffff 0%, #f0f7ff 100%);
+            border-left: 5px solid #1E88E5;
+            border-radius: 10px;
+            padding: 12px 14px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            margin-bottom: 12px;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        ">
+            <div style="color: #555555; font-size: 0.82rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                {title}
+            </div>
+            <div style="color: #0D47A1; font-size: 1.25rem; font-weight: 700; margin-top: 4px; word-break: break-word;">
+                {value}
+            </div>
+            {f'<div style="color: #666666; font-size: 0.75rem; margin-top: 2px;">{sub_value}</div>' if sub_value else ''}
+        </div>
+        """
+        st.markdown(card_html, unsafe_allow_html=True)
+
+    # ==========================================
     # BARIS 1: FOTO UTAMA & METRIK CARDS
     # ==========================================
     col_layout_left, col_layout_right = st.columns([2, 3])
 
     with col_layout_left:
+        # Foto 1 & Foto 2 Berdampingan (Tanpa Keterangan Teks)
         col_pic1, col_pic2 = st.columns(2)
         with col_pic1:
-            st.image(pimpinan_1["url"], use_column_width=True, caption=f"{pimpinan_1['jabatan']}")
-            st.caption(f"**{pimpinan_1['nama']}**")
+            st.image(pimpinan_1["url"], use_column_width=True)
         with col_pic2:
-            st.image(pimpinan_2["url"], use_column_width=True, caption=f"{pimpinan_2['jabatan']}")
-            st.caption(f"**{pimpinan_2['nama']}**")
+            st.image(pimpinan_2["url"], use_column_width=True)
 
     with col_layout_right:
-        c1, c2, c3 = st.columns(3)
-        c4, c5, c6 = st.columns(3)
-
+        # Hitung Nilai Agregat Metrik
         jml_pegawai = len(df_filtered_sdm)
         
         if not df_elek_ctx.empty:
             jml_kec = df_elek_ctx['kecamatan'].nunique() if 'kecamatan' in df_elek_ctx.columns else 0
             jml_desa = df_elek_ctx['desa_kelurahan'].nunique() if 'desa_kelurahan' in df_elek_ctx.columns else 0
-            
-            # Konversi kolom ke numerik sebelum disum
             luas_adm = df_elek_ctx['luas_adm'].apply(clean_number).sum() if 'luas_adm' in df_elek_ctx.columns else 0
             luas_apl = df_elek_ctx['luas_apl'].apply(clean_number).sum() if 'luas_apl' in df_elek_ctx.columns else 0
         else:
             jml_kec, jml_desa, luas_adm, luas_apl = 0, 0, 0, 0
 
-        # Konversi kolom target & realisasi DIPA ke numerik aman
         total_target = df_filtered_sdm['target_dipa'].apply(clean_number).sum() if 'target_dipa' in df_filtered_sdm.columns else 0.0
         total_realisasi = df_filtered_sdm['realisasi_dipa'].apply(clean_number).sum() if 'realisasi_dipa' in df_filtered_sdm.columns else 0.0
-        
         total_persen_dipa = (total_realisasi / total_target * 100) if total_target > 0 else 0.0
 
-        c1.metric("Jumlah Pegawai", f"{jml_pegawai} Orang")
-        c2.metric("Jumlah Kecamatan", f"{jml_kec}")
-        c3.metric("Jumlah Desa/Kel", f"{jml_desa}")
-        
-        c4.metric(
-            "Total % Realisasi Dipa", 
-            f"{total_persen_dipa:.2f}%", 
-            help=f"Total Realisasi: Rp {total_realisasi:,.0f}"
-        )
-        c4.markdown(f"<small style='color:gray;'>Rp {total_realisasi:,.0f}</small>", unsafe_allow_html=True)
-        
-        c5.metric("Luas ADM", f"{luas_adm:,.2f} Ha")
-        c6.metric("Luas APL", f"{luas_apl:,.2f} Ha")
+        # Baris Card 1 (Card 1, 2, 3)
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            render_modern_card("Jumlah Pegawai", f"{jml_pegawai} Orang")
+        with c2:
+            render_modern_card("Jumlah Kecamatan", f"{jml_kec}")
+        with c3:
+            render_modern_card("Jumlah Desa/Kel", f"{jml_desa}")
+
+        # Baris Card 2 (Card 4, 5, 6)
+        c4, c5, c6 = st.columns(3)
+        with c4:
+            render_modern_card("Total % Realisasi Dipa", f"{total_persen_dipa:.2f}%", f"Rp {total_realisasi:,.0f}")
+        with c5:
+            render_modern_card("Luas ADM", f"{luas_adm:,.2f} <span style='font-size:0.85rem;'>Ha</span>")
+        with c6:
+            render_modern_card("Luas APL", f"{luas_apl:,.2f} <span style='font-size:0.85rem;'>Ha</span>")
 
     st.markdown("<br>", unsafe_allow_html=True)
 
