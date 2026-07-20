@@ -61,6 +61,13 @@ def render_profil_anggaran(df_filtered_sdm):
         """Format persentase desimal koma (59,76%)"""
         return f"{val:.2f}".replace('.', ',')
 
+    def fmt_decimal(val):
+        """Format angka desimal lengkap dengan pemisah ribuan titik dan desimal koma (misal: 6.910.824,75)"""
+        parts = f"{val:,.2f}".split('.')
+        integer_part = parts[0].replace(',', '.')
+        decimal_part = parts[1]
+        return f"{integer_part},{decimal_part}"
+
     # ==========================================
     # FUNCTION PEMBANTU UNTUK PEJABAT / FOTO
     # ==========================================
@@ -176,11 +183,11 @@ def render_profil_anggaran(df_filtered_sdm):
         with c4:
             render_modern_card("Total % Realisasi Dipa", f"{fmt_pct(total_persen_dipa)}%", f"Rp {fmt_idr(total_realisasi)}")
         with c5:
-            render_modern_card("Luas ADM", f"{fmt_pct(luas_adm_km2)} <span style='font-size:0.8rem;'>km²</span>")
+            render_modern_card("Luas ADM", f"{fmt_decimal(luas_adm_km2)} <span style='font-size:0.8rem;'>km²</span>")
         with c6:
             render_modern_card(
                 "Luas APL", 
-                f"{fmt_pct(luas_apl_km2)} <span style='font-size:0.8rem;'>km²</span>", 
+                f"{fmt_decimal(luas_apl_km2)} <span style='font-size:0.8rem;'>km²</span>", 
                 f"{fmt_pct(persen_apl_adm)}% dari Luas ADM"
             )
 
