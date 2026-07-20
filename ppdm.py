@@ -40,7 +40,7 @@ def render_profil_anggaran(df_filtered_sdm):
     df_elek_ctx = globals().get('df_f_elektronik', pd.DataFrame())
 
     # ==========================================
-    # FUNGSI PEMBANTU KONVERSI NUMERIK AMAN
+    # FUNGSI PEMBANTU FORMAT ANGKA INDONESIA
     # ==========================================
     def clean_number(val):
         if pd.isna(val):
@@ -52,6 +52,14 @@ def render_profil_anggaran(df_filtered_sdm):
             return float(clean_str)
         except ValueError:
             return 0.0
+
+    def fmt_idr(val):
+        """Format angka ke Rupiah standar Indonesia: ribuan titik (1.000.000)"""
+        return f"{val:,.0f}".replace(',', '.')
+
+    def fmt_pct(val):
+        """Format persentase desimal koma (59,76%)"""
+        return f"{val:.2f}".replace('.', ',')
 
     # ==========================================
     # FUNCTION PEMBANTU UNTUK PEJABAT / FOTO
@@ -96,22 +104,22 @@ def render_profil_anggaran(df_filtered_sdm):
         <div style="
             background: linear-gradient(135deg, #ffffff 0%, #f0f7ff 100%);
             border-left: 5px solid #1E88E5;
-            border-radius: 10px;
-            padding: 12px 14px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-            margin-bottom: 12px;
+            border-radius: 8px;
+            padding: 10px 12px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+            margin-bottom: 10px;
             height: 100%;
             display: flex;
             flex-direction: column;
             justify-content: center;
         ">
-            <div style="color: #555555; font-size: 0.82rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+            <div style="color: #555555; font-size: 0.78rem; font-weight: 600; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                 {title}
             </div>
-            <div style="color: #0D47A1; font-size: 1.25rem; font-weight: 700; margin-top: 4px; word-break: break-word;">
+            <div style="color: #0D47A1; font-size: 1.2rem; font-weight: 700; margin-top: 2px; word-break: break-word;">
                 {value}
             </div>
-            {f'<div style="color: #666666; font-size: 0.75rem; margin-top: 2px;">{sub_value}</div>' if sub_value else ''}
+            {f'<div style="color: #666666; font-size: 0.72rem; margin-top: 1px;">{sub_value}</div>' if sub_value else ''}
         </div>
         """
         st.markdown(card_html, unsafe_allow_html=True)
@@ -122,7 +130,6 @@ def render_profil_anggaran(df_filtered_sdm):
     col_layout_left, col_layout_right = st.columns([2, 3])
 
     with col_layout_left:
-        # Foto 1 & Foto 2 Berdampingan (Tanpa Keterangan Teks)
         col_pic1, col_pic2 = st.columns(2)
         with col_pic1:
             st.image(pimpinan_1["url"], use_column_width=True)
@@ -130,7 +137,6 @@ def render_profil_anggaran(df_filtered_sdm):
             st.image(pimpinan_2["url"], use_column_width=True)
 
     with col_layout_right:
-        # Hitung Nilai Agregat Metrik
         jml_pegawai = len(df_filtered_sdm)
         
         if not df_elek_ctx.empty:
@@ -145,28 +151,26 @@ def render_profil_anggaran(df_filtered_sdm):
         total_realisasi = df_filtered_sdm['realisasi_dipa'].apply(clean_number).sum() if 'realisasi_dipa' in df_filtered_sdm.columns else 0.0
         total_persen_dipa = (total_realisasi / total_target * 100) if total_target > 0 else 0.0
 
-        # Baris Card 1 (Card 1, 2, 3)
         c1, c2, c3 = st.columns(3)
         with c1:
             render_modern_card("Jumlah Pegawai", f"{jml_pegawai} Orang")
         with c2:
-            render_modern_card("Jumlah Kecamatan", f"{jml_kec}")
+            render_modern_card("Jumlah Kecamatan", f"{fmt_idr(jml_kec)}")
         with c3:
-            render_modern_card("Jumlah Desa/Kel", f"{jml_desa}")
+            render_modern_card("Jumlah Desa/Kel", f"{fmt_idr(jml_desa)}")
 
-        # Baris Card 2 (Card 4, 5, 6)
         c4, c5, c6 = st.columns(3)
         with c4:
-            render_modern_card("Total % Realisasi Dipa", f"{total_persen_dipa:.2f}%", f"Rp {total_realisasi:,.0f}")
+            render_modern_card("Total % Realisasi Dipa", f"{fmt_pct(total_persen_dipa)}%", f"Rp {fmt_idr(total_realisasi)}")
         with c5:
-            render_modern_card("Luas ADM", f"{luas_adm:,.2f} <span style='font-size:0.85rem;'>Ha</span>")
+            render_modern_card("Luas ADM", f"{fmt_pct(luas_adm)} <span style='font-size:0.8rem;'>Ha</span>")
         with c6:
-            render_modern_card("Luas APL", f"{luas_apl:,.2f} <span style='font-size:0.85rem;'>Ha</span>")
+            render_modern_card("Luas APL", f"{fmt_pct(luas_apl)} <span style='font-size:0.8rem;'>Ha</span>")
 
     st.markdown("<br>", unsafe_allow_html=True)
 
     # ==========================================
-    # BARIS 2: GRID PEJABAT STRUKTURAL (F1 - F6)
+    # BARIS 2: GRID PEJABAT STRUKTURAL
     # ==========================================
     st.subheader("👥 Pejabat Struktural")
     
@@ -188,24 +192,42 @@ def render_profil_anggaran(df_filtered_sdm):
         
         with all_f_cols[idx]:
             with st.container(border=True):
-                sub_c1, sub_c2 = st.columns([1, 2])
+                sub_c1, sub_c2 = st.columns([1, 2.2])
                 
                 with sub_c1:
+                    # Foto Pejabat Tanpa Label F1, dst.
                     st.image(p_info["url"], use_column_width=True)
-                    st.markdown(f"<center><b>F{idx+1}</b></center>", unsafe_allow_html=True)
                     
                 with sub_c2:
-                    st.markdown(f"##### {p_info['nama']}")
-                    st.markdown(f"<small style='color:gray;'>{p_info['jabatan']}</small>", unsafe_allow_html=True)
-                    st.markdown(f"<small>Target: <b>Rp {p_info['target']:,.0f}</b></small>", unsafe_allow_html=True)
+                    # Teks Rapat dan Kompak Bergaya Modern
+                    html_content = f"""
+                    <div style="line-height: 1.25; margin-bottom: 4px;">
+                        <div style="font-weight: 700; font-size: 0.88rem; color: #111111; word-break: break-word;">
+                            {p_info['nama']}
+                        </div>
+                        <div style="font-size: 0.75rem; color: #666666; margin-top: 2px; margin-bottom: 6px;">
+                            {p_info['jabatan']}
+                        </div>
+                        <div style="font-size: 0.75rem; color: #333333;">
+                            Target: <b>Rp {fmt_idr(p_info['target'])}</b>
+                        </div>
+                    </div>
+                    """
+                    st.markdown(html_content, unsafe_allow_html=True)
                     
+                    # Progress Bar Realisasi
                     progress_val = min(max(p_info['persen'] / 100.0, 0.0), 1.0)
                     st.progress(progress_val)
                     
-                    st.markdown(
-                        f"<div style='text-align: right;'><small>Realisasi: <b style='color:#00CC96;'>{p_info['persen']:.2f}%</b> (Rp {p_info['realisasi']:,.0f})</small></div>", 
-                        unsafe_allow_html=True
-                    )
+                    # Teks Realisasi di Bawah Progress Bar
+                    html_realisasi = f"""
+                    <div style="text-align: right; line-height: 1.2; margin-top: 2px;">
+                        <span style="font-size: 0.72rem; color: #555555;">Realisasi: </span>
+                        <b style="font-size: 0.75rem; color: #00CC96;">{fmt_pct(p_info['persen'])}%</b>
+                        <div style="font-size: 0.70rem; color: #777777;">(Rp {fmt_idr(p_info['realisasi'])})</div>
+                    </div>
+                    """
+                    st.markdown(html_realisasi, unsafe_allow_html=True)
     
 def render_psn_2026(df_filtered_psn):
     st.title("🎯 Proyek Strategis Nasional (PSN) 2026")
