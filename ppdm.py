@@ -269,13 +269,38 @@ def render_psn_2026(df_filtered_psn):
         'Sigi': 'SG', 'Sulawesi Tengah': 'ST', 'Provinsi Sulawesi Tengah': 'ST'
     }
 
-    def clean_num(val):
+    # -------------------------------------------------------------------------
+    # FUNGSI PEMBERSIH ANGKA TERPISAH (PRESISI MURNI)
+    # -------------------------------------------------------------------------
+    def clean_target_val(val):
+        """Khusus membersihkan angka target murni tanpa merusak nilai ratusan/ribuan"""
+        if pd.isna(val): return 0.0
+        if isinstance(val, (int, float)): 
+            # Jika sudah float tetapi memiliki nilai seperti 1.05 (maksudnya 1050)
+            if 0 < val < 10:
+                return round(val * 1000)
+            return float(val)
+        
+        s_val = str(val).replace('Rp', '').strip()
+        if not s_val: return 0.0
+        
+        # Hapus titik pemisah ribuan standar Indonesia (misal: "1.050" -> "1050")
+        clean_str = s_val.replace('.', '').replace(',', '.')
+        try:
+            return float(clean_str)
+        except ValueError:
+            return 0.0
+
+    def clean_realisasi_val(val):
+        """Khusus membersihkan nilai realisasi (yang mengandung desimal koma)"""
         if pd.isna(val): return 0.0
         if isinstance(val, (int, float)): return float(val)
+        
         s_val = str(val).replace('Rp', '').strip()
         if not s_val: return 0.0
         
         if ',' in s_val:
+            # Mengandung koma (misal: 510,75) -> hapus titik ribuan, ubah koma ke titik
             clean_str = s_val.replace('.', '').replace(',', '.')
         else:
             clean_str = s_val.replace('.', '')
@@ -284,6 +309,27 @@ def render_psn_2026(df_filtered_psn):
             return float(clean_str)
         except ValueError:
             return 0.0
+
+    # Terapkan pembersihan khusus berdasarkan tipe kolom
+    target_cols = ['target_pbt', 'target_shat', 'target_redis', 'target_lintor']
+    realisasi_cols = [
+        'realisasi_baru', 'realisasi_k4', 'realisasi_repo',
+        'puldadis', 'berkas', 'k1', 'diserahkan',
+        'pos_redis', 'sk_redis', 'sertipikat_redis',
+        'lintor_su', 'lintor_sk', 'lintor_sertipikat', 'lintor_serah'
+    ]
+
+    for col in target_cols:
+        if col in df.columns:
+            df[col] = df[col].apply(clean_target_val)
+        else:
+            df[col] = 0.0
+
+    for col in realisasi_cols:
+        if col in df.columns:
+            df[col] = df[col].apply(clean_realisasi_val)
+        else:
+            df[col] = 0.0
 
     def fmt_idr(val):
         return f"{val:,.0f}".replace(',', '.')
