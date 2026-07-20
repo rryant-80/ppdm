@@ -545,6 +545,8 @@ def render_psn_2026(df_filtered_psn):
 
 import datetime
 
+import datetime
+
 def render_layanan_pertanahan(df_filtered_layanan):
     st.markdown("### 🚨 Berkas Melebihi Durasi SOP")
     st.markdown("<small style='color:gray;'>💡 Tips: Arahkan kursor ke kotak merah strobo untuk melihat detail nama prosedur dan nomor berkas.</small>", unsafe_allow_html=True)
@@ -582,7 +584,7 @@ def render_layanan_pertanahan(df_filtered_layanan):
         df['kab_clean'] = '-'
 
     # ==========================================
-    # 2. PARSING NUMERIK & TANGGAL DUA FORMAT
+    # 2. PARSING NUMERIK & TANGGAL INDONESIA (DD/MM/YYYY)
     # ==========================================
     def clean_num(val):
         if pd.isna(val): return 0
@@ -596,19 +598,25 @@ def render_layanan_pertanahan(df_filtered_layanan):
             return s_val[:-2]
         return s_val
 
+    # Konversi durasi ke integer murni
     df['durasi_clean'] = df['durasi'].apply(clean_num)
 
-    # Parsing Tanggal Mulai dengan toleransi multi-format (DD/MM/YYYY & YYYY-MM-DD)
-    df['tgl_mulai_dt'] = pd.to_datetime(df['tgl_mulai'], dayfirst=True, errors='coerce')
+    # PARSING TANGGAL UTAMA: Utamakan format DD/MM/YYYY
+    df['tgl_mulai_dt'] = pd.to_datetime(df['tgl_mulai'], format='%d/%m/%Y', errors='coerce')
     
+    # Fallback parsing jika ada format tanggal lain yang campur (misal YYYY-MM-DD)
+    mask_nat = df['tgl_mulai_dt'].isna()
+    if mask_nat.any():
+        df.loc[mask_nat, 'tgl_mulai_dt'] = pd.to_datetime(df.loc[mask_nat, 'tgl_mulai'], dayfirst=True, errors='coerce')
+
     # Hari ini
     today = pd.to_datetime(datetime.date.today())
     
-    # Hitung tanggal batas SOP
+    # Hitung batas SOP: tgl_mulai + durasi (hari)
     df['tgl_batas_sop'] = df['tgl_mulai_dt'] + pd.to_timedelta(df['durasi_clean'], unit='D')
     
-    # Filter berkas yang MELEBIHI DURASI SOP (Hari ini > batas SOP atau tanpa batas durasi yang sudah lewat)
-    df_overdue = df[today > df['tgl_batas_sop']].copy()
+    # Filter berkas yang MELEBIHI DURASI SOP (Hari ini > batas SOP dan tanggal mulai valid)
+    df_overdue = df[(today > df['tgl_batas_sop']) & (df['tgl_mulai_dt'].notna())].copy()
 
     # Bersihkan nomor & tahun berkas
     df_overdue['no_clean'] = df_overdue['nmr_berkas'].apply(fmt_no_thn)
@@ -685,10 +693,9 @@ def render_layanan_pertanahan(df_filtered_layanan):
         
         for idx, pos in enumerate(POSISI_TARGET):
             with cols_pos[idx]:
-                # Pencarian fleksibel mencakup kata kunci posisi_berkas (case-insensitive)
                 sub_df = df_overdue[
                     (df_overdue['kab_clean'] == kab) & 
-                    (df_overdue['posisi_berkas'].astype(str).str.contains(pos, case=False, na=False))
+                    (df_overdue['posisi_berkas'].astype(str).str.strip().str.contains(pos, case=False, na=False))
                 ]
                 
                 jml_berkas = len(sub_df)
