@@ -155,15 +155,16 @@ def render_profil_anggaran(df_filtered_sdm):
             jml_kec = df_elek_ctx['kecamatan'].nunique() if 'kecamatan' in df_elek_ctx.columns else 0
             jml_desa = df_elek_ctx['desa_kelurahan'].nunique() if 'desa_kelurahan' in df_elek_ctx.columns else 0
             
-            # Hitung Luas dalam Hektar (Ha) lalu konversi ke km2 (dibagi 100)
-            luas_adm_ha = df_elek_ctx['luas_adm'].apply(clean_number).sum() if 'luas_adm' in df_elek_ctx.columns else 0
-            luas_apl_ha = df_elek_ctx['luas_apl'].apply(clean_number).sum() if 'luas_apl' in df_elek_ctx.columns else 0
+            # Ambil total nilai m2 dari Google Sheet
+            luas_adm_m2 = df_elek_ctx['luas_adm'].apply(clean_number).sum() if 'luas_adm' in df_elek_ctx.columns else 0
+            luas_apl_m2 = df_elek_ctx['luas_apl'].apply(clean_number).sum() if 'luas_apl' in df_elek_ctx.columns else 0
             
-            luas_adm_km2 = luas_adm_ha / 100.0
-            luas_apl_km2 = luas_apl_ha / 100.0
+            # Konversi dari m2 ke km2 (dibagi 1.000.000)
+            luas_adm_km2 = luas_adm_m2 / 1_000_000.0
+            luas_apl_km2 = luas_apl_m2 / 1_000_000.0
             
             # Persentase APL terhadap ADM
-            persen_apl_adm = (luas_apl_ha / luas_adm_ha * 100) if luas_adm_ha > 0 else 0.0
+            persen_apl_adm = (luas_apl_m2 / luas_adm_m2 * 100) if luas_adm_m2 > 0 else 0.0
         else:
             jml_kec, jml_desa, luas_adm_km2, luas_apl_km2, persen_apl_adm = 0, 0, 0.0, 0.0, 0.0
 
