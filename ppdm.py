@@ -270,19 +270,30 @@ def render_psn_2026(df_filtered_psn):
     }
 
     def clean_num(val):
-        """Konversi teks angka standar Indonesia (koma desimal, titik ribuan) ke float Python"""
+        """
+        Konversi teks angka standar Indonesia:
+        - Jika mengandung koma (misal: 510,75), ubah koma menjadi titik desimal -> 510.75
+        - Jika hanya mengandung titik (misal: 1.070), hapus titik ribuan -> 1070
+        """
         if pd.isna(val): return 0.0
         if isinstance(val, (int, float)): return float(val)
         
-        # Hapus titik ribuan, ubah koma desimal menjadi titik
-        clean_str = str(val).replace('.', '').replace(',', '.').replace('Rp', '').strip()
+        s_val = str(val).replace('Rp', '').strip()
+        
+        if ',' in s_val:
+            # Mengandung desimal koma: hapus titik ribuan lalu ubah koma ke titik desimal
+            clean_str = s_val.replace('.', '').replace(',', '.')
+        else:
+            # Tidak ada koma (bilangan bulat dengan titik ribuan): hapus titik
+            clean_str = s_val.replace('.', '')
+            
         try:
             return float(clean_str)
         except ValueError:
             return 0.0
 
     def fmt_idr(val):
-        """Format angka bulat/ribuan dengan titik (contoh: 1.214)"""
+        """Format angka bulat/ribuan dengan titik (contoh: 1.070)"""
         return f"{val:,.0f}".replace(',', '.')
 
     def fmt_decimal(val):
@@ -299,7 +310,7 @@ def render_psn_2026(df_filtered_psn):
     else:
         df['kab_singkat'] = '-'
 
-    # Bersihkan kolom numerik
+    # Bersihkan seluruh kolom numerik
     cols_to_clean = [
         'target_pbt', 'realisasi_baru', 'realisasi_k4', 'realisasi_repo',
         'target_shat', 'puldadis', 'berkas', 'k1', 'diserahkan',
@@ -326,7 +337,7 @@ def render_psn_2026(df_filtered_psn):
                 real_val = row[col_name]
                 pct = (real_val / target_val * 100) if target_val > 0 else 0.0
                 
-                # Gunakan fmt_decimal untuk PBT (karena mengandung desimal), dan fmt_idr untuk satuan bidang
+                # Format Tampilan Hover
                 real_fmt_str = fmt_decimal(real_val) if unit == "Ha" else fmt_idr(real_val)
                 target_fmt_str = fmt_decimal(target_val) if unit == "Ha" else fmt_idr(target_val)
 
