@@ -270,20 +270,14 @@ def render_psn_2026(df_filtered_psn):
     }
 
     def clean_num(val):
-        """
-        Konversi nilai ke float dengan penanganan khusus angka desimal koma vs titik ribuan
-        """
         if pd.isna(val): return 0.0
         if isinstance(val, (int, float)): return float(val)
-        
         s_val = str(val).replace('Rp', '').strip()
         if not s_val: return 0.0
         
         if ',' in s_val:
-            # Mengandung koma (misal: 510,75 atau 1.489,93) -> hapus titik ribuan, ubah koma ke titik
             clean_str = s_val.replace('.', '').replace(',', '.')
         else:
-            # Tidak mengandung koma (misal: 1.070) -> hapus titik ribuan
             clean_str = s_val.replace('.', '')
             
         try:
@@ -292,11 +286,9 @@ def render_psn_2026(df_filtered_psn):
             return 0.0
 
     def fmt_idr(val):
-        """Format angka bulat/ribuan dengan titik (contoh: 1.070)"""
         return f"{val:,.0f}".replace(',', '.')
 
     def fmt_decimal(val):
-        """Format desimal dengan titik ribuan dan koma desimal (contoh: 510,75)"""
         parts = f"{val:,.2f}".split('.')
         integer_part = parts[0].replace(',', '.')
         decimal_part = parts[1]
@@ -317,16 +309,13 @@ def render_psn_2026(df_filtered_psn):
         'target_lintor', 'lintor_su', 'lintor_sk', 'lintor_sertipikat', 'lintor_serah'
     ]
     
-    # Khusus untuk kolom target, jika terbaca sebagai float < 10 dan ada kemungkinan salah interpretasi titik desimal
     target_cols = ['target_pbt', 'target_shat', 'target_redis', 'target_lintor']
     
     for col in cols_to_clean:
         if col in df.columns:
-            # Jika kolom target terbaca sebagai float pecahan akibat titik dari Google Sheets
             if col in target_cols:
                 def fix_target_num(x):
                     if pd.isna(x): return 0.0
-                    # Jika terbaca float seperti 1.07 (seharusnya 1070)
                     if isinstance(x, float) and 0 < x < 10:
                         return round(x * 1000)
                     return clean_num(x)
@@ -339,15 +328,18 @@ def render_psn_2026(df_filtered_psn):
     # Agregasi data per kabupaten
     df_rekap = df.groupby('kab_singkat')[cols_to_clean].sum().reset_index()
 
-    # Fungsi pembuat grafik dengan filter Target > 0
+    # Fungsi pembuat grafik dengan bingkai & outline bar tegas
     def create_psn_chart(title, df_data, target_col, metrics_dict, color_sequence, unit="Bdg"):
-        # FILTER WILAYAH: Hanya ambil wilayah dengan Target > 0
         df_valid = df_data[df_data[target_col] > 0].copy()
         
         if df_valid.empty:
-            # Jika tidak ada wilayah ber-target
             fig_empty = px.bar(title=f"{title} (Tidak ada target aktif)")
-            fig_empty.update_layout(height=360, margin=dict(l=10, r=10, t=40, b=10))
+            fig_empty.update_layout(
+                height=360, 
+                paper_bgcolor='rgba(0,0,0,0)', 
+                plot_bgcolor='rgba(0,0,0,0)',
+                margin=dict(l=15, r=15, t=40, b=15)
+            )
             return fig_empty
 
         long_rows = []
@@ -359,7 +351,6 @@ def render_psn_2026(df_filtered_psn):
                 real_val = row[col_name]
                 pct = (real_val / target_val * 100) if target_val > 0 else 0.0
                 
-                # Format Tampilan Hover
                 real_fmt_str = fmt_decimal(real_val) if unit == "Ha" else fmt_idr(real_val)
                 target_fmt_str = fmt_decimal(target_val) if unit == "Ha" else fmt_idr(target_val)
 
@@ -387,6 +378,7 @@ def render_psn_2026(df_filtered_psn):
             custom_data=['Real_Fmt', 'Target_Fmt', 'Pct_Fmt']
         )
 
+        # PENAMBAHAN OUTLINE BAR TEGAS (Marker Line)
         fig.update_traces(
             hovertemplate=(
                 "<b>Kab/Kota: %{x}</b><br>"
@@ -394,27 +386,48 @@ def render_psn_2026(df_filtered_psn):
                 "Realisasi: %{customdata[0]}<br>"
                 "Target: %{customdata[1]}<br>"
                 "Persentase: %{customdata[2]}%<extra></extra>"
+            ),
+            marker=dict(
+                line=dict(width=1.5, color='#222222')  # Outline hitam tegas pada setiap bar
             )
         )
 
+        # PENYESUAIAN BACKGROUND & TAMPILAN
         fig.update_layout(
             height=360,
             xaxis_title="",
             yaxis_title="",
             legend_title_text="",
-            margin=dict(l=10, r=10, t=40, b=10),
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+            paper_bgcolor='rgba(0,0,0,0)', # Transparan agar menyatu dengan container #dbdbdb
+            plot_bgcolor='rgba(0,0,0,0)',
+            margin=dict(l=15, r=15, t=45, b=15),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+            yaxis=dict(gridcolor='#c4c4c4'), # Garis kisi horizontal yang halus
+            xaxis=dict(showgrid=False)
         )
         return fig
 
     # ==========================================
-    # LAYOUT GRID 2x2
+    # LAYOUT GRID 2x2 DENGAN BINGKAI (#dbdbdb)
     # ==========================================
+    # CSS Pembungkus Bingkai
+    card_wrapper_start = """
+    <div style="
+        background-color: #dbdbdb;
+        border-radius: 12px;
+        padding: 12px 16px 8px 16px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+    ">
+    """
+    card_wrapper_end = "</div>"
+
     row1_col1, row1_col2 = st.columns(2)
     row2_col1, row2_col2 = st.columns(2)
 
-    # 1. GRAFIK 1: Realisasi PBT (Satuan: Ha)
+    # 1. GRAFIK 1: Realisasi PBT
     with row1_col1:
+        st.markdown(card_wrapper_start, unsafe_allow_html=True)
         metrics_pbt = {
             'Realisasi Baru': 'realisasi_baru',
             'Realisasi K4': 'realisasi_k4',
@@ -425,9 +438,11 @@ def render_psn_2026(df_filtered_psn):
             ['#636EFA', '#EF553B', '#00CC96'], unit="Ha"
         )
         st.plotly_chart(fig_pbt, use_container_width=True)
+        st.markdown(card_wrapper_end, unsafe_allow_html=True)
 
-    # 2. GRAFIK 2: Realisasi SHAT (Satuan: Bdg)
+    # 2. GRAFIK 2: Realisasi SHAT
     with row1_col2:
+        st.markdown(card_wrapper_start, unsafe_allow_html=True)
         metrics_shat = {
             'Puldadis': 'puldadis',
             'Berkas': 'berkas',
@@ -439,9 +454,11 @@ def render_psn_2026(df_filtered_psn):
             ['#AB63FA', '#FFA15A', '#19D3F3', '#FF6692'], unit="Bdg"
         )
         st.plotly_chart(fig_shat, use_container_width=True)
+        st.markdown(card_wrapper_end, unsafe_allow_html=True)
 
-    # 3. GRAFIK 3: Realisasi Redistribusi (Satuan: Bdg)
+    # 3. GRAFIK 3: Realisasi Redistribusi
     with row2_col1:
+        st.markdown(card_wrapper_start, unsafe_allow_html=True)
         metrics_redis = {
             'Subyek Obyek': 'pos_redis',
             'SK Redis': 'sk_redis',
@@ -452,9 +469,11 @@ def render_psn_2026(df_filtered_psn):
             ['#17BECF', '#FECB52', '#B6E880'], unit="Bdg"
         )
         st.plotly_chart(fig_redis, use_container_width=True)
+        st.markdown(card_wrapper_end, unsafe_allow_html=True)
 
-    # 4. GRAFIK 4: Realisasi Lintor (Satuan: Bdg)
+    # 4. GRAFIK 4: Realisasi Lintor
     with row2_col2:
+        st.markdown(card_wrapper_start, unsafe_allow_html=True)
         lintor_serah_col = 'lintor_serah' if 'lintor_serah' in df_rekap.columns and df_rekap['lintor_serah'].sum() > 0 else 'lintor_sertipikat'
         metrics_lintor = {
             'Lintor SU': 'lintor_su',
@@ -466,6 +485,7 @@ def render_psn_2026(df_filtered_psn):
             ['#FF97FF', '#2CA02C', '#D62728'], unit="Bdg"
         )
         st.plotly_chart(fig_lintor, use_container_width=True)
+        st.markdown(card_wrapper_end, unsafe_allow_html=True)
 
 def render_layanan_pertanahan(df_filtered_layanan):
     st.title("💼 Layanan Pertanahan")
