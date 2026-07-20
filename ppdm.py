@@ -274,27 +274,35 @@ def render_psn_2026(df_filtered_psn):
     # ==========================================
     def clean_integer_field(val):
         """
-        Khusus untuk SHAT, Redis, Lintor & Target PBT (SATUAN BIDANG / BULAT MURNI).
-        Mengatasi string '1.050' atau float 1.05 / 1.7 / 1.264 dari Pandas agar kembali ke 1050, 1700, 1264.
+        Khusus SHAT, Redis, Lintor & Target PBT (SATUAN BIDANG / BULAT MURNI).
+        Memastikan 2.000 -> 2000, 1.050 -> 1050, 1.700 -> 1700, 600 -> 600.
         """
-        if pd.isna(val): return 0.0
-        
-        # Jika berupa float yang berasal dari pembacaan '1.050' -> 1.05 atau '1.700' -> 1.7 oleh Pandas
+        if pd.isna(val): 
+            return 0.0
+            
+        # Jika terbaca sebagai float oleh Pandas (seperti 2.0 dari '2.000' atau 1.7 dari '1.700')
         if isinstance(val, float):
-            if val == 0: return 0.0
-            # Jika angka pecahan desimal < 100 (misal 1.05, 1.7, 1.264, 2.0)
-            if 0 < val < 100 and (val % 1 != 0):
-                # Format kembali ke 3 desimal untuk merekonstruksi string ribuan '1.050' -> hapus titik -> 1050
-                s_float = f"{val:.3f}".replace('.', '')
-                return float(s_float)
+            if val == 0: 
+                return 0.0
+            # Jika angka pecahan/float di bawah 10 (contoh: 2.0 -> 2000, 1.7 -> 1700, 1.05 -> 1050, 1.264 -> 1264)
+            if 0 < val < 10:
+                return float(round(val * 1000))
             return float(val)
             
         if isinstance(val, int):
             return float(val)
             
-        # Jika berupa string dari Google Sheets
+        # Jika berupa string murni dari Google Sheets (misal "2.000" atau "1.050")
         s_val = str(val).replace('Rp', '').strip()
-        if not s_val: return 0.0
+        if not s_val: 
+            return 0.0
+        
+        # Hapus seluruh titik pemisah ribuan
+        clean_str = s_val.replace('.', '').replace(',', '.')
+        try:
+            return float(clean_str)
+        except ValueError:
+            return 0.0
         
         # Hapus seluruh titik ribuan
         clean_str = s_val.replace('.', '').replace(',', '.')
