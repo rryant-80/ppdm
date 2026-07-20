@@ -270,19 +270,21 @@ def render_psn_2026(df_filtered_psn):
     }
 
     # ==========================================
-    # 2. FUNGSI PEMBERSIH NUMERIK MURNI
+    # FUNGSI PEMBERSIH NUMERIK PRESISI KHUSUS
     # ==========================================
-    def clean_target_val(val):
-        """Menjamin angka target berformat titik ribuan (1.700) dibaca murni sebagai 1700"""
+    def clean_psn_integer(val):
+        """
+        Pembersih angka murni untuk SHAT, Redis, & Lintor.
+        Mengubah pecahan akibat pemisah titik ribuan (misal 1.7 -> 1700, 1.05 -> 1050)
+        """
         if pd.isna(val): 
             return 0.0
             
-        # Jika Pandas membaca string '1.700' atau '1.050'
+        # Jika berupa string dari Google Sheets
         if isinstance(val, str):
             s_val = val.replace('Rp', '').strip()
-            if not s_val: 
-                return 0.0
-            # Hapus titik ribuan dan ganti koma jika ada
+            if not s_val: return 0.0
+            # Hapus titik ribuan dan ubah koma jika ada desimal
             clean_str = s_val.replace('.', '').replace(',', '.')
             try:
                 return float(clean_str)
@@ -291,10 +293,9 @@ def render_psn_2026(df_filtered_psn):
                 
         # Jika Pandas terlanjur mengonversi '1.700' menjadi float 1.7
         if isinstance(val, float):
-            # Jika berupa float pecahan kecil (contoh 1.7, 1.05, 2.0, 1.264)
-            # yang berasal dari penulisan titik ribuan di Google Sheets
-            if 0 < val < 100 and val % 1 != 0:
-                # Mengubah 1.7 -> '1.700' -> 1700 / 1.05 -> '1.050' -> 1050
+            # Jika angka pecahan desimal < 100 dan bukan bilangan bulat (contoh 1.7, 1.05, 1.264, 2.0)
+            if 0 < val < 100 and (val % 1 != 0):
+                # Format ulang ke string 3 desimal untuk mengembalikan angka aslinya, lalu hapus titik
                 s_float = f"{val:.3f}".replace('.', '')
                 return float(s_float)
             return float(val)
@@ -304,8 +305,11 @@ def render_psn_2026(df_filtered_psn):
             
         return 0.0
 
-    def clean_realisasi_val(val):
-        """Membersihkan nilai realisasi (mengakomodasi desimal koma)"""
+
+    def clean_pbt_decimal(val):
+        """
+        Khusus realisasi PBT yang memiliki angka desimal koma asli (misal: 510,75)
+        """
         if pd.isna(val): return 0.0
         if isinstance(val, (int, float)): return float(val)
         
@@ -313,7 +317,6 @@ def render_psn_2026(df_filtered_psn):
         if not s_val: return 0.0
         
         if ',' in s_val:
-            # Mengandung koma (misal: 510,75) -> hapus titik ribuan, ubah koma ke titik
             clean_str = s_val.replace('.', '').replace(',', '.')
         else:
             clean_str = s_val.replace('.', '')
@@ -322,6 +325,32 @@ def render_psn_2026(df_filtered_psn):
             return float(clean_str)
         except ValueError:
             return 0.0
+
+    # ==========================================
+    # TERAPKAN KE SELURUH KOLOM GID 193371600
+    # ==========================================
+    # Kolom PBT (Hektar) yang mengandung desimal koma asli
+    pbt_realisasi_cols = ['realisasi_baru', 'realisasi_k4', 'realisasi_repo']
+    
+    # Seluruh kolom SHAT, Redis, & Lintor (Satuan Bidang/Bulat Murni)
+    shat_all_cols = [
+        'target_pbt', 'target_shat', 'puldadis', 'berkas', 'potensi', 'k1', 
+        'siap_serah', 'diserahkan', 'target_redis', 'pos_redis', 'sk_redis', 
+        'sertipikat_redis', 'target_lintor', 'lintor_su', 'lintor_sk', 
+        'lintor_sertipikat', 'lintor_serah'
+    ]
+
+    for col in shat_all_cols:
+        if col in df.columns:
+            df[col] = df[col].apply(clean_psn_integer)
+        else:
+            df[col] = 0.0
+
+    for col in pbt_realisasi_cols:
+        if col in df.columns:
+            df[col] = df[col].apply(clean_pbt_decimal)
+        else:
+            df[col] = 0.0
 
     def fmt_idr(val):
         return f"{val:,.0f}".replace(',', '.')
