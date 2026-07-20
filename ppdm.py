@@ -32,14 +32,125 @@ df_psn = load_data("193371600")
 # -----------------------------------------------------------------------------
 # 2. MODUL HALAMAN UTAMA (Dipisah per fungsi agar mudah diubah)
 # -----------------------------------------------------------------------------
-
 def render_profil_anggaran(df_filtered_sdm):
     st.title("🏛️ Profil & Anggaran")
     st.markdown("---")
-    st.subheader("Konten Menu 1 (Menunggu gambaran dari Anda)")
-    st.write("Data SDM & Anggaran yang terfilter:", df_filtered_sdm.head())
+    
+    # Kebutuhan data eksternal untuk card wilayah
+    df_elek_ctx = globals().get('df_f_elektronik', pd.DataFrame())
 
+    # FUNCTION PEMBANTU UNTUK PEJABAT / FOTO
+    def get_pejabat_info(df, jabatan_name):
+        match = df[df['jabatan'].astype(str).str.contains(jabatan_name, case=False, na=False)]
+        if not match.empty:
+            row = match.iloc[0]
+            target = row.get('target_dipa', 0)
+            realisasi = row.get('realisasi_dipa', 0)
+            persen = (realisasi / target * 100) if target > 0 else 0.0
+            
+            return {
+                "nama": row.get('pegawai', '-'),
+                "jabatan": row.get('jabatan', jabatan_name),
+                "url": row.get('url', 'https://via.placeholder.com/150'),
+                "target": target,
+                "realisasi": realisasi,
+                "persen": persen
+            }
+        return {
+            "nama": "Belum Ada Data", "jabatan": jabatan_name, 
+            "url": "https://via.placeholder.com/150", "target": 0, "realisasi": 0, "persen": 0.0
+        }
 
+    # Ambil data pimpinan
+    pimpinan_1 = get_pejabat_info(df_filtered_sdm, "Bendahara")
+    pimpinan_2 = get_pejabat_info(df_filtered_sdm, "Kepala Kantor")
+
+    # BARIS 1: FOTO UTAMA & METRIK CARDS
+    col_layout_left, col_layout_right = st.columns([2, 3])
+
+    with col_layout_left:
+        col_pic1, col_pic2 = st.columns(2)
+        with col_pic1:
+            st.image(pimpinan_1["url"], use_container_width=True, caption=f"{pimpinan_1['jabatan']}")
+            st.caption(f"**{pimpinan_1['nama']}**")
+        with col_pic2:
+            st.image(pimpinan_2["url"], use_container_width=True, caption=f"{pimpinan_2['jabatan']}")
+            st.caption(f"**{pimpinan_2['nama']}**")
+
+    with col_layout_right:
+        c1, c2, c3 = st.columns(3)
+        c4, c5, c6 = st.columns(3)
+
+        jml_pegawai = len(df_filtered_sdm)
+        
+        if not df_elek_ctx.empty:
+            jml_kec = df_elek_ctx['kecamatan'].nunique() if 'kecamatan' in df_elek_ctx.columns else 0
+            jml_desa = df_elek_ctx['desa_kelurahan'].nunique() if 'desa_kelurahan' in df_elek_ctx.columns else 0
+            luas_adm = df_elek_ctx['luas_adm'].sum() if 'luas_adm' in df_elek_ctx.columns else 0
+            luas_apl = df_elek_ctx['luas_apl'].sum() if 'luas_apl' in df_elek_ctx.columns else 0
+        else:
+            jml_kec, jml_desa, luas_adm, luas_apl = 0, 0, 0, 0
+
+        total_target = df_filtered_sdm['target_dipa'].sum() if 'target_dipa' in df_filtered_sdm.columns else 0
+        total_realisasi = df_filtered_sdm['realisasi_dipa'].sum() if 'realisasi_dipa' in df_filtered_sdm.columns else 0
+        total_persen_dipa = (total_realisasi / total_target * 100) if total_target > 0 else 0.0
+
+        c1.metric("Jumlah Pegawai (Card 1)", f"{jml_pegawai} Orang")
+        c2.metric("Jumlah Kecamatan (Card 2)", f"{jml_kec}")
+        c3.metric("Jumlah Desa/Kel (Card 3)", f"{jml_desa}")
+        
+        c4.metric(
+            "Total % Realisasi Dipa (Card 4)", 
+            f"{total_persen_dipa:.2f}%", 
+            help=f"Total Realisasi: Rp {total_realisasi:,.0f}"
+        )
+        c4.markdown(f"<small style='color:gray;'>Rp {total_realisasi:,.0f}</small>", unsafe_allow_html=True)
+        
+        c5.metric("Luas ADM (Card 5)", f"{luas_adm:,.2f} Ha")
+        c6.metric("Luas APL (Card 6)", f"{luas_apl:,.2f} Ha")
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # BARIS 2: GRID PEJABAT STRUKTURAL (F1 - F6)
+    st.subheader("👥 Pejabat Struktural")
+    
+    jabatan_list = [
+        "Tata Usaha", 
+        "Survei dan Pemetaan", 
+        "Penetapan Hak dan Pendaftaran", 
+        "Penataan dan Pemberdayaan", 
+        "Pengadaan Tanah dan Pengembangan", 
+        "Pengendalian dan Penanganan Sengketa"
+    ]
+
+    row1_cols = st.columns(3)
+    row2_cols = st.columns(3)
+    all_f_cols = row1_cols + row2_cols
+
+    for idx, jab in enumerate(jabatan_list):
+        p_info = get_pejabat_info(df_filtered_sdm, jab)
+        
+        with all_f_cols[idx]:
+            with st.container(border=True):
+                sub_c1, sub_c2 = st.columns([1, 2])
+                
+                with sub_c1:
+                    st.image(p_info["url"], use_container_width=True)
+                    st.markdown(f"<center><b>F{idx+1}</b></center>", unsafe_allow_html=True)
+                    
+                with sub_c2:
+                    st.markdown(f"##### {p_info['nama']}")
+                    st.markdown(f"<small style='color:gray;'>{p_info['jabatan']}</small>", unsafe_allow_html=True)
+                    st.markdown(f"<small>Target: <b>Rp {p_info['target']:,.0f}</b></small>", unsafe_allow_html=True)
+                    
+                    progress_val = min(max(p_info['persen'] / 100.0, 0.0), 1.0)
+                    st.progress(progress_val)
+                    
+                    st.markdown(
+                        f"<div style='text-align: right;'><small>Realisasi: <b style='color:#00CC96;'>{p_info['persen']:.2f}%</b> (Rp {p_info['realisasi']:,.0f})</small></div>", 
+                        unsafe_allow_html=True
+                    )
+    
 def render_psn_2026(df_filtered_psn):
     st.title("🎯 Proyek Strategis Nasional (PSN) 2026")
     st.markdown("---")
@@ -257,144 +368,7 @@ if selected_kec != "Semua Kecamatan":
 # 5. ROUTING HALAMAN UTAMA
 # -----------------------------------------------------------------------------
 if menu_pilihan == "🏛️ Profil & Anggaran":    
-    def render_profil_anggaran(df_filtered_sdm):
-        st.title("🏛️ Profil & Anggaran")
-        st.markdown("---")
-        
-        # Kebutuhan data eksternal untuk card wilayah (menggunakan data global yang terfilter di lingkup utama)
-        # Catatan: df_f_elektronik harus diakses. Agar aman, kita ambil data dari context filter utama app
-        df_elek_ctx = globals().get('df_f_elektronik', pd.DataFrame())
-    
-        # ==========================================
-        # FUNCTION PEMBANTU UNTUK PEJABAT / FOTO
-        # ==========================================
-        def get_pejabat_info(df, jabatan_name):
-            # Cari data berdasarkan kolom jabatan
-            match = df[df['jabatan'].astype(str).str.contains(jabatan_name, case=False, na=False)]
-            if not match.empty:
-                row = match.iloc[0]
-                # Menghitung persentase realisasi individual
-                target = row.get('target_dipa', 0)
-                realisasi = row.get('realisasi_dipa', 0)
-                persen = (realisasi / target * 100) if target > 0 else 0.0
-                
-                return {
-                    "nama": row.get('pegawai', '-'),
-                    "jabatan": row.get('jabatan', jabatan_name),
-                    "url": row.get('url', 'https://via.placeholder.com/150'),
-                    "target": target,
-                    "realisasi": realisasi,
-                    "persen": persen
-                }
-            return {
-                "nama": "Belum Ada Data", "jabatan": jabatan_name, 
-                "url": "https://via.placeholder.com/150", "target": 0, "realisasi": 0, "persen": 0.0
-            }
-    
-        # Ambil data pimpinan teratas (berdasarkan df sdm terfilter)
-        pimpinan_1 = get_pejabat_info(df_filtered_sdm, "Bendahara")
-        pimpinan_2 = get_pejabat_info(df_filtered_sdm, "Kepala Kantor")
-    
-        # ==========================================
-        # BARIS 1: FOTO UTAMA & METRIK CARDS
-        # ==========================================
-        col_layout_left, col_layout_right = st.columns([2, 3])
-    
-        with col_layout_left:
-            # Foto 1 & Foto 2 Berdampingan
-            col_pic1, col_pic2 = st.columns(2)
-            with col_pic1:
-                st.image(pimpinan_1["url"], use_container_width=True, caption=f"{pimpinan_1['jabatan']}")
-                st.caption(f"**{pimpinan_1['nama']}**")
-            with col_pic2:
-                st.image(pimpinan_2["url"], use_container_width=True, caption=f"{pimpinan_2['jabatan']}")
-                st.caption(f"**{pimpinan_2['nama']}**")
-    
-        with col_layout_right:
-            # Susunan Grid Card 3x2 (Card 1 sampai Card 6, di layout gambar Anda Card 3 tertulis dua kali, disesuaikan urutannya)
-            c1, c2, c3 = st.columns(3)
-            c4, c5, c6 = st.columns(3)
-    
-            # Hitung Nilai Agregat Metrik
-            jml_pegawai = len(df_filtered_sdm)
-            
-            if not df_elek_ctx.empty:
-                jml_kec = df_elek_ctx['kecamatan'].nunique() if 'kecamatan' in df_elek_ctx.columns else 0
-                jml_desa = df_elek_ctx['desa_kelurahan'].nunique() if 'desa_kelurahan' in df_elek_ctx.columns else 0
-                luas_adm = df_elek_ctx['luas_adm'].sum() if 'luas_adm' in df_elek_ctx.columns else 0
-                luas_apl = df_elek_ctx['luas_apl'].sum() if 'luas_apl' in df_elek_ctx.columns else 0
-            else:
-                jml_kec, jml_desa, luas_adm, luas_apl = 0, 0, 0, 0
-    
-            total_target = df_filtered_sdm['target_dipa'].sum() if 'target_dipa' in df_filtered_sdm.columns else 0
-            total_realisasi = df_filtered_sdm['realisasi_dipa'].sum() if 'realisasi_dipa' in df_filtered_sdm.columns else 0
-            total_persen_dipa = (total_realisasi / total_target * 100) if total_target > 0 else 0.0
-    
-            # Render masing-masing card
-            c1.metric("Jumlah Pegawai (Card 1)", f"{jml_pegawai} Orang")
-            c2.metric("Jumlah Kecamatan (Card 2)", f"{jml_kec}")
-            c3.metric("Jumlah Desa/Kel (Card 3)", f"{jml_desa}")
-            
-            # Card 4 dengan detail Rupiah Realisasi
-            c4.metric(
-                "Total % Realisasi Dipa (Card 4)", 
-                f"{total_persen_dipa:.2f}%", 
-                help=f"Total Realisasi: Rp {total_realisasi:,.0f}"
-            )
-            c4.markdown(f"<small style='color:gray;'>Rp {total_realisasi:,.0f}</small>", unsafe_allow_html=True)
-            
-            c5.metric("Luas ADM (Card 5)", f"{luas_adm:,.2f} Ha")
-            c6.metric("Luas APL (Card 6)", f"{luas_apl:,.2f} Ha")
-    
-        st.markdown("<br>", unsafe_allow_html=True)
-    
-        # ==========================================
-        # BARIS 2: GRID PEJABAT STRUKTURAL (F1 - F6)
-        # ==========================================
-        st.subheader("👥 Pejabat Struktural")
-        
-        # Definisikan list jabatan untuk F1 s.d F6
-        jabatan_list = [
-            "Tata Usaha", 
-            "Survei dan Pemetaan", 
-            "Penetapan Hak dan Pendaftaran", 
-            "Penataan dan Pemberdayaan", 
-            "Pengadaan Tanah dan Pengembangan", 
-            "Pengendalian dan Penanganan Sengketa"
-        ]
-    
-        # Render Baris Pertama (F1, F2, F3) dan Baris Kedua (F4, F5, F6)
-        row1_cols = st.columns(3)
-        row2_cols = st.columns(3)
-        all_f_cols = row1_cols + row2_cols
-    
-        for idx, jab in enumerate(jabatan_list):
-            p_info = get_pejabat_info(df_filtered_sdm, jab)
-            
-            with all_f_cols[idx]:
-                # Pembungkus visual berupa kontainer/box
-                with st.container(border=True):
-                    sub_c1, sub_c2 = st.columns([1, 2])
-                    
-                    with sub_c1:
-                        # Kotak Foto Profil Pejabat
-                        st.image(p_info["url"], use_container_width=True)
-                        st.markdown(f"<center><b>F{idx+1}</b></center>", unsafe_allow_html=True)
-                        
-                    with sub_c2:
-                        st.markdown(f"##### {p_info['nama']}")
-                        st.markdown(f"<small style='color:gray;'>{p_info['jabatan']}</small>", unsafe_allow_html=True)
-                        st.markdown(f"<small>Target: <b>Rp {p_info['target']:,.0f}</b></small>", unsafe_allow_html=True)
-                        
-                        # Progress Bar Realisasi Dipa
-                        # Streamlit progress membutuhkan nilai antara 0.0 s.d 1.0
-                        progress_val = min(max(p_info['persen'] / 100.0, 0.0), 1.0)
-                        st.progress(progress_val)
-                        
-                        st.markdown(
-                            f"<div style='text-align: right;'><small>Realisasi: <b style='color:#00CC96;'>{p_info['persen']:.2f}%</b> (Rp {p_info['realisasi']:,.0f})</small></div>", 
-                            unsafe_allow_html=True
-                        )    
+    render_profil_anggaran(df_f_sdm)
 elif menu_pilihan == "🎯 PSN 2026":
     render_psn_2026(df_f_psn)
 elif menu_pilihan == "💼 Layanan Pertanahan":
