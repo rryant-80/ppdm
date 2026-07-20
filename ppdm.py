@@ -271,20 +271,19 @@ def render_psn_2026(df_filtered_psn):
 
     def clean_num(val):
         """
-        Konversi teks angka standar Indonesia:
-        - Jika mengandung koma (misal: 510,75), ubah koma menjadi titik desimal -> 510.75
-        - Jika hanya mengandung titik (misal: 1.070), hapus titik ribuan -> 1070
+        Konversi nilai ke float dengan penanganan khusus angka desimal koma vs titik ribuan
         """
         if pd.isna(val): return 0.0
         if isinstance(val, (int, float)): return float(val)
         
         s_val = str(val).replace('Rp', '').strip()
+        if not s_val: return 0.0
         
         if ',' in s_val:
-            # Mengandung desimal koma: hapus titik ribuan lalu ubah koma ke titik desimal
+            # Mengandung koma (misal: 510,75 atau 1.489,93) -> hapus titik ribuan, ubah koma ke titik
             clean_str = s_val.replace('.', '').replace(',', '.')
         else:
-            # Tidak ada koma (bilangan bulat dengan titik ribuan): hapus titik
+            # Tidak mengandung koma (misal: 1.070) -> hapus titik ribuan
             clean_str = s_val.replace('.', '')
             
         try:
@@ -303,7 +302,7 @@ def render_psn_2026(df_filtered_psn):
         decimal_part = parts[1]
         return f"{integer_part},{decimal_part}"
 
-    # Copy data & tambahkan singkatan kabupaten
+    # Salin data & tambahkan singkatan kabupaten
     df = df_filtered_psn.copy()
     if 'kabupaten_kota' in df.columns:
         df['kab_singkat'] = df['kabupaten_kota'].map(lambda x: KAB_MAP.get(x, x))
@@ -317,19 +316,42 @@ def render_psn_2026(df_filtered_psn):
         'target_redis', 'pos_redis', 'sk_redis', 'sertipikat_redis',
         'target_lintor', 'lintor_su', 'lintor_sk', 'lintor_sertipikat', 'lintor_serah'
     ]
+    
+    # Khusus untuk kolom target, jika terbaca sebagai float < 10 dan ada kemungkinan salah interpretasi titik desimal
+    target_cols = ['target_pbt', 'target_shat', 'target_redis', 'target_lintor']
+    
     for col in cols_to_clean:
         if col in df.columns:
-            df[col] = df[col].apply(clean_num)
+            # Jika kolom target terbaca sebagai float pecahan akibat titik dari Google Sheets
+            if col in target_cols:
+                def fix_target_num(x):
+                    if pd.isna(x): return 0.0
+                    # Jika terbaca float seperti 1.07 (seharusnya 1070)
+                    if isinstance(x, float) and 0 < x < 10:
+                        return round(x * 1000)
+                    return clean_num(x)
+                df[col] = df[col].apply(fix_target_num)
+            else:
+                df[col] = df[col].apply(clean_num)
         else:
             df[col] = 0.0
 
     # Agregasi data per kabupaten
     df_rekap = df.groupby('kab_singkat')[cols_to_clean].sum().reset_index()
 
-    # Fungsi pembuat grafik dengan satuan dinamis (Ha / Bdg)
+    # Fungsi pembuat grafik dengan filter Target > 0
     def create_psn_chart(title, df_data, target_col, metrics_dict, color_sequence, unit="Bdg"):
+        # FILTER WILAYAH: Hanya ambil wilayah dengan Target > 0
+        df_valid = df_data[df_data[target_col] > 0].copy()
+        
+        if df_valid.empty:
+            # Jika tidak ada wilayah ber-target
+            fig_empty = px.bar(title=f"{title} (Tidak ada target aktif)")
+            fig_empty.update_layout(height=360, margin=dict(l=10, r=10, t=40, b=10))
+            return fig_empty
+
         long_rows = []
-        for _, row in df_data.iterrows():
+        for _, row in df_valid.iterrows():
             kab = row['kab_singkat']
             target_val = row[target_col]
             
@@ -353,9 +375,6 @@ def render_psn_2026(df_filtered_psn):
                 })
                 
         df_long = pd.DataFrame(long_rows)
-        
-        if df_long.empty:
-            return px.bar(title=title)
 
         fig = px.bar(
             df_long,
