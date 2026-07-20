@@ -100,7 +100,7 @@ def render_profil_anggaran(df_filtered_sdm):
         }
 
     # Ambil data pimpinan & foto gedung/kantor
-    pimpinan_0 = get_pejabat_info(df_filtered_sdm, "Petugas Ukur")      # Foto 1 (Kiri Baru)
+    pimpinan_0 = get_pejabat_info(df_filtered_sdm, "Juru Ukur")      # Foto 1 (Kiri Baru)
     pimpinan_1 = get_pejabat_info(df_filtered_sdm, "Bendahara")   # Foto 2 (Tengah)
     pimpinan_2 = get_pejabat_info(df_filtered_sdm, "Kepala Kantor")# Foto 3 (Kanan)
 
