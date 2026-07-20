@@ -251,10 +251,6 @@ def render_profil_anggaran(df_filtered_sdm):
                     """
                     st.markdown(html_realisasi, unsafe_allow_html=True)
 
-import streamlit as st
-import pandas as pd
-import plotly.express as px
-
 def render_psn_2026(df_filtered_psn):
     st.title("🎯 Proyek Strategis Nasional (PSN) 2026")
     
@@ -263,12 +259,7 @@ def render_psn_2026(df_filtered_psn):
         return
 
     # ==========================================
-    # 1. SALIN DATAFRAME TERLEBIH DAHULU (PENTING)
-    # ==========================================
-    df = df_filtered_psn.copy()
-
-    # ==========================================
-    # 2. KAMUS SINGKATAN KABUPATEN
+    # FUNGSI PEMBANTU PERSIAPAN DATA & FORMAT
     # ==========================================
     KAB_MAP = {
         'Banggai': 'BG', 'Banggai Kepulauan': 'BK', 'Banggai Laut': 'BL',
@@ -278,55 +269,9 @@ def render_psn_2026(df_filtered_psn):
         'Sigi': 'SG', 'Sulawesi Tengah': 'ST', 'Provinsi Sulawesi Tengah': 'ST'
     }
 
-    if 'kabupaten_kota' in df.columns:
-        df['kab_singkat'] = df['kabupaten_kota'].map(lambda x: KAB_MAP.get(x, x))
-    else:
-        df['kab_singkat'] = '-'
-
-    # ==========================================
-    # FUNGSI PEMBERSIH NUMERIK PRESISI KHUSUS
-    # ==========================================
-    def clean_psn_integer(val):
-        """
-        Pembersih angka murni untuk SHAT, Redis, & Lintor.
-        Mengubah pecahan akibat pemisah titik ribuan (misal 1.7 -> 1700, 1.05 -> 1050)
-        """
-        if pd.isna(val): 
-            return 0.0
-            
-        # Jika berupa string dari Google Sheets
-        if isinstance(val, str):
-            s_val = val.replace('Rp', '').strip()
-            if not s_val: return 0.0
-            # Hapus titik ribuan dan ubah koma jika ada desimal
-            clean_str = s_val.replace('.', '').replace(',', '.')
-            try:
-                return float(clean_str)
-            except ValueError:
-                return 0.0
-                
-        # Jika Pandas terlanjur mengonversi '1.700' menjadi float 1.7
-        if isinstance(val, float):
-            # Jika angka pecahan desimal < 100 dan bukan bilangan bulat (contoh 1.7, 1.05, 1.264, 2.0)
-            if 0 < val < 100 and (val % 1 != 0):
-                # Format ulang ke string 3 desimal untuk mengembalikan angka aslinya, lalu hapus titik
-                s_float = f"{val:.3f}".replace('.', '')
-                return float(s_float)
-            return float(val)
-            
-        if isinstance(val, int):
-            return float(val)
-            
-        return 0.0
-
-
-    def clean_pbt_decimal(val):
-        """
-        Khusus realisasi PBT yang memiliki angka desimal koma asli (misal: 510,75)
-        """
+    def clean_num(val):
         if pd.isna(val): return 0.0
         if isinstance(val, (int, float)): return float(val)
-        
         s_val = str(val).replace('Rp', '').strip()
         if not s_val: return 0.0
         
@@ -340,38 +285,50 @@ def render_psn_2026(df_filtered_psn):
         except ValueError:
             return 0.0
 
-    # ==========================================
-    # TERAPKAN KE SELURUH KOLOM GID 193371600
-    # ==========================================
-    # Kolom PBT (Hektar) yang mengandung desimal koma asli
-    pbt_realisasi_cols = ['realisasi_baru', 'realisasi_k4', 'realisasi_repo']
-    
-    # Seluruh kolom SHAT, Redis, & Lintor (Satuan Bidang/Bulat Murni)
-    shat_all_cols = [
-        'target_pbt', 'target_shat', 'puldadis', 'berkas', 'potensi', 'k1', 
-        'siap_serah', 'diserahkan', 'target_redis', 'pos_redis', 'sk_redis', 
-        'sertipikat_redis', 'target_lintor', 'lintor_su', 'lintor_sk', 
-        'lintor_sertipikat', 'lintor_serah'
+    def fmt_idr(val):
+        return f"{val:,.0f}".replace(',', '.')
+
+    def fmt_decimal(val):
+        parts = f"{val:,.2f}".split('.')
+        integer_part = parts[0].replace(',', '.')
+        decimal_part = parts[1]
+        return f"{integer_part},{decimal_part}"
+
+    # Salin data & tambahkan singkatan kabupaten
+    df = df_filtered_psn.copy()
+    if 'kabupaten_kota' in df.columns:
+        df['kab_singkat'] = df['kabupaten_kota'].map(lambda x: KAB_MAP.get(x, x))
+    else:
+        df['kab_singkat'] = '-'
+
+    # Bersihkan seluruh kolom numerik
+    cols_to_clean = [
+        'target_pbt', 'realisasi_baru', 'realisasi_k4', 'realisasi_repo',
+        'target_shat', 'puldadis', 'berkas', 'k1', 'diserahkan',
+        'target_redis', 'pos_redis', 'sk_redis', 'sertipikat_redis',
+        'target_lintor', 'lintor_su', 'lintor_sk', 'lintor_sertipikat', 'lintor_serah'
     ]
-
-    for col in shat_all_cols:
+    
+    target_cols = ['target_pbt', 'target_shat', 'target_redis', 'target_lintor']
+    
+    for col in cols_to_clean:
         if col in df.columns:
-            df[col] = df[col].apply(clean_psn_integer)
+            if col in target_cols:
+                def fix_target_num(x):
+                    if pd.isna(x): return 0.0
+                    if isinstance(x, float) and 0 < x < 10:
+                        return round(x * 1000)
+                    return clean_num(x)
+                df[col] = df[col].apply(fix_target_num)
+            else:
+                df[col] = df[col].apply(clean_num)
         else:
             df[col] = 0.0
 
-    for col in pbt_realisasi_cols:
-        if col in df.columns:
-            df[col] = df[col].apply(clean_pbt_decimal)
-        else:
-            df[col] = 0.0
-
-    cols_to_clean = shat_all_cols + pbt_realisasi_cols
+    # Agregasi data per kabupaten
     df_rekap = df.groupby('kab_singkat')[cols_to_clean].sum().reset_index()
 
-    # ==========================================
-    # 5. FUNGSI PEMBUAT GRAFIK PLOTLY
-    # ==========================================
+    # Fungsi pembuat grafik dengan dukungan mode stacked / group
     def create_psn_chart(title, df_data, target_col, metrics_dict, color_sequence, unit="Bdg", is_stacked=False):
         df_valid = df_data[df_data[target_col] > 0].copy()
         
@@ -409,6 +366,8 @@ def render_psn_2026(df_filtered_psn):
                 })
                 
         df_long = pd.DataFrame(long_rows)
+
+        # Mode Tumpuk (relative) untuk PBT, Mode Grouped untuk grafik lainnya
         mode_bar = 'relative' if is_stacked else 'group'
 
         fig = px.bar(
@@ -430,11 +389,13 @@ def render_psn_2026(df_filtered_psn):
                 "Target: %{customdata[1]}<br>"
                 "Persentase: %{customdata[2]}%<extra></extra>"
             ),
-            marker=dict(line=dict(width=1.2, color='#111111'))
+            marker=dict(
+                line=dict(width=1.2, color='#111111')
+            )
         )
 
         fig.update_layout(
-            height=230,
+            height=230, # Diperkecil agar muat 1 layar laptop
             xaxis_title="",
             yaxis_title="",
             legend_title_text="",
@@ -449,14 +410,14 @@ def render_psn_2026(df_filtered_psn):
                 x=1,
                 font=dict(size=10)
             ),
-            title=dict(font=dict(size=13)),
+            title=dict(font=dict(size=14)),
             yaxis=dict(gridcolor='#c4c4c4', tickfont=dict(size=9)),
             xaxis=dict(showgrid=False, tickfont=dict(size=9))
         )
         return fig
 
     # ==========================================
-    # 6. LAYOUT GRID 2x2
+    # LAYOUT GRID 2x2 DENGAN BINGKAI (#dbdbdb)
     # ==========================================
     card_wrapper_start = """
     <div style="
@@ -472,9 +433,10 @@ def render_psn_2026(df_filtered_psn):
     row1_col1, row1_col2 = st.columns(2)
     row2_col1, row2_col2 = st.columns(2)
 
-    # 1. GRAFIK 1: Realisasi PBT
+    # 1. GRAFIK 1: Realisasi PBT (Stacked Column: Realisasi Baru -> K4 -> Repo)
     with row1_col1:
         st.markdown(card_wrapper_start, unsafe_allow_html=True)
+        # Urutan dict menentukan urutan tumpukan dari bawah ke atas
         metrics_pbt = {
             'Realisasi Baru': 'realisasi_baru',
             'Realisasi K4': 'realisasi_k4',
