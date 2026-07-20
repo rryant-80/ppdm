@@ -253,12 +253,10 @@ if selected_kec != "Semua Kecamatan":
     if 'kecamatan' in df_f_elektronik.columns:
         df_f_elektronik = df_f_elektronik[df_f_elektronik['kecamatan'] == selected_kec]
 
-
 # -----------------------------------------------------------------------------
 # 5. ROUTING HALAMAN UTAMA
 # -----------------------------------------------------------------------------
-if menu_pilihan == "🏛️ Profil & Anggaran":
-    render_profil_anggaran(df_f_sdm)
+if menu_pilihan == "🏛️ Profil & Anggaran":    
     def render_profil_anggaran(df_filtered_sdm):
     st.title("🏛️ Profil & Anggaran")
     st.markdown("---")
