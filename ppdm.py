@@ -257,7 +257,7 @@ if selected_kec != "Semua Kecamatan":
 # 5. ROUTING HALAMAN UTAMA
 # -----------------------------------------------------------------------------
 if menu_pilihan == "🏛️ Profil & Anggaran":    
-    def render_profil_anggaran(df_filtered_sdm):
+def render_profil_anggaran(df_filtered_sdm):
     st.title("🏛️ Profil & Anggaran")
     st.markdown("---")
     
@@ -394,7 +394,7 @@ if menu_pilihan == "🏛️ Profil & Anggaran":
                     st.markdown(
                         f"<div style='text-align: right;'><small>Realisasi: <b style='color:#00CC96;'>{p_info['persen']:.2f}%</b> (Rp {p_info['realisasi']:,.0f})</small></div>", 
                         unsafe_allow_html=True
-                    )
+                    )    
 elif menu_pilihan == "🎯 PSN 2026":
     render_psn_2026(df_f_psn)
 elif menu_pilihan == "💼 Layanan Pertanahan":
