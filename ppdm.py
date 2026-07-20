@@ -286,18 +286,29 @@ def render_psn_2026(df_filtered_psn):
     # ==========================================
     # 3. FUNGSI PEMBERSIH NUMERIK PRESISI
     # ==========================================
-    def clean_psn_integer(val):
-        """Pembersih angka murni untuk SHAT, Redis, & Lintor"""
-        if pd.isna(val): return 0.0
+    def clean_target_val(val):
+        """Menjamin angka target berformat titik ribuan (1.700) dibaca murni sebagai 1700"""
+        if pd.isna(val): 
+            return 0.0
+            
+        # Jika Pandas membaca string '1.700' atau '1.050'
         if isinstance(val, str):
             s_val = val.replace('Rp', '').strip()
-            if not s_val: return 0.0
+            if not s_val: 
+                return 0.0
+            # Hapus titik ribuan dan ganti koma jika ada
             clean_str = s_val.replace('.', '').replace(',', '.')
-            try: return float(clean_str)
-            except ValueError: return 0.0
+            try:
+                return float(clean_str)
+            except ValueError:
+                return 0.0
                 
+        # Jika Pandas terlanjur mengonversi '1.700' menjadi float 1.7
         if isinstance(val, float):
-            if 0 < val < 100 and (val % 1 != 0):
+            # Jika berupa float pecahan kecil (contoh 1.7, 1.05, 2.0, 1.264)
+            # yang berasal dari penulisan titik ribuan di Google Sheets
+            if 0 < val < 100 and val % 1 != 0:
+                # Mengubah 1.7 -> '1.700' -> 1700 / 1.05 -> '1.050' -> 1050
                 s_float = f"{val:.3f}".replace('.', '')
                 return float(s_float)
             return float(val)
@@ -306,22 +317,6 @@ def render_psn_2026(df_filtered_psn):
             return float(val)
             
         return 0.0
-
-    def clean_pbt_decimal(val):
-        """Khusus realisasi PBT yang memiliki angka desimal koma asli"""
-        if pd.isna(val): return 0.0
-        if isinstance(val, (int, float)): return float(val)
-        
-        s_val = str(val).replace('Rp', '').strip()
-        if not s_val: return 0.0
-        
-        if ',' in s_val:
-            clean_str = s_val.replace('.', '').replace(',', '.')
-        else:
-            clean_str = s_val.replace('.', '')
-            
-        try: return float(clean_str)
-        except ValueError: return 0.0
 
     def fmt_idr(val):
         return f"{val:,.0f}".replace(',', '.')
