@@ -252,8 +252,7 @@ def render_profil_anggaran(df_filtered_sdm):
     
 def render_psn_2026(df_filtered_psn):
     st.title("🎯 Proyek Strategis Nasional (PSN) 2026")
-    st.markdown("---")
-
+    
     if df_filtered_psn.empty:
         st.warning("Data PSN tidak ditemukan atau kosong untuk filter yang dipilih.")
         return
@@ -328,17 +327,17 @@ def render_psn_2026(df_filtered_psn):
     # Agregasi data per kabupaten
     df_rekap = df.groupby('kab_singkat')[cols_to_clean].sum().reset_index()
 
-    # Fungsi pembuat grafik dengan bingkai & outline bar tegas
-    def create_psn_chart(title, df_data, target_col, metrics_dict, color_sequence, unit="Bdg"):
+    # Fungsi pembuat grafik dengan dukungan mode stacked / group
+    def create_psn_chart(title, df_data, target_col, metrics_dict, color_sequence, unit="Bdg", is_stacked=False):
         df_valid = df_data[df_data[target_col] > 0].copy()
         
         if df_valid.empty:
             fig_empty = px.bar(title=f"{title} (Tidak ada target aktif)")
             fig_empty.update_layout(
-                height=360, 
+                height=230, 
                 paper_bgcolor='rgba(0,0,0,0)', 
                 plot_bgcolor='rgba(0,0,0,0)',
-                margin=dict(l=15, r=15, t=40, b=15)
+                margin=dict(l=10, r=10, t=30, b=10)
             )
             return fig_empty
 
@@ -367,18 +366,20 @@ def render_psn_2026(df_filtered_psn):
                 
         df_long = pd.DataFrame(long_rows)
 
+        # Mode Tumpuk (relative) untuk PBT, Mode Grouped untuk grafik lainnya
+        mode_bar = 'relative' if is_stacked else 'group'
+
         fig = px.bar(
             df_long,
             x='Kab/Kota',
             y='Persentase',
             color='Indikator',
-            barmode='group',
+            barmode=mode_bar,
             title=title,
             color_discrete_sequence=color_sequence,
             custom_data=['Real_Fmt', 'Target_Fmt', 'Pct_Fmt']
         )
 
-        # PENAMBAHAN OUTLINE BAR TEGAS (Marker Line)
         fig.update_traces(
             hovertemplate=(
                 "<b>Kab/Kota: %{x}</b><br>"
@@ -388,36 +389,42 @@ def render_psn_2026(df_filtered_psn):
                 "Persentase: %{customdata[2]}%<extra></extra>"
             ),
             marker=dict(
-                line=dict(width=1.5, color='#222222')  # Outline hitam tegas pada setiap bar
+                line=dict(width=1.2, color='#111111')
             )
         )
 
-        # PENYESUAIAN BACKGROUND & TAMPILAN
         fig.update_layout(
-            height=360,
+            height=230, # Diperkecil agar muat 1 layar laptop
             xaxis_title="",
             yaxis_title="",
             legend_title_text="",
-            paper_bgcolor='rgba(0,0,0,0)', # Transparan agar menyatu dengan container #dbdbdb
+            paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(0,0,0,0)',
-            margin=dict(l=15, r=15, t=45, b=15),
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-            yaxis=dict(gridcolor='#c4c4c4'), # Garis kisi horizontal yang halus
-            xaxis=dict(showgrid=False)
+            margin=dict(l=5, r=5, t=32, b=5),
+            legend=dict(
+                orientation="h", 
+                yanchor="bottom", 
+                y=1.02, 
+                xanchor="right", 
+                x=1,
+                font=dict(size=10)
+            ),
+            title=dict(font=dict(size=14)),
+            yaxis=dict(gridcolor='#c4c4c4', tickfont=dict(size=9)),
+            xaxis=dict(showgrid=False, tickfont=dict(size=9))
         )
         return fig
 
     # ==========================================
     # LAYOUT GRID 2x2 DENGAN BINGKAI (#dbdbdb)
     # ==========================================
-    # CSS Pembungkus Bingkai
     card_wrapper_start = """
     <div style="
         background-color: #dbdbdb;
-        border-radius: 12px;
-        padding: 12px 16px 8px 16px;
-        margin-bottom: 20px;
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+        border-radius: 10px;
+        padding: 6px 10px 4px 10px;
+        margin-bottom: 8px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
     ">
     """
     card_wrapper_end = "</div>"
@@ -425,9 +432,10 @@ def render_psn_2026(df_filtered_psn):
     row1_col1, row1_col2 = st.columns(2)
     row2_col1, row2_col2 = st.columns(2)
 
-    # 1. GRAFIK 1: Realisasi PBT
+    # 1. GRAFIK 1: Realisasi PBT (Stacked Column: Realisasi Baru -> K4 -> Repo)
     with row1_col1:
         st.markdown(card_wrapper_start, unsafe_allow_html=True)
+        # Urutan dict menentukan urutan tumpukan dari bawah ke atas
         metrics_pbt = {
             'Realisasi Baru': 'realisasi_baru',
             'Realisasi K4': 'realisasi_k4',
@@ -435,7 +443,7 @@ def render_psn_2026(df_filtered_psn):
         }
         fig_pbt = create_psn_chart(
             "1. Realisasi PBT", df_rekap, 'target_pbt', metrics_pbt, 
-            ['#636EFA', '#EF553B', '#00CC96'], unit="Ha"
+            ['#636EFA', '#EF553B', '#00CC96'], unit="Ha", is_stacked=True
         )
         st.plotly_chart(fig_pbt, use_container_width=True)
         st.markdown(card_wrapper_end, unsafe_allow_html=True)
