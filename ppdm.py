@@ -543,8 +543,7 @@ def render_psn_2026(df_filtered_psn):
         st.plotly_chart(fig_lintor, use_container_width=True)
         st.markdown(card_wrapper_end, unsafe_allow_html=True)
 
-import datetime
-
+import re
 import datetime
 
 def render_layanan_pertanahan(df_filtered_layanan):
@@ -558,7 +557,41 @@ def render_layanan_pertanahan(df_filtered_layanan):
     df = df_filtered_layanan.copy()
 
     # ==========================================
-    # 1. KAMUS PENYESUAIAN NAMA KABUPATEN
+    # 1. PEMBERSIH FLEKSIBEL TANGGAL & DURASI
+    # ==========================================
+    def parse_date_flexible(val):
+        """Mampu membaca tanggal baik berupa String (DD/MM/YYYY), YYYY-MM-DD, maupun objek Timestamp Pandas"""
+        if pd.isna(val):
+            return pd.NaT
+        if isinstance(val, (pd.Timestamp, datetime.date, datetime.datetime)):
+            return pd.to_datetime(val)
+        s_val = str(val).strip()
+        if not s_val or s_val.lower() in ['nan', 'none', '-']:
+            return pd.NaT
+        # Coba parse tanggal standar Indonesia terlebih dahulu (dayfirst=True)
+        dt = pd.to_datetime(s_val, dayfirst=True, errors='coerce')
+        if pd.isna(dt):
+            dt = pd.to_datetime(s_val, errors='coerce')
+        return dt
+
+    def clean_durasi(val):
+        """Ekstrak angka durasi murni"""
+        if pd.isna(val): return 0
+        s_val = str(val).strip()
+        match = re.search(r'\d+', s_val)
+        if match:
+            return int(match.group())
+        return 0
+
+    def fmt_no_thn(val):
+        if pd.isna(val): return "-"
+        s_val = str(val).strip()
+        if s_val.endswith('.0'):
+            return s_val[:-2]
+        return s_val
+
+    # ==========================================
+    # 2. NORMALISASI NAMA KABUPATEN
     # ==========================================
     KAB_NAME_CLEAN = {
         'Kota Palu': 'Palu',
@@ -584,41 +617,20 @@ def render_layanan_pertanahan(df_filtered_layanan):
         df['kab_clean'] = '-'
 
     # ==========================================
-    # 2. PARSING NUMERIK & TANGGAL INDONESIA (DD/MM/YYYY)
+    # 3. KALKULASI DAHULU OVERDUE SOP
     # ==========================================
-    def clean_num(val):
-        if pd.isna(val): return 0
-        try: return int(float(str(val).replace('.', '').replace(',', '.').strip()))
-        except: return 0
-
-    def fmt_no_thn(val):
-        if pd.isna(val): return "-"
-        s_val = str(val).strip()
-        if s_val.endswith('.0'):
-            return s_val[:-2]
-        return s_val
-
-    # Konversi durasi ke integer murni
-    df['durasi_clean'] = df['durasi'].apply(clean_num)
-
-    # PARSING TANGGAL UTAMA: Utamakan format DD/MM/YYYY
-    df['tgl_mulai_dt'] = pd.to_datetime(df['tgl_mulai'], format='%d/%m/%Y', errors='coerce')
+    df['durasi_clean'] = df['durasi'].apply(clean_durasi)
+    df['tgl_mulai_dt'] = df['tgl_mulai'].apply(parse_date_flexible)
     
-    # Fallback parsing jika ada format tanggal lain yang campur (misal YYYY-MM-DD)
-    mask_nat = df['tgl_mulai_dt'].isna()
-    if mask_nat.any():
-        df.loc[mask_nat, 'tgl_mulai_dt'] = pd.to_datetime(df.loc[mask_nat, 'tgl_mulai'], dayfirst=True, errors='coerce')
-
-    # Hari ini
     today = pd.to_datetime(datetime.date.today())
     
-    # Hitung batas SOP: tgl_mulai + durasi (hari)
+    # Hitung tgl batas SOP
     df['tgl_batas_sop'] = df['tgl_mulai_dt'] + pd.to_timedelta(df['durasi_clean'], unit='D')
     
-    # Filter berkas yang MELEBIHI DURASI SOP (Hari ini > batas SOP dan tanggal mulai valid)
+    # Filter berkas terlambat (Hari ini > Batas SOP & Tanggal valid)
     df_overdue = df[(today > df['tgl_batas_sop']) & (df['tgl_mulai_dt'].notna())].copy()
 
-    # Bersihkan nomor & tahun berkas
+    # Format nomor/tahun berkas bersih
     df_overdue['no_clean'] = df_overdue['nmr_berkas'].apply(fmt_no_thn)
     df_overdue['thn_clean'] = df_overdue['thn_berkas'].apply(fmt_no_thn)
     df_overdue['berkas_thn'] = df_overdue['no_clean'] + "/" + df_overdue['thn_clean']
@@ -626,7 +638,7 @@ def render_layanan_pertanahan(df_filtered_layanan):
     POSISI_TARGET = ["Kakan", "Kasi SP", "Kasi PHP", "Loket"]
 
     # ==========================================
-    # 3. STYLING COMPACT STROBO
+    # 4. TAMPILAN CSS STROBO
     # ==========================================
     st.markdown("""
     <style>
@@ -670,7 +682,7 @@ def render_layanan_pertanahan(df_filtered_layanan):
     """, unsafe_allow_html=True)
 
     # ==========================================
-    # 4. MATRIKS STROBO UTAMA
+    # 5. RENDER MATRIKS STROBO UTAMA
     # ==========================================
     list_kab = sorted(df['kab_clean'].dropna().unique().tolist())
 
@@ -707,9 +719,9 @@ def render_layanan_pertanahan(df_filtered_layanan):
                         proc = str(r.get('nama_prosedur', '-'))
                         tooltip_items.append(f"• [{no_thn}] {proc}")
                         
-                    tooltip_text = f"Kab: {kab}&#10;Posisi: {pos}&#10;Total: {jml_berkas} Berkas&#10;&#10;Rincian Prosedur:&#10;" + "&#10;".join(tooltip_items[:10])
-                    if len(tooltip_items) > 10:
-                        tooltip_text += f"&#10;...dan {len(tooltip_items)-10} berkas lainnya"
+                    tooltip_text = f"Kab: {kab}&#10;Posisi: {pos}&#10;Total: {jml_berkas} Berkas&#10;&#10;Rincian Prosedur:&#10;" + "&#10;".join(tooltip_items[:12])
+                    if len(tooltip_items) > 12:
+                        tooltip_text += f"&#10;...dan {len(tooltip_items)-12} berkas lainnya"
 
                     st.markdown(
                         f"<div class='strobo-red-compact' title='{tooltip_text}'>🚨 {jml_berkas} Berkas</div>", 
@@ -723,7 +735,7 @@ def render_layanan_pertanahan(df_filtered_layanan):
     st.markdown("<div style='margin-bottom: 8px;'></div>", unsafe_allow_html=True)
 
     # ==========================================
-    # 5. GRAFIK REKAPITULASI POSISI BERKAS
+    # 6. GRAFIK REKAPITULASI POSISI BERKAS
     # ==========================================
     if not df_overdue.empty:
         df_g1 = df_overdue.groupby(['kab_clean', 'posisi_berkas']).agg(
