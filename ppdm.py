@@ -273,23 +273,36 @@ def render_psn_2026(df_filtered_psn):
     # 2. FUNGSI PEMBERSIH NUMERIK MURNI
     # ==========================================
     def clean_target_val(val):
-        """Murni membersihkan nilai target (bilangan bulat ribuan/ratusan)"""
-        if pd.isna(val): return 0.0
-        if isinstance(val, (int, float)): 
-            # Menangani jika terbaca float desimal akibat titik ribuan dari sheet
-            if 0 < val < 10:
-                return round(val * 1000)
-            return float(val)
-        
-        s_val = str(val).replace('Rp', '').strip()
-        if not s_val: return 0.0
-        
-        # Hapus titik ribuan standar Indonesia (misal: "1.050" -> "1050")
-        clean_str = s_val.replace('.', '').replace(',', '.')
-        try:
-            return float(clean_str)
-        except ValueError:
+        """Menjamin angka target berformat titik ribuan (1.700) dibaca murni sebagai 1700"""
+        if pd.isna(val): 
             return 0.0
+            
+        # Jika Pandas membaca string '1.700' atau '1.050'
+        if isinstance(val, str):
+            s_val = val.replace('Rp', '').strip()
+            if not s_val: 
+                return 0.0
+            # Hapus titik ribuan dan ganti koma jika ada
+            clean_str = s_val.replace('.', '').replace(',', '.')
+            try:
+                return float(clean_str)
+            except ValueError:
+                return 0.0
+                
+        # Jika Pandas terlanjur mengonversi '1.700' menjadi float 1.7
+        if isinstance(val, float):
+            # Jika berupa float pecahan kecil (contoh 1.7, 1.05, 2.0, 1.264)
+            # yang berasal dari penulisan titik ribuan di Google Sheets
+            if 0 < val < 100 and val % 1 != 0:
+                # Mengubah 1.7 -> '1.700' -> 1700 / 1.05 -> '1.050' -> 1050
+                s_float = f"{val:.3f}".replace('.', '')
+                return float(s_float)
+            return float(val)
+            
+        if isinstance(val, int):
+            return float(val)
+            
+        return 0.0
 
     def clean_realisasi_val(val):
         """Membersihkan nilai realisasi (mengakomodasi desimal koma)"""
