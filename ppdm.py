@@ -496,10 +496,11 @@ def render_psn_2026(df_filtered_psn):
         st.plotly_chart(fig_lintor, use_container_width=True)
         st.markdown(card_wrapper_end, unsafe_allow_html=True)
 
+import datetime
+
 def render_layanan_pertanahan(df_filtered_layanan):
-    st.title("🚨 Berkas Melebihi Durasi SOP")
-    st.markdown("💡 *Tips: Arahkan kursor ke kotak merah strobo untuk melihat detail nama prosedur dan nomor berkas.*")
-    st.markdown("---")
+    st.markdown("### 🚨 Berkas Melebihi Durasi SOP")
+    st.markdown("<small style='color:gray;'>💡 Tips: Arahkan kursor ke kotak merah strobo untuk melihat detail nama prosedur dan nomor berkas.</small>", unsafe_allow_html=True)
 
     if df_filtered_layanan.empty:
         st.warning("Data Layanan Pertanahan tidak ditemukan atau kosong untuk filter yang dipilih.")
@@ -508,98 +509,111 @@ def render_layanan_pertanahan(df_filtered_layanan):
     df = df_filtered_layanan.copy()
 
     # ==========================================
-    # 1. LOGIKA FILTERING DURASI SOP
+    # 1. FUNGSI PEMBANTU FORMAT BERKAS & TANGGAL
     # ==========================================
     def clean_num(val):
         if pd.isna(val): return 0
         try: return int(float(str(val).replace('.', '').replace(',', '.').strip()))
         except: return 0
 
+    def fmt_no_thn(val):
+        """Menghilangkan .0 pada nomor atau tahun berkas"""
+        if pd.isna(val): return "-"
+        s_val = str(val).strip()
+        if s_val.endswith('.0'):
+            return s_val[:-2]
+        return s_val
+
     df['durasi_clean'] = df['durasi'].apply(clean_num)
     df['tgl_mulai_dt'] = pd.to_datetime(df['tgl_mulai'], errors='coerce')
     
-    # Hari ini
+    # Tanggal hari ini
     today = pd.to_datetime(datetime.date.today())
     
     # Hitung batas SOP: tgl_mulai + durasi (hari)
     df['tgl_batas_sop'] = df['tgl_mulai_dt'] + pd.to_timedelta(df['durasi_clean'], unit='D')
     
-    # Filter berkas yang MELEBIHI DURASI SOP (Hari ini > batas SOP)
+    # Filter berkas yang MELEBIHI DURASI SOP
     df_overdue = df[today > df['tgl_batas_sop']].copy()
 
-    # Kategori Posisi Berkas yang Dipantau
+    # Format nomor dan tahun berkas bersih tanpa desimal
+    df_overdue['no_clean'] = df_overdue['nmr_berkas'].apply(fmt_no_thn)
+    df_overdue['thn_clean'] = df_overdue['thn_berkas'].apply(fmt_no_thn)
+    df_overdue['berkas_thn'] = df_overdue['no_clean'] + "/" + df_overdue['thn_clean']
+
     POSISI_TARGET = ["Kakan", "Kasi SP", "Kasi PHP", "Loket"]
 
     # ==========================================
-    # 2. CSS LAMPU STROBO MERAH & HIJAU TUNTAS
+    # 2. CSS STROBO KOMPAK & DESAIN PADAT
     # ==========================================
     st.markdown("""
     <style>
-    .strobo-red {
-        background: linear-gradient(135deg, #ff4d4d 0%, #cc0000 100%);
+    .strobo-red-compact {
+        background: linear-gradient(135deg, #ff3333 0%, #cc0000 100%);
         color: white;
-        font-weight: bold;
+        font-weight: 700;
         text-align: center;
-        padding: 8px 12px;
-        border-radius: 8px;
-        box-shadow: 0 0 12px rgba(255, 0, 0, 0.7);
+        padding: 4px 8px;
+        border-radius: 6px;
+        box-shadow: 0 0 8px rgba(255, 0, 0, 0.6);
         animation: pulse-red 1.5s infinite;
         cursor: pointer;
-        font-size: 0.85rem;
+        font-size: 0.78rem;
+        line-height: 1.2;
     }
     @keyframes pulse-red {
-        0% { box-shadow: 0 0 4px rgba(255, 0, 0, 0.5); }
-        50% { box-shadow: 0 0 16px rgba(255, 0, 0, 0.9); }
-        100% { box-shadow: 0 0 4px rgba(255, 0, 0, 0.5); }
+        0% { box-shadow: 0 0 3px rgba(255, 0, 0, 0.4); }
+        50% { box-shadow: 0 0 12px rgba(255, 0, 0, 0.9); }
+        100% { box-shadow: 0 0 3px rgba(255, 0, 0, 0.4); }
     }
-    .tuntas-green {
+    .tuntas-green-compact {
         background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
         color: white;
-        font-weight: bold;
+        font-weight: 600;
         text-align: center;
-        padding: 8px 12px;
-        border-radius: 8px;
-        font-size: 0.85rem;
-    }
-    .table-header {
-        font-weight: bold;
-        text-align: center;
-        padding: 6px;
-        background-color: #f1f3f5;
+        padding: 4px 8px;
         border-radius: 6px;
-        font-size: 0.9rem;
+        font-size: 0.78rem;
+        line-height: 1.2;
+    }
+    .table-hdr {
+        font-weight: 700;
+        text-align: center;
+        padding: 4px;
+        background-color: #e9ecef;
+        border-radius: 4px;
+        font-size: 0.80rem;
     }
     </style>
     """, unsafe_allow_html=True)
 
     # ==========================================
-    # 3. TAMPILAN MATRIKS STROBO PER KABUPATEN
+    # 3. MATRIKS STROBO (RINGKAS & COMPACT)
     # ==========================================
-    # Ambil list kabupaten unik
     list_kab = sorted(df['kabupaten_kota'].dropna().unique().tolist())
 
-    # Header Tabel Matriks
-    col_kab, col_p1, col_p2, col_p3, col_p4 = st.columns([2, 2, 2, 2, 2])
-    with col_kab: st.markdown("<div class='table-header'>Kantor Pertanahan (Kab/Kota)</div>", unsafe_allow_html=True)
-    with col_p1: st.markdown("<div class='table-header'>Kakan</div>", unsafe_allow_html=True)
-    with col_p2: st.markdown("<div class='table-header'>Kasi SP</div>", unsafe_allow_html=True)
-    with col_p3: st.markdown("<div class='table-header'>Kasi PHP</div>", unsafe_allow_html=True)
-    with col_p4: st.markdown("<div class='table-header'>Loket Penyerahan</div>", unsafe_allow_html=True)
+    # Header Tabel
+    col_kab, col_p1, col_p2, col_p3, col_p4 = st.columns([2.2, 1.8, 1.8, 1.8, 1.8])
+    with col_kab: st.markdown("<div class='table-hdr'>Kantor Pertanahan</div>", unsafe_allow_html=True)
+    with col_p1: st.markdown("<div class='table-hdr'>Kakan</div>", unsafe_allow_html=True)
+    with col_p2: st.markdown("<div class='table-hdr'>Kasi SP</div>", unsafe_allow_html=True)
+    with col_p3: st.markdown("<div class='table-hdr'>Kasi PHP</div>", unsafe_allow_html=True)
+    with col_p4: st.markdown("<div class='table-hdr'>Loket Penyerahan</div>", unsafe_allow_html=True)
 
-    st.markdown("<div style='margin-bottom: 8px;'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='margin-bottom: 4px;'></div>", unsafe_allow_html=True)
 
-    # Render Baris Matriks Strobo per Kabupaten
+    # Render Baris Strobo
     for kab in list_kab:
-        c_kab, c_p1, c_p2, c_p3, c_p4 = st.columns([2, 2, 2, 2, 2])
+        c_kab, c_p1, c_p2, c_p3, c_p4 = st.columns([2.2, 1.8, 1.8, 1.8, 1.8])
         
         with c_kab:
-            st.markdown(f"<b>📍 {kab}</b>", unsafe_allow_html=True)
+            st.markdown(f"<div style='font-size: 0.80rem; font-weight: 600; padding-top: 2px;'>📍 {kab}</div>", unsafe_allow_html=True)
             
         cols_pos = [c_p1, c_p2, c_p3, c_p4]
         
         for idx, pos in enumerate(POSISI_TARGET):
             with cols_pos[idx]:
-                # Filter berkas terlambat pada kab & posisi ini
+                # Pencarian posisi berkas yang presisi dan fleksibel
                 sub_df = df_overdue[
                     (df_overdue['kabupaten_kota'] == kab) & 
                     (df_overdue['posisi_berkas'].astype(str).str.contains(pos, case=False, na=False))
@@ -608,81 +622,66 @@ def render_layanan_pertanahan(df_filtered_layanan):
                 jml_berkas = len(sub_df)
                 
                 if jml_berkas > 0:
-                    # Susun rincian tooltip hover HTML
+                    # Susun rincian tooltip tanpa angka .0
                     tooltip_items = []
                     for _, r in sub_df.iterrows():
-                        nmr = str(r.get('nmr_berkas', '-'))
-                        thn = str(r.get('thn_berkas', '-'))
+                        no_thn = r.get('berkas_thn', '-')
                         proc = str(r.get('nama_prosedur', '-'))
-                        tooltip_items.append(f"• [{nmr}/{thn}] {proc}")
+                        tooltip_items.append(f"• [{no_thn}] {proc}")
                         
                     tooltip_text = f"Kab: {kab}&#10;Posisi: {pos}&#10;Total: {jml_berkas} Berkas&#10;&#10;Rincian Prosedur:&#10;" + "&#10;".join(tooltip_items[:10])
                     if len(tooltip_items) > 10:
                         tooltip_text += f"&#10;...dan {len(tooltip_items)-10} berkas lainnya"
 
                     st.markdown(
-                        f"<div class='strobo-red' title='{tooltip_text}'>🚨 {jml_berkas} Berkas</div>", 
+                        f"<div class='strobo-red-compact' title='{tooltip_text}'>🚨 {jml_berkas} Berkas</div>", 
                         unsafe_allow_html=True
                     )
                 else:
-                    st.markdown("<div class='tuntas-green'>✔ Tuntas</div>", unsafe_allow_html=True)
+                    st.markdown("<div class='tuntas-green-compact'>✔ Tuntas</div>", unsafe_allow_html=True)
                     
-        st.markdown("<div style='margin-bottom: 6px;'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='margin-bottom: 2px;'></div>", unsafe_allow_html=True)
 
-    st.markdown("<br><hr><br>", unsafe_allow_html=True)
+    st.markdown("<div style='margin-bottom: 8px;'></div>", unsafe_allow_html=True)
 
     # ==========================================
-    # 4. GRAFIK REKAPITULASI DETAIL
+    # 4. GRAFIK TUNGGAL UTAMA (RINGKAS)
     # ==========================================
-    st.subheader("📊 Grafik Rekapitulasi Berkas Melebihi SOP")
-
     if not df_overdue.empty:
-        # Menyiapkan kolom berkas/tahun untuk hover
-        df_overdue['berkas_thn'] = df_overdue['nmr_berkas'].astype(str) + "/" + df_overdue['thn_berkas'].astype(str)
+        df_g1 = df_overdue.groupby(['kabupaten_kota', 'posisi_berkas']).agg(
+            jml_berkas=('nmr_berkas', 'count'),
+            list_berkas=('berkas_thn', lambda x: ", ".join(x.unique()[:6]))
+        ).reset_index()
+
+        fig_pos = px.bar(
+            df_g1, x='kabupaten_kota', y='jml_berkas', color='posisi_berkas',
+            title="Rekapitulasi Berkas Melebihi SOP per Posisi Berkas",
+            custom_data=df_g1[['posisi_berkas', 'list_berkas']],
+            barmode='group',
+            color_discrete_sequence=['#FF4136', '#FF851B', '#FFDC00', '#2ECC40']
+        )
         
-        g_col1, g_col2 = st.columns(2)
+        fig_pos.update_traces(
+            hovertemplate="<b>Kab/Kota: %{x}</b><br>Posisi: %{customdata[0]}<br>Jumlah: %{y} Berkas<br>Sampel No Berkas: %{customdata[1]}<extra></extra>",
+            marker=dict(line=dict(width=1, color='#111111'))
+        )
         
-        # Grafik A: Rekap Posisi Berkas per Kab/Kota
-        with g_col1:
-            df_g1 = df_overdue.groupby(['kabupaten_kota', 'posisi_berkas']).agg(
-                jml_berkas=('nmr_berkas', 'count'),
-                list_berkas=('berkas_thn', lambda x: ", ".join(x.unique()[:5]))
-            ).reset_index()
-
-            fig_pos = px.bar(
-                df_g1, x='kabupaten_kota', y='jml_berkas', color='posisi_berkas',
-                title="Banyaknya Berkas Melebihi SOP per Posisi",
-                custom_data=df_g1[['posisi_berkas', 'list_berkas']],
-                barmode='group'
-            )
-            fig_pos.update_traces(
-                hovertemplate="<b>Kab/Kota: %{x}</b><br>Posisi: %{customdata[0]}<br>Jumlah: %{y} Berkas<br>Sampel No: %{customdata[1]}<extra></extra>",
-                marker=dict(line=dict(width=1, color='#111111'))
-            )
-            fig_pos.update_layout(height=320, xaxis_title="", yaxis_title="")
-            st.plotly_chart(fig_pos, use_container_width=True)
-
-        # Grafik B: Rekap Nama Prosedur per Kab/Kota
-        with g_col2:
-            df_g2 = df_overdue.groupby(['kabupaten_kota', 'nama_prosedur']).agg(
-                jml_berkas=('nmr_berkas', 'count'),
-                list_berkas=('berkas_thn', lambda x: ", ".join(x.unique()[:5]))
-            ).reset_index()
-
-            fig_proc = px.bar(
-                df_g2, x='kabupaten_kota', y='jml_berkas', color='nama_prosedur',
-                title="Banyaknya Berkas Melebihi SOP per Prosedur",
-                custom_data=df_g2[['nama_prosedur', 'list_berkas']],
-                barmode='stack'
-            )
-            fig_proc.update_traces(
-                hovertemplate="<b>Kab/Kota: %{x}</b><br>Prosedur: %{customdata[0]}<br>Jumlah: %{y} Berkas<br>Sampel No: %{customdata[1]}<extra></extra>",
-                marker=dict(line=dict(width=1, color='#111111'))
-            )
-            fig_proc.update_layout(height=320, xaxis_title="", yaxis_title="", showlegend=False)
-            st.plotly_chart(fig_proc, use_container_width=True)
+        fig_pos.update_layout(
+            height=200, # Diperkecil agar muat penuh dalam 1 layar laptop
+            xaxis_title="",
+            yaxis_title="",
+            legend_title_text="",
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            margin=dict(l=5, r=5, t=28, b=5),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(size=9)),
+            title=dict(font=dict(size=12)),
+            yaxis=dict(gridcolor='#e0e0e0', tickfont=dict(size=8)),
+            xaxis=dict(showgrid=False, tickfont=dict(size=8))
+        )
+        st.plotly_chart(fig_pos, use_container_width=True)
     else:
-        st.success("🎉 Luar biasa! Seluruh berkas layanan pertanahan di semua Kabupaten/Kota tepat waktu (SOP Tuntas).")
+        st.success("🎉 Seluruh berkas layanan pertanahan tepat waktu (SOP Tuntas).")
 
 
 def render_pertanahan_elektronik(df_filtered_elektronik):
