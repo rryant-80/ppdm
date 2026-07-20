@@ -159,14 +159,14 @@ def render_profil_anggaran(df_filtered_sdm):
             luas_adm_m2 = df_elek_ctx['luas_adm'].apply(clean_number).sum() if 'luas_adm' in df_elek_ctx.columns else 0
             luas_apl_m2 = df_elek_ctx['luas_apl'].apply(clean_number).sum() if 'luas_apl' in df_elek_ctx.columns else 0
             
-            # Konversi dari m2 ke km2 (dibagi 1.000.000)
-            luas_adm_km2 = luas_adm_m2 / 1_000_000.0
-            luas_apl_km2 = luas_apl_m2 / 1_000_000.0
+            # Konversi dari m2 ke ha (dibagi 10.000)
+            luas_adm_ha = luas_adm_m2 / 10_000.0
+            luas_apl_ha = luas_apl_m2 / 10_000.0
             
             # Persentase APL terhadap ADM
             persen_apl_adm = (luas_apl_m2 / luas_adm_m2 * 100) if luas_adm_m2 > 0 else 0.0
         else:
-            jml_kec, jml_desa, luas_adm_km2, luas_apl_km2, persen_apl_adm = 0, 0, 0.0, 0.0, 0.0
+            jml_kec, jml_desa, luas_adm_ha, luas_apl_ha, persen_apl_adm = 0, 0, 0.0, 0.0, 0.0
 
         total_target = df_filtered_sdm['target_dipa'].apply(clean_number).sum() if 'target_dipa' in df_filtered_sdm.columns else 0.0
         total_realisasi = df_filtered_sdm['realisasi_dipa'].apply(clean_number).sum() if 'realisasi_dipa' in df_filtered_sdm.columns else 0.0
@@ -184,11 +184,11 @@ def render_profil_anggaran(df_filtered_sdm):
         with c4:
             render_modern_card("Total % Realisasi Dipa", f"{fmt_pct(total_persen_dipa)}%", f"Rp {fmt_idr(total_realisasi)}")
         with c5:
-            render_modern_card("Luas ADM", f"{fmt_decimal(luas_adm_km2)} <span style='font-size:0.8rem;'>km²</span>")
+            render_modern_card("Luas ADM", f"{fmt_decimal(luas_adm_ha)} <span style='font-size:0.8rem;'>Ha</span>")
         with c6:
             render_modern_card(
                 "Luas APL", 
-                f"{fmt_decimal(luas_apl_km2)} <span style='font-size:0.8rem;'>km²</span>", 
+                f"{fmt_decimal(luas_apl_ha)} <span style='font-size:0.8rem;'>Ha</span>", 
                 f"{fmt_pct(persen_apl_adm)}% dari Luas ADM"
             )
 
