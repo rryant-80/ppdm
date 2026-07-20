@@ -743,29 +743,52 @@ def render_layanan_pertanahan(df_filtered_layanan):
             list_berkas=('berkas_thn', lambda x: ", ".join(x.unique()[:6]))
         ).reset_index()
 
+        # Palet Warna Pastel Unik (Tanpa Warna Sama)
+        pastel_colors = [
+            '#779ECB', '#FFB347', '#C23B22', '#03C03C', '#B19CD9', 
+            '#FFD1DC', '#AEC6CF', '#F49AC2', '#CB99C9', '#E6E6FA', 
+            '#F0E68C', '#B2AC88'
+        ]
+
         fig_pos = px.bar(
             df_g1, x='kab_clean', y='jml_berkas', color='posisi_berkas',
             title="Rekapitulasi Berkas Melebihi SOP per Posisi Berkas",
             custom_data=df_g1[['posisi_berkas', 'list_berkas']],
             barmode='group',
-            color_discrete_sequence=['#FF4136', '#FF851B', '#FFDC00', '#2ECC40']
+            color_discrete_sequence=pastel_colors
         )
         
         fig_pos.update_traces(
             hovertemplate="<b>Kab/Kota: %{x}</b><br>Posisi: %{customdata[0]}<br>Jumlah: %{y} Berkas<br>Sampel No Berkas: %{customdata[1]}<extra></extra>",
-            marker=dict(line=dict(width=1, color='#111111'))
+            marker=dict(line=dict(width=1, color='#222222'))
         )
         
         fig_pos.update_layout(
-            height=350,
+            height=260, # Disesuaikan agar cukup ruang untuk legenda
             xaxis_title="",
             yaxis_title="",
             legend_title_text="",
             paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(0,0,0,0)',
-            margin=dict(l=5, r=5, t=28, b=5),
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(size=9)),
-            title=dict(font=dict(size=12)),
+            margin=dict(l=5, r=5, t=65, b=5), # Space atas diperluas agar tidak bertumpuk
+            
+            # ATURAN JUDUL & LEGENDA (LEGENDA DI BAWAH JUDUL)
+            title=dict(
+                text="Rekapitulasi Berkas Melebihi SOP per Posisi Berkas",
+                font=dict(size=13, color="#2c3e50"),
+                x=0.01,
+                y=0.98,
+                xanchor='left',
+                yanchor='top'
+            ),
+            legend=dict(
+                orientation="h", 
+                yanchor="top", 
+                y=0.88, 
+                xanchor="left", 
+                x=0.01,
+                font=dict(size=9)
+            ),
             yaxis=dict(gridcolor='#e0e0e0', tickfont=dict(size=8)),
             xaxis=dict(showgrid=False, tickfont=dict(size=8))
         )
