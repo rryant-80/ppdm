@@ -92,9 +92,10 @@ def render_profil_anggaran(df_filtered_sdm):
             "url": DEFAULT_IMG, "target": 0, "realisasi": 0, "persen": 0.0
         }
 
-    # Ambil data pimpinan
-    pimpinan_1 = get_pejabat_info(df_filtered_sdm, "Bendahara")
-    pimpinan_2 = get_pejabat_info(df_filtered_sdm, "Kepala Kantor")
+    # Ambil data pimpinan & foto gedung/kantor
+    pimpinan_0 = get_pejabat_info(df_filtered_sdm, "Kantor")      # Foto 1 (Kiri Baru)
+    pimpinan_1 = get_pejabat_info(df_filtered_sdm, "Bendahara")   # Foto 2 (Tengah)
+    pimpinan_2 = get_pejabat_info(df_filtered_sdm, "Kepala Kantor")# Foto 3 (Kanan)
 
     # ==========================================
     # FUNCTION PEMBANTU CARD MODERN AKSEN BIRU
@@ -113,27 +114,31 @@ def render_profil_anggaran(df_filtered_sdm):
             flex-direction: column;
             justify-content: center;
         ">
-            <div style="color: #555555; font-size: 0.78rem; font-weight: 600; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+            <div style="color: #555555; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                 {title}
             </div>
-            <div style="color: #0D47A1; font-size: 1.2rem; font-weight: 700; margin-top: 2px; word-break: break-word;">
+            <div style="color: #0D47A1; font-size: 1.15rem; font-weight: 700; margin-top: 2px; word-break: break-word;">
                 {value}
             </div>
-            {f'<div style="color: #666666; font-size: 0.72rem; margin-top: 1px;">{sub_value}</div>' if sub_value else ''}
+            {f'<div style="color: #666666; font-size: 0.70rem; margin-top: 1px;">{sub_value}</div>' if sub_value else ''}
         </div>
         """
         st.markdown(card_html, unsafe_allow_html=True)
 
     # ==========================================
-    # BARIS 1: FOTO UTAMA & METRIK CARDS
+    # BARIS 1: FOTO UTAMA (3 FOTO) & METRIK CARDS
     # ==========================================
+    # Pembagian rasio: 2 bagian untuk 3 Foto, 3 bagian untuk 6 Cards
     col_layout_left, col_layout_right = st.columns([2, 3])
 
     with col_layout_left:
-        col_pic1, col_pic2 = st.columns(2)
+        # 3 Foto Berdampingan Ukuran Sama
+        col_pic1, col_pic2, col_pic3 = st.columns(3)
         with col_pic1:
-            st.image(pimpinan_1["url"], use_column_width=True)
+            st.image(pimpinan_0["url"], use_column_width=True)
         with col_pic2:
+            st.image(pimpinan_1["url"], use_column_width=True)
+        with col_pic3:
             st.image(pimpinan_2["url"], use_column_width=True)
 
     with col_layout_right:
@@ -142,10 +147,18 @@ def render_profil_anggaran(df_filtered_sdm):
         if not df_elek_ctx.empty:
             jml_kec = df_elek_ctx['kecamatan'].nunique() if 'kecamatan' in df_elek_ctx.columns else 0
             jml_desa = df_elek_ctx['desa_kelurahan'].nunique() if 'desa_kelurahan' in df_elek_ctx.columns else 0
-            luas_adm = df_elek_ctx['luas_adm'].apply(clean_number).sum() if 'luas_adm' in df_elek_ctx.columns else 0
-            luas_apl = df_elek_ctx['luas_apl'].apply(clean_number).sum() if 'luas_apl' in df_elek_ctx.columns else 0
+            
+            # Hitung Luas dalam Hektar (Ha) lalu konversi ke km2 (dibagi 100)
+            luas_adm_ha = df_elek_ctx['luas_adm'].apply(clean_number).sum() if 'luas_adm' in df_elek_ctx.columns else 0
+            luas_apl_ha = df_elek_ctx['luas_apl'].apply(clean_number).sum() if 'luas_apl' in df_elek_ctx.columns else 0
+            
+            luas_adm_km2 = luas_adm_ha / 100.0
+            luas_apl_km2 = luas_apl_ha / 100.0
+            
+            # Persentase APL terhadap ADM
+            persen_apl_adm = (luas_apl_ha / luas_adm_ha * 100) if luas_adm_ha > 0 else 0.0
         else:
-            jml_kec, jml_desa, luas_adm, luas_apl = 0, 0, 0, 0
+            jml_kec, jml_desa, luas_adm_km2, luas_apl_km2, persen_apl_adm = 0, 0, 0.0, 0.0, 0.0
 
         total_target = df_filtered_sdm['target_dipa'].apply(clean_number).sum() if 'target_dipa' in df_filtered_sdm.columns else 0.0
         total_realisasi = df_filtered_sdm['realisasi_dipa'].apply(clean_number).sum() if 'realisasi_dipa' in df_filtered_sdm.columns else 0.0
@@ -163,9 +176,13 @@ def render_profil_anggaran(df_filtered_sdm):
         with c4:
             render_modern_card("Total % Realisasi Dipa", f"{fmt_pct(total_persen_dipa)}%", f"Rp {fmt_idr(total_realisasi)}")
         with c5:
-            render_modern_card("Luas ADM", f"{fmt_pct(luas_adm)} <span style='font-size:0.8rem;'>Ha</span>")
+            render_modern_card("Luas ADM", f"{fmt_pct(luas_adm_km2)} <span style='font-size:0.8rem;'>km²</span>")
         with c6:
-            render_modern_card("Luas APL", f"{fmt_pct(luas_apl)} <span style='font-size:0.8rem;'>Ha</span>")
+            render_modern_card(
+                "Luas APL", 
+                f"{fmt_pct(luas_apl_km2)} <span style='font-size:0.8rem;'>km²</span>", 
+                f"{fmt_pct(persen_apl_adm)}% dari Luas ADM"
+            )
 
     st.markdown("<br>", unsafe_allow_html=True)
 
@@ -195,11 +212,9 @@ def render_profil_anggaran(df_filtered_sdm):
                 sub_c1, sub_c2 = st.columns([1, 2.2])
                 
                 with sub_c1:
-                    # Foto Pejabat Tanpa Label F1, dst.
                     st.image(p_info["url"], use_column_width=True)
                     
                 with sub_c2:
-                    # Teks Rapat dan Kompak Bergaya Modern
                     html_content = f"""
                     <div style="line-height: 1.25; margin-bottom: 4px;">
                         <div style="font-weight: 700; font-size: 0.88rem; color: #111111; word-break: break-word;">
@@ -219,12 +234,10 @@ def render_profil_anggaran(df_filtered_sdm):
                     progress_val = min(max(p_info['persen'] / 100.0, 0.0), 1.0)
                     st.progress(progress_val)
                     
-                    # Teks Realisasi di Bawah Progress Bar
+                    # Realisasi ditulis menyambung (contoh: Realisasi: 59,76% (Rp 200.000.988))
                     html_realisasi = f"""
-                    <div style="text-align: right; line-height: 1.2; margin-top: 2px;">
-                        <span style="font-size: 0.72rem; color: #555555;">Realisasi: </span>
-                        <b style="font-size: 0.75rem; color: #00CC96;">{fmt_pct(p_info['persen'])}%</b>
-                        <div style="font-size: 0.70rem; color: #777777;">(Rp {fmt_idr(p_info['realisasi'])})</div>
+                    <div style="text-align: right; line-height: 1.2; margin-top: 2px; font-size: 0.70rem; color: #555555;">
+                        Realisasi: <b style="font-size: 0.72rem; color: #00CC96;">{fmt_pct(p_info['persen'])}%</b> (Rp {fmt_idr(p_info['realisasi'])})
                     </div>
                     """
                     st.markdown(html_realisasi, unsafe_allow_html=True)
