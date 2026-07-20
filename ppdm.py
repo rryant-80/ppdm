@@ -314,11 +314,11 @@ with st.sidebar:
     st.markdown("---")
     st.header("📊 Grafik Rekapitulasi (Sulteng)")
 
-    # Dikitonari untuk mempersingkat nama kabupaten
+    # Kamus untuk mempersingkat nama kabupaten
     KAB_MAP = {
         'Banggai': 'BG', 'Banggai Kepulauan': 'BK', 'Banggai Laut': 'BL',
         'Buol': 'BU', 'Donggala': 'DG', 'Parigi Moutong': 'PM',
-        'Poso': 'PS', 'Tojo Una-Una': 'TU', 'Tojo Una-una': 'TU', 'Tolitoli': 'TL', 'Toli-toli': 'TL', 'Toli Toli': 'TL',
+        'Poso': 'PS', 'Tojo Una-una': 'TU', 'Toli-toli': 'TL', 'Toli Toli': 'TL',
         'Morowali': 'MW', 'Morowali Utara': 'MU', 'Palu': 'PL', 'Kota Palu': 'PL', 
         'Sigi': 'SG', 'Sulawesi Tengah': 'ST', 'Provinsi Sulawesi Tengah': 'ST'
     }
@@ -338,20 +338,12 @@ with st.sidebar:
     # 1. GRAFIK: Distribusi Pegawai (Stacked Bar - Terurut)
     # ==========================================
     if not df_sdm_singkat.empty and 'kategori_asn' in df_sdm_singkat.columns:
-        # Rekap jumlah berdasarkan kabupaten dan kategori ASN
         df_sdm_rekap = df_sdm_singkat.groupby(['kab_singkat', 'kategori_asn']).size().reset_index(name='jumlah')
-        
-        # Buat pivot untuk hover teks
         df_sdm_pivot = df_sdm_rekap.pivot(index='kab_singkat', columns='kategori_asn', values='jumlah').fillna(0).astype(int)
-        
-        # Hitung total per kabupaten untuk sorting dan hover
         df_sdm_total = df_sdm_singkat.groupby('kab_singkat').size().reset_index(name='total_all')
         df_sdm_rekap = df_sdm_rekap.merge(df_sdm_pivot, on='kab_singkat').merge(df_sdm_total, on='kab_singkat')
-        
-        # Urutkan berdasarkan total_all tertinggi ke terendah
         df_sdm_rekap = df_sdm_rekap.sort_values(by='total_all', ascending=False)
         
-        # Dinamis teks hover
         hover_text = "<b>Kab/Kota: %{x}</b><br>Total ASN: %{customdata[0]} orang<br>"
         custom_data_cols = ['total_all']
         for i, col in enumerate(df_sdm_pivot.columns):
@@ -365,22 +357,67 @@ with st.sidebar:
         )
         fig_sdm.update_traces(hovertemplate=hover_text + "<extra></extra>")
         fig_sdm.update_layout(
-            showlegend=True, legend_title_text='', height=280,
+            showlegend=True, legend_title_text='', height=260,
             xaxis_title="", yaxis_title="",
-            xaxis={'categoryorder':'total descending'}, # Memastikan urutan bar menurun
-            margin=dict(l=10, r=10, t=40, b=10),
+            xaxis={'categoryorder':'total descending'},
+            margin=dict(l=10, r=10, t=35, b=10),
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
         )
         st.plotly_chart(fig_sdm, use_container_width=True)
 
 
     # ==========================================
-    # 2. GRAFIK: Berkas Lewat SOP (Terurut)
+    # 2. GRAFIK BARU: % Realisasi Anggaran (GID 1168898330)
+    # ==========================================
+    if not df_sdm_singkat.empty and 'target_dipa' in df_sdm_singkat.columns and 'realisasi_dipa' in df_sdm_singkat.columns:
+        # Bersihkan nilai numerik
+        df_anggaran = df_sdm_singkat.copy()
+        
+        def clean_num_local(val):
+            if pd.isna(val): return 0.0
+            if isinstance(val, (int, float)): return float(val)
+            clean_str = str(val).replace('.', '').replace(',', '').replace('Rp', '').strip()
+            try: return float(clean_str)
+            except: return 0.0
+
+        df_anggaran['target_clean'] = df_anggaran['target_dipa'].apply(clean_num_local)
+        df_anggaran['realisasi_clean'] = df_anggaran['realisasi_dipa'].apply(clean_num_local)
+        
+        # Agregasi total per kabupaten
+        df_ang_rekap = df_anggaran.groupby('kab_singkat')[['target_clean', 'realisasi_clean']].sum().reset_index()
+        df_ang_rekap['persen_realisasi'] = (df_ang_rekap['realisasi_clean'] / df_ang_rekap['target_clean'].replace(0, 1)) * 100
+        
+        # Format teks Rupiah & Persen untuk hover
+        df_ang_rekap['target_fmt'] = df_ang_rekap['target_clean'].apply(lambda x: f"{x:,.0f}".replace(',', '.'))
+        df_ang_rekap['realisasi_fmt'] = df_ang_rekap['realisasi_clean'].apply(lambda x: f"{x:,.0f}".replace(',', '.'))
+        df_ang_rekap['persen_fmt'] = df_ang_rekap['persen_realisasi'].apply(lambda x: f"{x:.2f}".replace('.', ','))
+        
+        # Urutkan dari persentase realisasi tertinggi ke terendah
+        df_ang_rekap = df_ang_rekap.sort_values(by='persen_realisasi', ascending=False)
+
+        fig_anggaran = px.bar(
+            df_ang_rekap, x='kab_singkat', y='persen_realisasi',
+            title="% Realisasi Anggaran",
+            custom_data=df_ang_rekap[['target_fmt', 'realisasi_fmt', 'persen_fmt']]
+        )
+        fig_anggaran.update_traces(
+            hovertemplate="<b>Kab/Kota: %{x}</b><br>Rp Target: Rp %{customdata[0]}<br>Rp Realisasi: Rp %{customdata[1]}<br>% Realisasi: %{customdata[2]}%<extra></extra>",
+            marker_color='#17BECF'
+        )
+        fig_anggaran.update_layout(
+            showlegend=False, height=250,
+            xaxis_title="", yaxis_title="",
+            xaxis={'categoryorder':'total descending'},
+            margin=dict(l=10, r=10, t=35, b=10)
+        )
+        st.plotly_chart(fig_anggaran, use_container_width=True)
+
+
+    # ==========================================
+    # 3. GRAFIK: Berkas Lewat SOP (Terurut)
     # ==========================================
     if not df_layanan_singkat.empty and 'nmr_berkas' in df_layanan_singkat.columns:
         df_layanan_total = df_layanan_singkat.groupby('kab_singkat')['nmr_berkas'].count().reset_index(name='total_berkas')
-        
-        # Urutkan dari tertinggi ke terendah
         df_layanan_total = df_layanan_total.sort_values(by='total_berkas', ascending=False)
         
         if 'posisi_berkas' in df_layanan_singkat.columns:
@@ -407,21 +444,17 @@ with st.sidebar:
             showlegend=False, height=250,
             xaxis_title="", yaxis_title="",
             xaxis={'categoryorder':'total descending'},
-            margin=dict(l=10, r=10, t=40, b=10)
+            margin=dict(l=10, r=10, t=35, b=10)
         )
         st.plotly_chart(fig_layanan, use_container_width=True)
 
 
     # ==========================================
-    # 3. GRAFIK: Persentase Prasertel (Formula Diperbaiki & Terurut)
+    # 4. GRAFIK: Persentase Prasertel (Terurut)
     # ==========================================
     if not df_elek_singkat.empty and 'pra_sertel' in df_elek_singkat.columns and 'bt_valid' in df_elek_singkat.columns:
         df_elek_rekap = df_elek_singkat.groupby('kab_singkat')[['pra_sertel', 'bt_valid']].sum().reset_index()
-        
-        # Perbaikan Formula: pra_sertel / bt_valid
         df_elek_rekap['Persentase'] = (df_elek_rekap['pra_sertel'] / df_elek_rekap['bt_valid'].replace(0, 1)) * 100
-        
-        # Urutkan dari persentase tertinggi ke terendah
         df_elek_rekap = df_elek_rekap.sort_values(by='Persentase', ascending=False)
         
         fig_elek = px.bar(
@@ -430,7 +463,6 @@ with st.sidebar:
             custom_data=df_elek_rekap[['pra_sertel', 'bt_valid']]
         )
         fig_elek.update_traces(
-            # Format %{y:.2f}% untuk menampilkan dua angka di belakang koma pada hover
             hovertemplate="<b>Kab/Kota: %{x}</b><br>Persentase: %{y:.2f}%<br>Jumlah Prasertel: %{customdata[0]}<br>Jumlah BT Valid: %{customdata[1]}<extra></extra>",
             marker_color='#00CC96'
         )
@@ -438,8 +470,7 @@ with st.sidebar:
             showlegend=False, height=250,
             xaxis_title="", yaxis_title="",
             xaxis={'categoryorder':'total descending'},
-            yaxis=dict(tickformat=".2f"), # Format angka sumbu Y menjadi 2 desimal jika diperlukan
-            margin=dict(l=10, r=10, t=40, b=10)
+            margin=dict(l=10, r=10, t=35, b=10)
         )
         st.plotly_chart(fig_elek, use_container_width=True)
 
