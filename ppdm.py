@@ -40,21 +40,35 @@ def render_profil_anggaran(df_filtered_sdm):
     df_elek_ctx = globals().get('df_f_elektronik', pd.DataFrame())
 
     # ==========================================
+    # FUNGSI PEMBANTU KONVERSI NUMERIK AMAN
+    # ==========================================
+    def clean_number(val):
+        """Mengubah string/teks angka berformat menjadi float murni"""
+        if pd.isna(val):
+            return 0.0
+        if isinstance(val, (int, float)):
+            return float(val)
+        # Hapus titik/koma/spasi jika data berupa string
+        clean_str = str(val).replace('.', '').replace(',', '').replace('Rp', '').strip()
+        try:
+            return float(clean_str)
+        except ValueError:
+            return 0.0
+
+    # ==========================================
     # FUNCTION PEMBANTU UNTUK PEJABAT / FOTO
     # ==========================================
     def get_pejabat_info(df, jabatan_name):
         match = df[df['jabatan'].astype(str).str.contains(jabatan_name, case=False, na=False)]
         
-        # Gambar standar jika URL kosong/invalid
         DEFAULT_IMG = "https://via.placeholder.com/150?text=No+Image"
         
         if not match.empty:
             row = match.iloc[0]
-            target = row.get('target_dipa', 0)
-            realisasi = row.get('realisasi_dipa', 0)
+            target = clean_number(row.get('target_dipa', 0))
+            realisasi = clean_number(row.get('realisasi_dipa', 0))
             persen = (realisasi / target * 100) if target > 0 else 0.0
             
-            # Cek kevalidan URL
             url_val = row.get('url', '')
             if pd.isna(url_val) or not str(url_val).startswith('http'):
                 url_val = DEFAULT_IMG
@@ -85,7 +99,6 @@ def render_profil_anggaran(df_filtered_sdm):
     with col_layout_left:
         col_pic1, col_pic2 = st.columns(2)
         with col_pic1:
-            # Menggunakan use_column_width=True agar kompatibel dengan semua versi Streamlit
             st.image(pimpinan_1["url"], use_column_width=True, caption=f"{pimpinan_1['jabatan']}")
             st.caption(f"**{pimpinan_1['nama']}**")
         with col_pic2:
@@ -101,13 +114,17 @@ def render_profil_anggaran(df_filtered_sdm):
         if not df_elek_ctx.empty:
             jml_kec = df_elek_ctx['kecamatan'].nunique() if 'kecamatan' in df_elek_ctx.columns else 0
             jml_desa = df_elek_ctx['desa_kelurahan'].nunique() if 'desa_kelurahan' in df_elek_ctx.columns else 0
-            luas_adm = df_elek_ctx['luas_adm'].sum() if 'luas_adm' in df_elek_ctx.columns else 0
-            luas_apl = df_elek_ctx['luas_apl'].sum() if 'luas_apl' in df_elek_ctx.columns else 0
+            
+            # Konversi kolom ke numerik sebelum disum
+            luas_adm = df_elek_ctx['luas_adm'].apply(clean_number).sum() if 'luas_adm' in df_elek_ctx.columns else 0
+            luas_apl = df_elek_ctx['luas_apl'].apply(clean_number).sum() if 'luas_apl' in df_elek_ctx.columns else 0
         else:
             jml_kec, jml_desa, luas_adm, luas_apl = 0, 0, 0, 0
 
-        total_target = df_filtered_sdm['target_dipa'].sum() if 'target_dipa' in df_filtered_sdm.columns else 0
-        total_realisasi = df_filtered_sdm['realisasi_dipa'].sum() if 'realisasi_dipa' in df_filtered_sdm.columns else 0
+        # Konversi kolom target & realisasi DIPA ke numerik aman
+        total_target = df_filtered_sdm['target_dipa'].apply(clean_number).sum() if 'target_dipa' in df_filtered_sdm.columns else 0.0
+        total_realisasi = df_filtered_sdm['realisasi_dipa'].apply(clean_number).sum() if 'realisasi_dipa' in df_filtered_sdm.columns else 0.0
+        
         total_persen_dipa = (total_realisasi / total_target * 100) if total_target > 0 else 0.0
 
         c1.metric("Jumlah Pegawai", f"{jml_pegawai} Orang")
