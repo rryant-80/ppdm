@@ -250,7 +250,7 @@ def render_profil_anggaran(df_filtered_sdm):
                     </div>
                     """
                     st.markdown(html_realisasi, unsafe_allow_html=True)
-    
+
 def render_psn_2026(df_filtered_psn):
     st.title("🎯 Proyek Strategis Nasional (PSN) 2026")
     
@@ -259,7 +259,7 @@ def render_psn_2026(df_filtered_psn):
         return
 
     # ==========================================
-    # FUNGSI PEMBANTU PERSIAPAN DATA & FORMAT
+    # 1. KAMUS SINGKATAN KABUPATEN
     # ==========================================
     KAB_MAP = {
         'Banggai': 'BG', 'Banggai Kepulauan': 'BK', 'Banggai Laut': 'BL',
@@ -269,14 +269,14 @@ def render_psn_2026(df_filtered_psn):
         'Sigi': 'SG', 'Sulawesi Tengah': 'ST', 'Provinsi Sulawesi Tengah': 'ST'
     }
 
-    # -------------------------------------------------------------------------
-    # FUNGSI PEMBERSIH ANGKA TERPISAH (PRESISI MURNI)
-    # -------------------------------------------------------------------------
+    # ==========================================
+    # 2. FUNGSI PEMBERSIH NUMERIK MURNI
+    # ==========================================
     def clean_target_val(val):
-        """Khusus membersihkan angka target murni tanpa merusak nilai ratusan/ribuan"""
+        """Murni membersihkan nilai target (bilangan bulat ribuan/ratusan)"""
         if pd.isna(val): return 0.0
         if isinstance(val, (int, float)): 
-            # Jika sudah float tetapi memiliki nilai seperti 1.05 (maksudnya 1050)
+            # Menangani jika terbaca float desimal akibat titik ribuan dari sheet
             if 0 < val < 10:
                 return round(val * 1000)
             return float(val)
@@ -284,7 +284,7 @@ def render_psn_2026(df_filtered_psn):
         s_val = str(val).replace('Rp', '').strip()
         if not s_val: return 0.0
         
-        # Hapus titik pemisah ribuan standar Indonesia (misal: "1.050" -> "1050")
+        # Hapus titik ribuan standar Indonesia (misal: "1.050" -> "1050")
         clean_str = s_val.replace('.', '').replace(',', '.')
         try:
             return float(clean_str)
@@ -292,7 +292,7 @@ def render_psn_2026(df_filtered_psn):
             return 0.0
 
     def clean_realisasi_val(val):
-        """Khusus membersihkan nilai realisasi (yang mengandung desimal koma)"""
+        """Membersihkan nilai realisasi (mengakomodasi desimal koma)"""
         if pd.isna(val): return 0.0
         if isinstance(val, (int, float)): return float(val)
         
@@ -310,7 +310,24 @@ def render_psn_2026(df_filtered_psn):
         except ValueError:
             return 0.0
 
-    # Terapkan pembersihan khusus berdasarkan tipe kolom
+    def fmt_idr(val):
+        return f"{val:,.0f}".replace(',', '.')
+
+    def fmt_decimal(val):
+        parts = f"{val:,.2f}".split('.')
+        integer_part = parts[0].replace(',', '.')
+        decimal_part = parts[1]
+        return f"{integer_part},{decimal_part}"
+
+    # ==========================================
+    # 3. PROSES & CLEANING DATA
+    # ==========================================
+    df = df_filtered_psn.copy()
+    if 'kabupaten_kota' in df.columns:
+        df['kab_singkat'] = df['kabupaten_kota'].map(lambda x: KAB_MAP.get(x, x))
+    else:
+        df['kab_singkat'] = '-'
+
     target_cols = ['target_pbt', 'target_shat', 'target_redis', 'target_lintor']
     realisasi_cols = [
         'realisasi_baru', 'realisasi_k4', 'realisasi_repo',
@@ -331,57 +348,20 @@ def render_psn_2026(df_filtered_psn):
         else:
             df[col] = 0.0
 
-    def fmt_idr(val):
-        return f"{val:,.0f}".replace(',', '.')
-
-    def fmt_decimal(val):
-        parts = f"{val:,.2f}".split('.')
-        integer_part = parts[0].replace(',', '.')
-        decimal_part = parts[1]
-        return f"{integer_part},{decimal_part}"
-
-    # Salin data & tambahkan singkatan kabupaten
-    df = df_filtered_psn.copy()
-    if 'kabupaten_kota' in df.columns:
-        df['kab_singkat'] = df['kabupaten_kota'].map(lambda x: KAB_MAP.get(x, x))
-    else:
-        df['kab_singkat'] = '-'
-
-    # Bersihkan seluruh kolom numerik
-    cols_to_clean = [
-        'target_pbt', 'realisasi_baru', 'realisasi_k4', 'realisasi_repo',
-        'target_shat', 'puldadis', 'berkas', 'k1', 'diserahkan',
-        'target_redis', 'pos_redis', 'sk_redis', 'sertipikat_redis',
-        'target_lintor', 'lintor_su', 'lintor_sk', 'lintor_sertipikat', 'lintor_serah'
-    ]
-    
-    target_cols = ['target_pbt', 'target_shat', 'target_redis', 'target_lintor']
-    
-    for col in cols_to_clean:
-        if col in df.columns:
-            if col in target_cols:
-                def fix_target_num(x):
-                    if pd.isna(x): return 0.0
-                    if isinstance(x, float) and 0 < x < 10:
-                        return round(x * 1000)
-                    return clean_num(x)
-                df[col] = df[col].apply(fix_target_num)
-            else:
-                df[col] = df[col].apply(clean_num)
-        else:
-            df[col] = 0.0
-
-    # Agregasi data per kabupaten
+    cols_to_clean = target_cols + realisasi_cols
     df_rekap = df.groupby('kab_singkat')[cols_to_clean].sum().reset_index()
 
-    # Fungsi pembuat grafik dengan dukungan mode stacked / group
+    # ==========================================
+    # 4. FUNGSI PEMBUAT GRAFIK PLOTLY
+    # ==========================================
     def create_psn_chart(title, df_data, target_col, metrics_dict, color_sequence, unit="Bdg", is_stacked=False):
+        # Hanya tampilkan wilayah yang memiliki target > 0
         df_valid = df_data[df_data[target_col] > 0].copy()
         
         if df_valid.empty:
             fig_empty = px.bar(title=f"{title} (Tidak ada target aktif)")
             fig_empty.update_layout(
-                height=310, 
+                height=230, 
                 paper_bgcolor='rgba(0,0,0,0)', 
                 plot_bgcolor='rgba(0,0,0,0)',
                 margin=dict(l=10, r=10, t=30, b=10)
@@ -412,8 +392,6 @@ def render_psn_2026(df_filtered_psn):
                 })
                 
         df_long = pd.DataFrame(long_rows)
-
-        # Mode Tumpuk (relative) untuk PBT, Mode Grouped untuk grafik lainnya
         mode_bar = 'relative' if is_stacked else 'group'
 
         fig = px.bar(
@@ -435,13 +413,11 @@ def render_psn_2026(df_filtered_psn):
                 "Target: %{customdata[1]}<br>"
                 "Persentase: %{customdata[2]}%<extra></extra>"
             ),
-            marker=dict(
-                line=dict(width=1.2, color='#111111')
-            )
+            marker=dict(line=dict(width=1.2, color='#111111'))
         )
 
         fig.update_layout(
-            height=310, # Diperkecil agar muat 1 layar laptop
+            height=230,
             xaxis_title="",
             yaxis_title="",
             legend_title_text="",
@@ -456,14 +432,14 @@ def render_psn_2026(df_filtered_psn):
                 x=1,
                 font=dict(size=10)
             ),
-            title=dict(font=dict(size=14)),
+            title=dict(font=dict(size=13)),
             yaxis=dict(gridcolor='#c4c4c4', tickfont=dict(size=9)),
             xaxis=dict(showgrid=False, tickfont=dict(size=9))
         )
         return fig
 
     # ==========================================
-    # LAYOUT GRID 2x2 DENGAN BINGKAI (#dbdbdb)
+    # 5. LAYOUT GRID 2x2 BINGKAI KARTU (#dbdbdb)
     # ==========================================
     card_wrapper_start = """
     <div style="
@@ -479,10 +455,9 @@ def render_psn_2026(df_filtered_psn):
     row1_col1, row1_col2 = st.columns(2)
     row2_col1, row2_col2 = st.columns(2)
 
-    # 1. GRAFIK 1: Realisasi PBT (Stacked Column: Realisasi Baru -> K4 -> Repo)
+    # 1. GRAFIK 1: Realisasi PBT (Stacked Bar)
     with row1_col1:
         st.markdown(card_wrapper_start, unsafe_allow_html=True)
-        # Urutan dict menentukan urutan tumpukan dari bawah ke atas
         metrics_pbt = {
             'Realisasi Baru': 'realisasi_baru',
             'Realisasi K4': 'realisasi_k4',
@@ -541,8 +516,6 @@ def render_psn_2026(df_filtered_psn):
         )
         st.plotly_chart(fig_lintor, use_container_width=True)
         st.markdown(card_wrapper_end, unsafe_allow_html=True)
-
-import datetime
 
 def render_layanan_pertanahan(df_filtered_layanan):
     st.markdown("### 🚨 Berkas Melebihi Durasi SOP")
