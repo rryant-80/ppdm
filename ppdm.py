@@ -334,7 +334,7 @@ def render_psn_2026(df_filtered_psn):
         if df_valid.empty:
             fig_empty = px.bar(title=f"{title} (Tidak ada target aktif)")
             fig_empty.update_layout(
-                height=260, 
+                height=310, 
                 paper_bgcolor='rgba(0,0,0,0)', 
                 plot_bgcolor='rgba(0,0,0,0)',
                 margin=dict(l=10, r=10, t=30, b=10)
@@ -394,7 +394,7 @@ def render_psn_2026(df_filtered_psn):
         )
 
         fig.update_layout(
-            height=260, # Diperkecil agar muat 1 layar laptop
+            height=310, # Diperkecil agar muat 1 layar laptop
             xaxis_title="",
             yaxis_title="",
             legend_title_text="",
@@ -595,7 +595,7 @@ with st.sidebar:
         )
         fig_sdm.update_traces(hovertemplate=hover_text + "<extra></extra>")
         fig_sdm.update_layout(
-            showlegend=True, legend_title_text='', height=260,
+            showlegend=True, legend_title_text='', height=310,
             xaxis_title="", yaxis_title="",
             xaxis={'categoryorder':'total descending'},
             margin=dict(l=10, r=10, t=35, b=10),
