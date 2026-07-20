@@ -743,7 +743,7 @@ def render_layanan_pertanahan(df_filtered_layanan):
             list_berkas=('berkas_thn', lambda x: ", ".join(x.unique()[:6]))
         ).reset_index()
 
-        # Palet Warna Pastel Unik (Tanpa Warna Sama)
+        # Palet Warna Pastel Unik
         pastel_colors = [
             '#779ECB', '#FFB347', '#C23B22', '#03C03C', '#B19CD9', 
             '#FFD1DC', '#AEC6CF', '#F49AC2', '#CB99C9', '#E6E6FA', 
@@ -764,33 +764,35 @@ def render_layanan_pertanahan(df_filtered_layanan):
         )
         
         fig_pos.update_layout(
-            height=360, # Disesuaikan agar cukup ruang untuk legenda
+            height=320, # Ditambah agar area batang grafik dan legenda punya ruang yang cukup
             xaxis_title="",
             yaxis_title="",
             legend_title_text="",
             paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(0,0,0,0)',
-            margin=dict(l=5, r=5, t=65, b=5), # Space atas diperluas agar tidak bertumpuk
+            margin=dict(l=10, r=10, t=90, b=10), # Margin atas 90px khusus tempat judul & legenda
             
-            # ATURAN JUDUL & LEGENDA (LEGENDA DI BAWAH JUDUL)
+            # POSISI JUDUL PALING ATAS
             title=dict(
                 text="Rekapitulasi Berkas Melebihi SOP per Posisi Berkas",
                 font=dict(size=13, color="#2c3e50"),
-                x=0.01,
+                x=0.0,
                 y=0.98,
                 xanchor='left',
                 yanchor='top'
             ),
+            
+            # POSISI LEGENDA DILUAR GRAFIK (DI BAWAH JUDUL, DI ATAS BORDER GRAFIK)
             legend=dict(
                 orientation="h", 
-                yanchor="top", 
-                y=0.88, 
+                yanchor="bottom", 
+                y=1.02, # Mengambang di atas garis border grafik
                 xanchor="left", 
-                x=0.01,
-                font=dict(size=9)
+                x=0.0,
+                font=dict(size=8.5)
             ),
-            yaxis=dict(gridcolor='#e0e0e0', tickfont=dict(size=8)),
-            xaxis=dict(showgrid=False, tickfont=dict(size=8))
+            yaxis=dict(gridcolor='#e0e0e0', tickfont=dict(size=9)),
+            xaxis=dict(showgrid=False, tickfont=dict(size=8.5))
         )
         st.plotly_chart(fig_pos, use_container_width=True)
     else:
