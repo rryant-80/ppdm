@@ -318,9 +318,9 @@ with st.sidebar:
     KAB_MAP = {
         'Banggai': 'BG', 'Banggai Kepulauan': 'BK', 'Banggai Laut': 'BL',
         'Buol': 'BU', 'Donggala': 'DG', 'Parigi Moutong': 'PM',
-        'Poso': 'PS', 'Tojo Una-una': 'TU', 'Toli-toli': 'TL', 'Toli Toli': 'TL',
-        'Morowali': 'MW', 'Morowali Utara': 'MU', 'Palu': 'PL', 'Kota Palu': 'PL', 
-        'Sigi': 'SG', 'Sulawesi Tengah': 'ST', 'Provinsi Sulawesi Tengah': 'ST'
+        'Poso': 'PS', 'Tojo Una-una': 'TU', 'Toli-toli': 'TL',
+        'Morowali': 'MW', 'Morowali Utara': 'MU', 'Palu': 'PL',
+        'Sigi': 'SG', 'Sulawesi Tengah': 'ST'
     }
     
     # Fungsi pembantu untuk menyingkat nama kabupaten di DataFrame
