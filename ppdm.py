@@ -797,7 +797,7 @@ def render_layanan_pertanahan(df_filtered_layanan):
             legend_title_text="",
             paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(0,0,0,0)',
-            margin=dict(l=10, r=10, t=50, b=10),
+            margin=dict(l=10, r=10, t=110, b=10),
             
             title=dict(
                 text="Rekapitulasi Berkas Melebihi SOP per Posisi Berkas",
