@@ -835,13 +835,13 @@ def render_layanan_pertanahan(df_filtered_layanan):
             render_green_card("Total Berkas (2017 - 2026)", f"{fmt_idr(b_17_26)} Berkas",)
 
         with col_c2:
-            render_green_card("Tahun 2017 - 2024", f"{fmt_idr(b_17_24)} Berkas", "Berkas Tunggakan Lama")
+            render_green_card("Tahun 2017 - 2024", f"{fmt_idr(b_17_24)} Berkas",)
 
         with col_c3:
-            render_green_card("Tahun 2025", f"{fmt_idr(b_25)} Berkas", "Berkas Tunggakan 2025")
+            render_green_card("Tahun 2025", f"{fmt_idr(b_25)} Berkas",)
 
         with col_c4:
-            render_green_card("Tahun 2026", f"{fmt_idr(b_26)} Berkas", "Berkas Berjalan 2026")
+            render_green_card("Tahun 2026", f"{fmt_idr(b_26)} Berkas",)
 
     else:
         st.success("🎉 Seluruh berkas layanan pertanahan tepat waktu (SOP Tuntas).")
