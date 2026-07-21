@@ -803,7 +803,7 @@ def render_layanan_pertanahan(df_filtered_layanan):
                 text="Rekapitulasi Berkas Melebihi SOP per Posisi Berkas",
                 font=dict(size=13, color="#2c3e50"),
                 x=0.0,
-                y=1.28,
+                y=0.98,
                 xanchor='left',
                 yanchor='top'
             ),
@@ -811,7 +811,7 @@ def render_layanan_pertanahan(df_filtered_layanan):
             legend=dict(
                 orientation="h", 
                 yanchor="bottom", 
-                y=1.02, 
+                y=0.85, 
                 xanchor="left", 
                 x=0.0,
                 font=dict(size=8.5)
