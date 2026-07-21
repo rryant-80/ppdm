@@ -572,9 +572,6 @@ def render_layanan_pertanahan(df_filtered_layanan):
             return s_val[:-2]
         return s_val
 
-    def fmt_idr(val):
-        return f"{val:,.0f}".replace(',', '.')
-
     df['durasi_clean'] = df['durasi'].apply(clean_num)
     df['tgl_mulai_dt'] = pd.to_datetime(df['tgl_mulai'], errors='coerce')
     
@@ -590,13 +587,12 @@ def render_layanan_pertanahan(df_filtered_layanan):
     # Format nomor dan tahun berkas bersih tanpa desimal
     df_overdue['no_clean'] = df_overdue['nmr_berkas'].apply(fmt_no_thn)
     df_overdue['thn_clean'] = df_overdue['thn_berkas'].apply(fmt_no_thn)
-    df_overdue['thn_num'] = df_overdue['thn_clean'].apply(clean_num)
     df_overdue['berkas_thn'] = df_overdue['no_clean'] + "/" + df_overdue['thn_clean']
 
     POSISI_TARGET = ["Kakan", "Kasi SP", "Kasi PHP", "Loket"]
 
     # ==========================================
-    # 2. CSS STROBO & CARD HIJAU MODERN
+    # 2. CSS STROBO KOMPAK & DESAIN PADAT
     # ==========================================
     st.markdown("""
     <style>
@@ -639,33 +635,8 @@ def render_layanan_pertanahan(df_filtered_layanan):
     </style>
     """, unsafe_allow_html=True)
 
-    def render_green_card(title, value, sub_text=""):
-        card_html = f"""
-        <div style="
-            background: linear-gradient(135deg, #ffffff 0%, #f0fff4 100%);
-            border-left: 5px solid #28a745;
-            border-radius: 8px;
-            padding: 8px 12px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
-            margin-top: 6px;
-            margin-bottom: 4px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        ">
-            <div style="color: #444444; font-size: 0.72rem; font-weight: 600; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                {title}
-            </div>
-            <div style="color: #1e7e34; font-size: 1.15rem; font-weight: 700; margin-top: 1px; word-break: break-word;">
-                {value}
-            </div>
-            {f'<div style="color: #666666; font-size: 0.68rem; margin-top: 1px;">{sub_text}</div>' if sub_text else ''}
-        </div>
-        """
-        st.markdown(card_html, unsafe_allow_html=True)
-
     # ==========================================
-    # 3. MATRIKS STROBO
+    # 3. MATRIKS STROBO (RINGKAS & COMPACT)
     # ==========================================
     list_kab = sorted(df['kabupaten_kota'].dropna().unique().tolist())
 
@@ -690,6 +661,7 @@ def render_layanan_pertanahan(df_filtered_layanan):
         
         for idx, pos in enumerate(POSISI_TARGET):
             with cols_pos[idx]:
+                # Pencarian posisi berkas yang presisi dan fleksibel
                 sub_df = df_overdue[
                     (df_overdue['kabupaten_kota'] == kab) & 
                     (df_overdue['posisi_berkas'].astype(str).str.contains(pos, case=False, na=False))
@@ -698,6 +670,7 @@ def render_layanan_pertanahan(df_filtered_layanan):
                 jml_berkas = len(sub_df)
                 
                 if jml_berkas > 0:
+                    # Susun rincian tooltip tanpa angka .0
                     tooltip_items = []
                     for _, r in sub_df.iterrows():
                         no_thn = r.get('berkas_thn', '-')
@@ -717,10 +690,10 @@ def render_layanan_pertanahan(df_filtered_layanan):
                     
         st.markdown("<div style='margin-bottom: 2px;'></div>", unsafe_allow_html=True)
 
-    st.markdown("<div style='margin-bottom: 6px;'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='margin-bottom: 8px;'></div>", unsafe_allow_html=True)
 
     # ==========================================
-    # 4. GRAFIK REKAPITULASI
+    # 4. GRAFIK TUNGGAL UTAMA (RINGKAS)
     # ==========================================
     if not df_overdue.empty:
         df_g1 = df_overdue.groupby(['kabupaten_kota', 'posisi_berkas']).agg(
@@ -742,43 +715,19 @@ def render_layanan_pertanahan(df_filtered_layanan):
         )
         
         fig_pos.update_layout(
-            height=180,
+            height=200, # Diperkecil agar muat penuh dalam 1 layar laptop
             xaxis_title="",
             yaxis_title="",
             legend_title_text="",
             paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(0,0,0,0)',
-            margin=dict(l=5, r=5, t=25, b=5),
+            margin=dict(l=5, r=5, t=28, b=5),
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(size=9)),
-            title=dict(font=dict(size=11)),
+            title=dict(font=dict(size=12)),
             yaxis=dict(gridcolor='#e0e0e0', tickfont=dict(size=8)),
             xaxis=dict(showgrid=False, tickfont=dict(size=8))
         )
         st.plotly_chart(fig_pos, use_container_width=True)
-
-        # ==========================================
-        # 5. CARD MODERN HIJAU BERKAS PER TAHUN
-        # ==========================================
-        # Hitung Agregat per Rentang Tahun
-        b_17_26 = len(df_overdue[(df_overdue['thn_num'] >= 2017) & (df_overdue['thn_num'] <= 2026)])
-        b_17_24 = len(df_overdue[(df_overdue['thn_num'] >= 2017) & (df_overdue['thn_num'] <= 2024)])
-        b_25    = len(df_overdue[df_overdue['thn_num'] == 2025])
-        b_26    = len(df_overdue[df_overdue['thn_num'] == 2026])
-
-        col_c1, col_c2, col_c3, col_c4 = st.columns(4)
-
-        with col_c1:
-            render_green_card("Total Berkas (2017 - 2026)", f"{fmt_idr(b_17_26)} Berkas", "Akumulasi Berkas Melebihi SOP")
-
-        with col_c2:
-            render_green_card("Tahun 2017 - 2024", f"{fmt_idr(b_17_24)} Berkas", "Berkas Tunggakan Lama")
-
-        with col_c3:
-            render_green_card("Tahun 2025", f"{fmt_idr(b_25)} Berkas", "Berkas Tunggakan 2025")
-
-        with col_c4:
-            render_green_card("Tahun 2026", f"{fmt_idr(b_26)} Berkas", "Berkas Berjalan 2026")
-
     else:
         st.success("🎉 Seluruh berkas layanan pertanahan tepat waktu (SOP Tuntas).")
 
