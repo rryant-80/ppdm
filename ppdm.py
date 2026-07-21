@@ -800,7 +800,7 @@ def render_layanan_pertanahan(df_filtered_layanan):
             margin=dict(l=10, r=10, t=110, b=10),
             
             title=dict(
-                text="Rekapitulasi Berkas Melebihi SOP per Posisi Berkas",
+                text="Rekapitulasi Berkas Melebihi Durasi SOP",
                 font=dict(size=13, color="#2c3e50"),
                 x=0.0,
                 y=0.90,
@@ -832,7 +832,7 @@ def render_layanan_pertanahan(df_filtered_layanan):
         col_c1, col_c2, col_c3, col_c4 = st.columns(4)
 
         with col_c1:
-            render_green_card("Total Berkas (2017 - 2026)", f"{fmt_idr(b_17_26)} Berkas", "Akumulasi Berkas Melebihi SOP")
+            render_green_card("Total Berkas (2017 - 2026)", f"{fmt_idr(b_17_26)} Berkas",)
 
         with col_c2:
             render_green_card("Tahun 2017 - 2024", f"{fmt_idr(b_17_24)} Berkas", "Berkas Tunggakan Lama")
