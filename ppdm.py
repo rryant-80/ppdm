@@ -797,7 +797,7 @@ def render_layanan_pertanahan(df_filtered_layanan):
                 text="Rekapitulasi Berkas Melebihi SOP per Posisi Berkas",
                 font=dict(size=13, color="#2c3e50"),
                 x=0.0,
-                y=0.98,
+                y=2.98,
                 xanchor='left',
                 yanchor='top'
             ),
