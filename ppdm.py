@@ -1,7 +1,8 @@
-import streamlit as st
+import datetime
+import re
 import pandas as pd
 import plotly.express as px
-import datetime
+import streamlit as st
 
 # Konfigurasi Halaman
 st.set_page_config(
@@ -543,9 +544,6 @@ def render_psn_2026(df_filtered_psn):
         st.plotly_chart(fig_lintor, use_container_width=True)
         st.markdown(card_wrapper_end, unsafe_allow_html=True)
 
-import re
-import datetime
-
 def render_layanan_pertanahan(df_filtered_layanan):
     st.markdown("### 🚨 Berkas Melebihi Durasi SOP")
     st.markdown("<small style='color:gray;'>💡 Tips: Arahkan kursor ke kotak merah strobo untuk melihat detail nama prosedur dan nomor berkas.</small>", unsafe_allow_html=True)
@@ -560,7 +558,6 @@ def render_layanan_pertanahan(df_filtered_layanan):
     # 1. PEMBERSIH FLEKSIBEL TANGGAL & DURASI
     # ==========================================
     def parse_date_flexible(val):
-        """Mampu membaca tanggal baik berupa String (DD/MM/YYYY), YYYY-MM-DD, maupun objek Timestamp Pandas"""
         if pd.isna(val):
             return pd.NaT
         if isinstance(val, (pd.Timestamp, datetime.date, datetime.datetime)):
@@ -568,14 +565,12 @@ def render_layanan_pertanahan(df_filtered_layanan):
         s_val = str(val).strip()
         if not s_val or s_val.lower() in ['nan', 'none', '-']:
             return pd.NaT
-        # Coba parse tanggal standar Indonesia terlebih dahulu (dayfirst=True)
         dt = pd.to_datetime(s_val, dayfirst=True, errors='coerce')
         if pd.isna(dt):
             dt = pd.to_datetime(s_val, errors='coerce')
         return dt
 
     def clean_durasi(val):
-        """Ekstrak angka durasi murni"""
         if pd.isna(val): return 0
         s_val = str(val).strip()
         match = re.search(r'\d+', s_val)
@@ -589,6 +584,9 @@ def render_layanan_pertanahan(df_filtered_layanan):
         if s_val.endswith('.0'):
             return s_val[:-2]
         return s_val
+
+    def fmt_idr(val):
+        return f"{val:,.0f}".replace(',', '.')
 
     # ==========================================
     # 2. NORMALISASI NAMA KABUPATEN
@@ -617,7 +615,7 @@ def render_layanan_pertanahan(df_filtered_layanan):
         df['kab_clean'] = '-'
 
     # ==========================================
-    # 3. KALKULASI DAHULU OVERDUE SOP
+    # 3. KALKULASI OVERDUE SOP & TAHUN
     # ==========================================
     df['durasi_clean'] = df['durasi'].apply(clean_durasi)
     df['tgl_mulai_dt'] = df['tgl_mulai'].apply(parse_date_flexible)
@@ -627,18 +625,19 @@ def render_layanan_pertanahan(df_filtered_layanan):
     # Hitung tgl batas SOP
     df['tgl_batas_sop'] = df['tgl_mulai_dt'] + pd.to_timedelta(df['durasi_clean'], unit='D')
     
-    # Filter berkas terlambat (Hari ini > Batas SOP & Tanggal valid)
+    # Filter berkas terlambat
     df_overdue = df[(today > df['tgl_batas_sop']) & (df['tgl_mulai_dt'].notna())].copy()
 
-    # Format nomor/tahun berkas bersih
+    # Format nomor/tahun bersih & buat kolom thn_num (PENCEGAHAN KEYERROR)
     df_overdue['no_clean'] = df_overdue['nmr_berkas'].apply(fmt_no_thn)
     df_overdue['thn_clean'] = df_overdue['thn_berkas'].apply(fmt_no_thn)
+    df_overdue['thn_num'] = df_overdue['thn_clean'].apply(clean_durasi) # Kolom thn_num dibuat disini
     df_overdue['berkas_thn'] = df_overdue['no_clean'] + "/" + df_overdue['thn_clean']
 
     POSISI_TARGET = ["Kakan", "Kasi SP", "Kasi PHP", "Loket"]
 
     # ==========================================
-    # 4. TAMPILAN CSS STROBO
+    # 4. TAMPILAN CSS STROBO & CARD HIJAU
     # ==========================================
     st.markdown("""
     <style>
@@ -680,6 +679,31 @@ def render_layanan_pertanahan(df_filtered_layanan):
     }
     </style>
     """, unsafe_allow_html=True)
+
+    def render_green_card(title, value, sub_text=""):
+        card_html = f"""
+        <div style="
+            background: linear-gradient(135deg, #ffffff 0%, #f0fff4 100%);
+            border-left: 5px solid #28a745;
+            border-radius: 8px;
+            padding: 8px 12px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+            margin-top: 6px;
+            margin-bottom: 4px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        ">
+            <div style="color: #444444; font-size: 0.72rem; font-weight: 600; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                {title}
+            </div>
+            <div style="color: #1e7e34; font-size: 1.15rem; font-weight: 700; margin-top: 1px; word-break: break-word;">
+                {value}
+            </div>
+            {f'<div style="color: #666666; font-size: 0.68rem; margin-top: 1px;">{sub_text}</div>' if sub_text else ''}
+        </div>
+        """
+        st.markdown(card_html, unsafe_allow_html=True)
 
     # ==========================================
     # 5. RENDER MATRIKS STROBO UTAMA
@@ -743,16 +767,13 @@ def render_layanan_pertanahan(df_filtered_layanan):
             list_berkas=('berkas_thn', lambda x: ", ".join(x.unique()[:6]))
         ).reset_index()
 
-        # Palet Warna Pastel Unik
         pastel_colors = [
             '#779ECB', '#FFB347', '#C23B22', '#03C03C', '#B19CD9', 
-            '#FFD1DC', '#AEC6CF', '#F49AC2', '#CB99C9', '#E6E6FA', 
-            '#F0E68C', '#B2AC88'
+            '#FFD1DC', '#AEC6CF', '#F49AC2', '#CB99C9', '#E6E6FA'
         ]
 
         fig_pos = px.bar(
             df_g1, x='kab_clean', y='jml_berkas', color='posisi_berkas',
-            title="Rekapitulasi Berkas Melebihi SOP per Posisi Berkas",
             custom_data=df_g1[['posisi_berkas', 'list_berkas']],
             barmode='group',
             color_discrete_sequence=pastel_colors
@@ -764,15 +785,14 @@ def render_layanan_pertanahan(df_filtered_layanan):
         )
         
         fig_pos.update_layout(
-            height=320, # Ditambah agar area batang grafik dan legenda punya ruang yang cukup
+            height=300,
             xaxis_title="",
             yaxis_title="",
             legend_title_text="",
             paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(0,0,0,0)',
-            margin=dict(l=10, r=10, t=90, b=10), # Margin atas 90px khusus tempat judul & legenda
+            margin=dict(l=10, r=10, t=50, b=10),
             
-            # POSISI JUDUL PALING ATAS
             title=dict(
                 text="Rekapitulasi Berkas Melebihi SOP per Posisi Berkas",
                 font=dict(size=13, color="#2c3e50"),
@@ -782,11 +802,10 @@ def render_layanan_pertanahan(df_filtered_layanan):
                 yanchor='top'
             ),
             
-            # POSISI LEGENDA DILUAR GRAFIK (DI BAWAH JUDUL, DI ATAS BORDER GRAFIK)
             legend=dict(
                 orientation="h", 
                 yanchor="bottom", 
-                y=1.02, # Mengambang di atas garis border grafik
+                y=1.02, 
                 xanchor="left", 
                 x=0.0,
                 font=dict(size=8.5)
@@ -795,10 +814,10 @@ def render_layanan_pertanahan(df_filtered_layanan):
             xaxis=dict(showgrid=False, tickfont=dict(size=8.5))
         )
         st.plotly_chart(fig_pos, use_container_width=True)
+
         # ==========================================
-        # 5. CARD MODERN HIJAU BERKAS PER TAHUN
+        # 7. CARD MODERN HIJAU BERKAS PER TAHUN
         # ==========================================
-        # Hitung Agregat per Rentang Tahun
         b_17_26 = len(df_overdue[(df_overdue['thn_num'] >= 2017) & (df_overdue['thn_num'] <= 2026)])
         b_17_24 = len(df_overdue[(df_overdue['thn_num'] >= 2017) & (df_overdue['thn_num'] <= 2024)])
         b_25    = len(df_overdue[df_overdue['thn_num'] == 2025])
