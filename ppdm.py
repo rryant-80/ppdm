@@ -791,7 +791,7 @@ def render_layanan_pertanahan(df_filtered_layanan):
         )
         
         fig_pos.update_layout(
-            height=300,
+            height=340,
             xaxis_title="",
             yaxis_title="",
             legend_title_text="",
@@ -803,7 +803,7 @@ def render_layanan_pertanahan(df_filtered_layanan):
                 text="Rekapitulasi Berkas Melebihi SOP per Posisi Berkas",
                 font=dict(size=13, color="#2c3e50"),
                 x=0.0,
-                y=0.98,
+                y=1.28,
                 xanchor='left',
                 yanchor='top'
             ),
