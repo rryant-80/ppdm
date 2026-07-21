@@ -759,19 +759,8 @@ def render_layanan_pertanahan(df_filtered_layanan):
     st.markdown("<div style='margin-bottom: 8px;'></div>", unsafe_allow_html=True)
 
     # ==========================================
-    # 6. GRAFIK REKAPITULASI POSISI BERKAS
-    # ==========================================
-    if not df_overdue.empty:
-        df_g1 = df_overdue.groupby(['kab_clean', 'posisi_berkas']).agg(
-            jml_berkas=('nmr_berkas', 'count'),
-            list_berkas=('berkas_thn', lambda x: ", ".join(x.unique()[:6]))
-        ).reset_index()
-
-        pastel_colors = [
-            '#779ECB', '#FFB347', '#C23B22', '#03C03C', '#B19CD9', 
-            '#FFD1DC', '#AEC6CF', '#F49AC2', '#CB99C9', '#E6E6FA'
-        ]
-
+        # 6. GRAFIK REKAPITULASI POSISI BERKAS
+        # ==========================================
         fig_pos = px.bar(
             df_g1, x='kab_clean', y='jml_berkas', color='posisi_berkas',
             custom_data=df_g1[['posisi_berkas', 'list_berkas']],
@@ -785,27 +774,29 @@ def render_layanan_pertanahan(df_filtered_layanan):
         )
         
         fig_pos.update_layout(
-            height=450,
+            height=340, # Ditambah sedikit tinggi keseluruhan canvas
             xaxis_title="",
             yaxis_title="",
             legend_title_text="",
             paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(0,0,0,0)',
-            margin=dict(l=10, r=10, t=50, b=10),
+            margin=dict(l=10, r=10, t=110, b=10), # Margin atas (t) diperbesar ke 110px agar memberi ruang
             
+            # POSISI JUDUL PALING ATAS
             title=dict(
                 text="Rekapitulasi Berkas Melebihi SOP per Posisi Berkas",
-                font=dict(size=13, color="#2c3e50"),
+                font=dict(size=14, color="#2c3e50"),
                 x=0.0,
-                y=0.98,
+                y=1.28, # Dinaikkan lebih tinggi (diberi jarak dari legenda)
                 xanchor='left',
                 yanchor='top'
             ),
             
+            # POSISI LEGENDA DI BAWAH JUDUL
             legend=dict(
                 orientation="h", 
                 yanchor="bottom", 
-                y=1.02, 
+                y=1.02, # Legenda berada tepat di atas garis border atas grafik
                 xanchor="left", 
                 x=0.0,
                 font=dict(size=8.5)
