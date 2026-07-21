@@ -759,77 +759,52 @@ def render_layanan_pertanahan(df_filtered_layanan):
     st.markdown("<div style='margin-bottom: 8px;'></div>", unsafe_allow_html=True)
 
     # ==========================================
-        # 6. GRAFIK REKAPITULASI POSISI BERKAS
-        # ==========================================
-        fig_pos = px.bar(
-            df_g1, x='kab_clean', y='jml_berkas', color='posisi_berkas',
-            custom_data=df_g1[['posisi_berkas', 'list_berkas']],
-            barmode='group',
-            color_discrete_sequence=pastel_colors
-        )
+    # 6. GRAFIK REKAPITULASI POSISI BERKAS
+    # ==========================================
+    fig_pos = px.bar(
+        df_g1, x='kab_clean', y='jml_berkas', color='posisi_berkas',
+        custom_data=df_g1[['posisi_berkas', 'list_berkas']],
+        barmode='group',
+        color_discrete_sequence=pastel_colors
+    )
+    
+    fig_pos.update_traces(
+        hovertemplate="<b>Kab/Kota: %{x}</b><br>Posisi: %{customdata[0]}<br>Jumlah: %{y} Berkas<br>Sampel No Berkas: %{customdata[1]}<extra></extra>",
+        marker=dict(line=dict(width=1, color='#222222'))
+    )
+    
+    fig_pos.update_layout(
+        height=340, # Ditambah sedikit tinggi keseluruhan canvas
+        xaxis_title="",
+        yaxis_title="",
+        legend_title_text="",
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        margin=dict(l=10, r=10, t=110, b=10), # Margin atas (t) diperbesar ke 110px agar memberi ruang
         
-        fig_pos.update_traces(
-            hovertemplate="<b>Kab/Kota: %{x}</b><br>Posisi: %{customdata[0]}<br>Jumlah: %{y} Berkas<br>Sampel No Berkas: %{customdata[1]}<extra></extra>",
-            marker=dict(line=dict(width=1, color='#222222'))
-        )
+        # POSISI JUDUL PALING ATAS
+        title=dict(
+            text="Rekapitulasi Berkas Melebihi SOP per Posisi Berkas",
+            font=dict(size=14, color="#2c3e50"),
+            x=0.0,
+            y=1.28, # Dinaikkan lebih tinggi (diberi jarak dari legenda)
+            xanchor='left',
+            yanchor='top'
+        ),
         
-        fig_pos.update_layout(
-            height=340, # Ditambah sedikit tinggi keseluruhan canvas
-            xaxis_title="",
-            yaxis_title="",
-            legend_title_text="",
-            paper_bgcolor='rgba(0,0,0,0)',
-            plot_bgcolor='rgba(0,0,0,0)',
-            margin=dict(l=10, r=10, t=110, b=10), # Margin atas (t) diperbesar ke 110px agar memberi ruang
-            
-            # POSISI JUDUL PALING ATAS
-            title=dict(
-                text="Rekapitulasi Berkas Melebihi SOP per Posisi Berkas",
-                font=dict(size=14, color="#2c3e50"),
-                x=0.0,
-                y=1.28, # Dinaikkan lebih tinggi (diberi jarak dari legenda)
-                xanchor='left',
-                yanchor='top'
-            ),
-            
-            # POSISI LEGENDA DI BAWAH JUDUL
-            legend=dict(
-                orientation="h", 
-                yanchor="bottom", 
-                y=1.02, # Legenda berada tepat di atas garis border atas grafik
-                xanchor="left", 
-                x=0.0,
-                font=dict(size=8.5)
-            ),
-            yaxis=dict(gridcolor='#e0e0e0', tickfont=dict(size=9)),
-            xaxis=dict(showgrid=False, tickfont=dict(size=8.5))
-        )
-        st.plotly_chart(fig_pos, use_container_width=True)
-
-        # ==========================================
-        # 7. CARD MODERN HIJAU BERKAS PER TAHUN
-        # ==========================================
-        b_17_26 = len(df_overdue[(df_overdue['thn_num'] >= 2017) & (df_overdue['thn_num'] <= 2026)])
-        b_17_24 = len(df_overdue[(df_overdue['thn_num'] >= 2017) & (df_overdue['thn_num'] <= 2024)])
-        b_25    = len(df_overdue[df_overdue['thn_num'] == 2025])
-        b_26    = len(df_overdue[df_overdue['thn_num'] == 2026])
-
-        col_c1, col_c2, col_c3, col_c4 = st.columns(4)
-
-        with col_c1:
-            render_green_card("Total Berkas (2017 - 2026)", f"{fmt_idr(b_17_26)} Berkas", "Akumulasi Berkas Melebihi SOP")
-
-        with col_c2:
-            render_green_card("Tahun 2017 - 2024", f"{fmt_idr(b_17_24)} Berkas", "Berkas Tunggakan Lama")
-
-        with col_c3:
-            render_green_card("Tahun 2025", f"{fmt_idr(b_25)} Berkas", "Berkas Tunggakan 2025")
-
-        with col_c4:
-            render_green_card("Tahun 2026", f"{fmt_idr(b_26)} Berkas", "Berkas Berjalan 2026")
-
-    else:
-        st.success("🎉 Seluruh berkas layanan pertanahan tepat waktu (SOP Tuntas).")
+        # POSISI LEGENDA DI BAWAH JUDUL
+        legend=dict(
+            orientation="h", 
+            yanchor="bottom", 
+            y=1.02, # Legenda berada tepat di atas garis border atas grafik
+            xanchor="left", 
+            x=0.0,
+            font=dict(size=8.5)
+        ),
+        yaxis=dict(gridcolor='#e0e0e0', tickfont=dict(size=9)),
+        xaxis=dict(showgrid=False, tickfont=dict(size=8.5))
+    )
+    st.plotly_chart(fig_pos, use_container_width=True)
 
 def render_pertanahan_elektronik(df_filtered_elektronik):
     st.title("⚡ Pertanahan Elektronik")
