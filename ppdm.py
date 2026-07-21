@@ -795,6 +795,29 @@ def render_layanan_pertanahan(df_filtered_layanan):
             xaxis=dict(showgrid=False, tickfont=dict(size=8.5))
         )
         st.plotly_chart(fig_pos, use_container_width=True)
+        # ==========================================
+        # 5. CARD MODERN HIJAU BERKAS PER TAHUN
+        # ==========================================
+        # Hitung Agregat per Rentang Tahun
+        b_17_26 = len(df_overdue[(df_overdue['thn_num'] >= 2017) & (df_overdue['thn_num'] <= 2026)])
+        b_17_24 = len(df_overdue[(df_overdue['thn_num'] >= 2017) & (df_overdue['thn_num'] <= 2024)])
+        b_25    = len(df_overdue[df_overdue['thn_num'] == 2025])
+        b_26    = len(df_overdue[df_overdue['thn_num'] == 2026])
+
+        col_c1, col_c2, col_c3, col_c4 = st.columns(4)
+
+        with col_c1:
+            render_green_card("Total Berkas (2017 - 2026)", f"{fmt_idr(b_17_26)} Berkas", "Akumulasi Berkas Melebihi SOP")
+
+        with col_c2:
+            render_green_card("Tahun 2017 - 2024", f"{fmt_idr(b_17_24)} Berkas", "Berkas Tunggakan Lama")
+
+        with col_c3:
+            render_green_card("Tahun 2025", f"{fmt_idr(b_25)} Berkas", "Berkas Tunggakan 2025")
+
+        with col_c4:
+            render_green_card("Tahun 2026", f"{fmt_idr(b_26)} Berkas", "Berkas Berjalan 2026")
+
     else:
         st.success("🎉 Seluruh berkas layanan pertanahan tepat waktu (SOP Tuntas).")
 
