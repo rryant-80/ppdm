@@ -791,7 +791,7 @@ def render_layanan_pertanahan(df_filtered_layanan):
         )
         
         fig_pos.update_layout(
-            height=340,
+            height=370,
             xaxis_title="",
             yaxis_title="",
             legend_title_text="",
