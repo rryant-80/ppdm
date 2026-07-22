@@ -1359,9 +1359,8 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
     st.markdown("<br>", unsafe_allow_html=True)
 
     # ==========================================
-    # 5. GRAFIK KONTEN (DINAMIS DENGAN FILTER & OUTLINE HITAM)
+    # 5. GRAFIK KONTEN (BINGKAI AKSEN ORANGE)
     # ==========================================
-    # Kamus singkatan Kabupaten/Kota
     KAB_MAP = {
         'Banggai': 'BG', 'Banggai Kepulauan': 'BK', 'Banggai Laut': 'BL',
         'Buol': 'BU', 'Donggala': 'DG', 'Parigi Moutong': 'PM',
@@ -1369,108 +1368,72 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
         'Morowali': 'MW', 'Morowali Utara': 'MU', 'Palu': 'PL', 'Kota Palu': 'PL', 
         'Sigi': 'SG', 'Sulawesi Tengah': 'ST'
     }
-
-    # Gunakan dataframe yang sudah terfilter (df_clean)
-    df_chart = df_clean.copy()
-
-    # Tentukan Sumbu-X Dinamis Berdasarkan Filter yang Aktif
-    is_kec_active = selected_kec and str(selected_kec).strip() not in ['', 'Semua', 'Semua Kecamatan']
-    is_kab_active = selected_kab and str(selected_kab).strip() not in ['', 'Semua', 'Semua Kabupaten/Kota']
-
-    if is_kec_active and 'desa_kelurahan' in df_chart.columns:
-        x_col = 'desa_kelurahan'
-        x_label = "Desa / Kelurahan"
-    elif is_kab_active and 'kecamatan' in df_chart.columns:
-        x_col = 'kecamatan'
-        x_label = "Kecamatan"
+    if 'kabupaten_kota' in df_clean.columns:
+        df_clean['kab_singkat'] = df_clean['kabupaten_kota'].map(lambda x: KAB_MAP.get(x, x))
     else:
-        if 'kabupaten_kota' in df_chart.columns:
-            df_chart['x_group'] = df_chart['kabupaten_kota'].map(lambda x: KAB_MAP.get(x, x))
-            x_col = 'x_group'
-        else:
-            x_col = 'kabupaten_kota'
-        x_label = "Kabupaten / Kota"
+        df_clean['kab_singkat'] = '-'
 
-    # Agregasi data berdasarkan sumbu-X dinamis
-    num_cols_chart = ['jumlah_suvalid', 'bt_valid', 'pra_suel', 'pra_btel', 'pra_sertel']
-    for c in num_cols_chart:
-        if c not in df_chart.columns:
-            df_chart[c] = 0
+    num_cols_all = luas_cols + int_cols
+    df_kab = df_clean.groupby('kab_singkat')[num_cols_all].sum().reset_index()
 
-    df_grouped = df_chart.groupby(x_col)[num_cols_chart].sum().reset_index()
-
-    # ------------------------------------------
-    # GRAFIK 1: GRAFIK SU VALID & BT VALID
-    # ------------------------------------------
+    # GRAFIK 1: SURAT UKUR ELEKTRONIK
     st.markdown('<div class="chart-container-orange">', unsafe_allow_html=True)
-    df_su_bt = df_grouped.melt(
-        id_vars=[x_col], 
-        value_vars=['jumlah_suvalid', 'bt_valid'],
+    df_su = df_kab.melt(
+        id_vars=['kab_singkat'], 
+        value_vars=['jumlah_su', 'pra_suel'],
         var_name='Indikator', value_name='Jumlah'
     )
-    df_su_bt['Indikator'] = df_su_bt['Indikator'].map({
-        'jumlah_suvalid': 'SU Valid', 
-        'bt_valid': 'BT Valid'
-    })
+    df_su['Indikator'] = df_su['Indikator'].map({'jumlah_su': 'Jumlah SU', 'pra_suel': 'Pra-SUEL'})
 
-    fig_su_bt = px.bar(
-        df_su_bt, x=x_col, y='Jumlah', color='Indikator',
-        barmode='group', title=f"📊 Grafik SU Valid & BT Valid (Per {x_label})",
-        color_discrete_map={
-            'SU Valid': '#e67e22',
-            'BT Valid': '#0451c9'
-        }
+    fig_su = px.bar(
+        df_su, x='kab_singkat', y='Jumlah', color='Indikator',
+        barmode='group', title="📊 Grafik Surat Ukur Elektronik (SU vs Pra-SUEL)",
+        color_discrete_sequence=['#e67e22', '#f39c12']
     )
-    fig_su_bt.update_traces(
-        hovertemplate=f"<b>{x_label}: %{{x}}</b><br>%{{fullData.name}}: %{{y:,.0f}}<extra></extra>",
-        marker=dict(line=dict(width=1, color='#000000')) # Outline Hitam
+    fig_su.update_traces(
+        hovertemplate="<b>Kab/Kota: %{x}</b><br>%{fullData.name}: %{y:,.0f}<extra></extra>",
+        marker=dict(line=dict(width=1, color='#111111'))
     )
-    fig_su_bt.update_layout(
-        height=280, xaxis_title="", yaxis_title="",
+    fig_su.update_layout(
+        height=260, xaxis_title="", yaxis_title="",
         paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
         margin=dict(l=10, r=10, t=35, b=10),
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
         yaxis=dict(gridcolor='#f2f2f2')
     )
-    st.plotly_chart(fig_su_bt, use_container_width=True)
+    st.plotly_chart(fig_su, use_container_width=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # ------------------------------------------
-    # GRAFIK 2: GRAFIK BT ELEKTRONIK (PRA-SUEL, PRA-BTEL, PRA-SERTEL)
-    # ------------------------------------------
+    # GRAFIK 2: BUKU TANAH ELEKTRONIK
     st.markdown('<div class="chart-container-orange">', unsafe_allow_html=True)
-    df_bt_el = df_grouped.melt(
-        id_vars=[x_col], 
-        value_vars=['pra_suel', 'pra_btel', 'pra_sertel'],
+    df_bt = df_kab.melt(
+        id_vars=['kab_singkat'], 
+        value_vars=['bt_valid', 'pra_btel', 'pra_sertel'],
         var_name='Indikator', value_name='Jumlah'
     )
-    df_bt_el['Indikator'] = df_bt_el['Indikator'].map({
-        'pra_suel': 'Pra-SUEL', 
+    df_bt['Indikator'] = df_bt['Indikator'].map({
+        'bt_valid': 'BT Valid', 
         'pra_btel': 'Pra-BTEL', 
         'pra_sertel': 'Pra-Sertel'
     })
 
-    fig_bt_el = px.bar(
-        df_bt_el, x=x_col, y='Jumlah', color='Indikator',
-        barmode='group', title=f"📘 Grafik BT Elektronik (Pra-SUEL, Pra-BTEL & Pra-Sertel per {x_label})",
-        color_discrete_map={
-            'Pra-SUEL': '#e67e22',
-            'Pra-BTEL': '#0451c9',
-            'Pra-Sertel': '#0bb538'
-        }
+    fig_bt = px.bar(
+        df_bt, x='kab_singkat', y='Jumlah', color='Indikator',
+        barmode='group', title="📘 Grafik Buku Tanah Elektronik (BT Valid, Pra-BTEL & Pra-Sertel)",
+        color_discrete_sequence=['#d35400', '#e67e22', '#f39c12']
     )
-    fig_bt_el.update_traces(
-        hovertemplate=f"<b>{x_label}: %{{x}}</b><br>%{{fullData.name}}: %{{y:,.0f}}<extra></extra>",
-        marker=dict(line=dict(width=1, color='#000000')) # Outline Hitam
+    fig_bt.update_traces(
+        hovertemplate="<b>Kab/Kota: %{x}</b><br>%{fullData.name}: %{y:,.0f}<extra></extra>",
+        marker=dict(line=dict(width=1, color='#111111'))
     )
-    fig_bt_el.update_layout(
-        height=280, xaxis_title="", yaxis_title="",
+    fig_bt.update_layout(
+        height=260, xaxis_title="", yaxis_title="",
         paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
         margin=dict(l=10, r=10, t=35, b=10),
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
         yaxis=dict(gridcolor='#f2f2f2')
     )
-    st.plotly_chart(fig_bt_el, use_container_width=True)
+    st.plotly_chart(fig_bt, use_container_width=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
 # -----------------------------------------------------------------------------
