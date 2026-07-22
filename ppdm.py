@@ -1529,8 +1529,10 @@ with st.sidebar:
     # 4. GRAFIK: Persentase Prasertel (Terurut)
     # ==========================================
     if not df_elek_singkat.empty and 'pra_sertel' in df_elek_singkat.columns and 'bt_valid' in df_elek_singkat.columns:
-        df_elek_rekap = df_elek_singkat.groupby('kab_singkat')[['pra_sertel', 'bt_valid']].sum().reset_index()
-        df_elek_rekap['Persentase'] = (df_elek_rekap['pra_sertel'] / df_elek_rekap['bt_valid'].replace(0, 1)) * 100
+        df_elek_rekap = df_elek_singkat.groupby('kab_singkat')[['pra_sertel', 'bt_valid']].sum().reset_index()        
+        s_pra_sertel = pd.to_numeric(df_elek_rekap['pra_sertel'], errors='coerce').fillna(0)
+        s_bt_valid   = pd.to_numeric(df_elektronik_rekap['bt_valid'] if 'bt_valid' in df_elek_rekap.columns else df_elek_rekap['bt_valid'], errors='coerce').fillna(0)
+        df_elek_rekap['Persentase'] = (s_pra_sertel / s_bt_valid.replace(0, 1)) * 100
         df_elek_rekap = df_elek_rekap.sort_values(by='Persentase', ascending=False)
         
         fig_elek = px.bar(
