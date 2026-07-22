@@ -1417,7 +1417,7 @@ with st.sidebar:
     
     st.header("🗂️ Menu Utama")
     
-    # Navigasi Menggunakan Radio Button / Tombol Bergaya Menu
+    # TAMBAHKAN key="menu_pilihan" AGAR PILIHAN TERSIMPAN DI SESSION STATE
     menu_pilihan = st.radio(
         "Pilih Halaman:",
         [
@@ -1425,7 +1425,8 @@ with st.sidebar:
             "🎯 PSN 2026",
             "💼 Layanan Pertanahan",
             "⚡ Data Elektronik"
-        ]
+        ],
+        key="menu_pilihan"  # <--- Kunci utama agar menu tidak ter-reset
     )
     
     st.markdown("---")
