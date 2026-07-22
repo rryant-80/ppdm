@@ -949,12 +949,339 @@ def render_layanan_pertanahan(df_filtered_layanan):
     else:
         st.success("🎉 Seluruh berkas layanan pertanahan tepat waktu (SOP Tuntas).")
 
-def render_pertanahan_elektronik(df_filtered_elektronik):
-    st.title("⚡ Pertanahan Elektronik")
-    st.markdown("---")
-    st.subheader("Konten Menu 4 (Menunggu gambaran dari Anda)")
-    st.write("Data Pertanahan Elektronik yang terfilter:", df_filtered_elektronik.head())
+import datetime
+import pandas as pd
+import plotly.express as px
+import streamlit as st
 
+def render_pertanahan_elektronik(df_elektronik, df_progress=None):
+    st.title("💻 Pertanahan Elektronik")
+    st.markdown("---")
+
+    if df_elektronik.empty:
+        st.warning("Data Pertanahan Elektronik (GID 1848496896) tidak ditemukan atau kosong.")
+        return
+
+    # ==========================================
+    # 1. FUNGSI PEMBANTU PERSIAPAN & FORMAT DATA
+    # ==========================================
+    def clean_num(val):
+        if pd.isna(val): return 0.0
+        if isinstance(val, (int, float)): return float(val)
+        s_val = str(val).replace('Rp', '').replace('%', '').strip()
+        if not s_val: return 0.0
+        if ',' in s_val:
+            clean_str = s_val.replace('.', '').replace(',', '.')
+        else:
+            clean_str = s_val.replace('.', '')
+        try:
+            return float(clean_str)
+        except ValueError:
+            return 0.0
+
+    def fmt_idr(val):
+        return f"{val:,.0f}".replace(',', '.')
+
+    def fmt_dec(val):
+        parts = f"{val:,.2f}".split('.')
+        return f"{parts[0].replace(',', '.')},{parts[1]}"
+
+    # Salin & bersihkan kolom numerik
+    df = df_elektronik.copy()
+    num_cols = [
+        'luas_adm', 'luas_apl', 'luas_persil', 'jumlah_persil', 'luas_persil_valid',
+        'jumlah_kw456', 'luas_kw456', 'jumlah_bt', 'bt_valid', 'jumlah_su',
+        'pra_suel', 'pra_btel', 'pra_sertel'
+    ]
+    for col in num_cols:
+        if col in df.columns:
+            df[col] = df[col].apply(clean_num)
+        else:
+            df[col] = 0.0
+
+    # Total Sum Seluruh Provinsi
+    tot_adm          = df['luas_adm'].sum()
+    tot_apl          = df['luas_apl'].sum()
+    tot_persil       = df['luas_persil'].sum()
+    tot_jml_persil   = df['jumlah_persil'].sum()
+    tot_persil_valid = df['luas_persil_valid'].sum()
+    tot_kw456        = df['jumlah_kw456'].sum()
+    tot_luas_kw456   = df['luas_kw456'].sum()
+    tot_bt           = df['jumlah_bt'].sum()
+    tot_bt_valid     = df['bt_valid'].sum()
+    tot_su           = df['jumlah_su'].sum()
+    tot_pra_suel     = df['pra_suel'].sum()
+    tot_pra_btel     = df['pra_btel'].sum()
+    tot_pra_sertel   = df['pra_sertel'].sum()
+
+    # ==========================================
+    # 2. KALKULASI CARD 9 & CARD 10 (GID 386436131)
+    # ==========================================
+    # CARD 9: Progress Harian
+    val_prog_harian = 0
+    jml_desa_berubah = 0
+    sub_card9 = "Tidak ada perubahan data"
+
+    # CARD 10: Peringkat Nasional
+    rank_sulteng_str = "-"
+    pct_nasional_str = "0,00%"
+    sub_card10 = "0 dari 0 BT Valid Nasional"
+
+    if df_progress is not None and not df_progress.empty:
+        df_p = df_progress.copy()
+        
+        # Bersihkan tanggal data
+        if 'tgl_data' in df_p.columns:
+            df_p['tgl_dt'] = pd.to_datetime(df_p['tgl_data'], errors='coerce')
+            list_tgl = sorted(df_p['tgl_dt'].dropna().unique())
+            
+            if len(list_tgl) >= 2:
+                tgl_latest = list_tgl[-1]
+                tgl_prev   = list_tgl[-2]
+                
+                df_latest = df_p[df_p['tgl_dt'] == tgl_latest]
+                df_prev   = df_p[df_p['tgl_dt'] == tgl_prev]
+                
+                # Merge berdasarkan desa_kelurahan & kabupaten_kota
+                m_df = pd.merge(
+                    df_latest, df_prev, 
+                    on=['kabupaten_kota', 'kecamatan', 'desa_kelurahan'], 
+                    suffixes=('_latest', '_prev')
+                )
+                
+                m_df['prasertel_latest'] = m_df['prasertel_desa_latest'].apply(clean_num)
+                m_df['prasertel_prev']   = m_df['prasertel_desa_prev'].apply(clean_num)
+                m_df['diff']             = m_df['prasertel_latest'] - m_df['prasertel_prev']
+                
+                # Filter yang mengalami kenaikan
+                df_changed = m_df[m_df['diff'] > 0]
+                val_prog_harian = df_changed['diff'].sum()
+                jml_desa_berubah = len(df_changed)
+                sub_card9 = f"{jml_desa_berubah} Desa/Kelurahan bertambah"
+            elif len(list_tgl) == 1:
+                sub_card9 = "Data H-1 belum tersedia"
+
+        # Peringkat Nasional
+        if 'provinsi' in df_p.columns:
+            for c_nas in ['prasertel_nasional', 'btvalid_nasional']:
+                if c_nas in df_p.columns:
+                    df_p[c_nas] = df_p[c_nas].apply(clean_num)
+
+            # Ambil data tanggal paling mutakhir per provinsi
+            if 'tgl_dt' in df_p.columns and df_p['tgl_dt'].notna().any():
+                latest_p_tgl = df_p['tgl_dt'].max()
+                df_p_latest = df_p[df_p['tgl_dt'] == latest_p_tgl]
+            else:
+                df_p_latest = df_p.copy()
+
+            # Rekap per provinsi
+            df_prov = df_p_latest.groupby('provinsi').agg({
+                'prasertel_nasional': 'max',
+                'btvalid_nasional': 'max'
+            }).reset_index()
+
+            df_prov['pct_nas'] = (df_prov['prasertel_nasional'] / df_prov['btvalid_nasional'] * 100).fillna(0)
+            df_prov = df_prov.sort_values(by='pct_nas', ascending=False).reset_index(drop=True)
+            df_prov['rank'] = df_prov.index + 1
+
+            # Cari Sulawesi Tengah
+            sulteng_row = df_prov[df_prov['provinsi'].astype(str).str.contains('Sulteng|Sulawesi Tengah', case=False, na=False)]
+            if not sulteng_row.empty:
+                r_num = sulteng_row.iloc[0]['rank']
+                p_nas = sulteng_row.iloc[0]['prasertel_nasional']
+                b_nas = sulteng_row.iloc[0]['btvalid_nasional']
+                pct_val = sulteng_row.iloc[0]['pct_nas']
+
+                rank_sulteng_str = f"Peringkat #{r_num}"
+                pct_nasional_str = f"{fmt_dec(pct_val)}%"
+                sub_card10 = f"{fmt_idr(p_nas)} dari {fmt_idr(b_nas)} BT Valid"
+
+    # ==========================================
+    # 3. COMPONENT CARD MODERN ORANGE CSS
+    # ==========================================
+    st.markdown("""
+    <style>
+    .orange-card-box {
+        background: linear-gradient(135deg, #ffffff 0%, #fff8f0 100%);
+        border: 2px solid #f39c12;
+        border-radius: 12px;
+        padding: 10px 12px;
+        box-shadow: 0 4px 10px rgba(243, 156, 18, 0.12);
+        height: 100px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        margin-bottom: 12px;
+    }
+    .orange-card-title {
+        color: #d35400;
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .orange-card-value {
+        color: #e67e22;
+        font-size: 1.15rem;
+        font-weight: 800;
+        line-height: 1.1;
+    }
+    .orange-card-sub {
+        color: #7f8c8d;
+        font-size: 0.68rem;
+        font-weight: 500;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .chart-container-orange {
+        background-color: #ffffff;
+        border: 2px solid #f39c12;
+        border-radius: 14px;
+        padding: 12px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 12px rgba(243, 156, 18, 0.1);
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    def render_orange_card(title, value_str, sub_text=""):
+        html = f"""
+        <div class="orange-card-box">
+            <div class="orange-card-title" title="{title}">{title}</div>
+            <div class="orange-card-value">{value_str}</div>
+            <div class="orange-card-sub" title="{sub_text}">{sub_text}</div>
+        </div>
+        """
+        st.markdown(html, unsafe_allow_html=True)
+
+    # ==========================================
+    # 4. RENDER GRID 10 CARDS (2 BARIS x 5 KOLOM)
+    # ==========================================
+    # BARIS 1 (CARD 1 - 5)
+    r1_c1, r1_c2, r1_c3, r1_c4, r1_c5 = st.columns(5)
+
+    with r1_c1:
+        pct_apl = (tot_apl / tot_adm * 100) if tot_adm > 0 else 0.0
+        render_orange_card("Luas APL", f"{fmt_dec(tot_apl)} Ha", f"{fmt_dec(pct_apl)}% dari Luas Adm ({fmt_dec(tot_adm)} Ha)")
+
+    with r1_c2:
+        pct_persil = (tot_persil / tot_apl * 100) if tot_apl > 0 else 0.0
+        render_orange_card("Luas Persil", f"{fmt_dec(tot_persil)} Ha", f"{fmt_dec(pct_persil)}% APL | {fmt_idr(tot_jml_persil)} Persil")
+
+    with r1_c3:
+        pct_persil_valid = (tot_persil_valid / tot_persil * 100) if tot_persil > 0 else 0.0
+        render_orange_card("Luas Persil Valid", f"{fmt_dec(tot_persil_valid)} Ha", f"{fmt_dec(pct_persil_valid)}% dari Luas Persil")
+
+    with r1_c4:
+        pct_kw456 = (tot_kw456 / tot_bt * 100) if tot_bt > 0 else 0.0
+        render_orange_card("Jumlah KW456", f"{fmt_idr(tot_kw456)} Berkas", f"{fmt_dec(pct_kw456)}% BT | Luas: {fmt_dec(tot_luas_kw456)} Ha")
+
+    with r1_c5:
+        pct_bt_valid = (tot_bt_valid / tot_bt * 100) if tot_bt > 0 else 0.0
+        render_orange_card("Jumlah BT Valid", f"{fmt_dec(pct_bt_valid)}%", f"{fmt_idr(tot_bt_valid)} dari {fmt_idr(tot_bt)} BT")
+
+    # BARIS 2 (CARD 6 - 10)
+    r2_c1, r2_c2, r2_c3, r2_c4, r2_c5 = st.columns(5)
+
+    with r2_c1:
+        pct_pra_suel = (tot_pra_suel / tot_su * 100) if tot_su > 0 else 0.0
+        render_orange_card("% PRA-SUEL", f"{fmt_dec(pct_pra_suel)}%", f"{fmt_idr(tot_pra_suel)} dari {fmt_idr(tot_su)} SU")
+
+    with r2_c2:
+        pct_pra_btel = (tot_pra_btel / tot_bt_valid * 100) if tot_bt_valid > 0 else 0.0
+        render_orange_card("% PRA-BTEL", f"{fmt_dec(pct_pra_btel)}%", f"{fmt_idr(tot_pra_btel)} dari {fmt_idr(tot_bt_valid)} BT Valid")
+
+    with r2_c3:
+        pct_pra_sertel = (tot_pra_sertel / tot_bt * 100) if tot_bt > 0 else 0.0
+        render_orange_card("% PRA-SERTEL", f"{fmt_dec(pct_pra_sertel)}%", f"{fmt_idr(tot_pra_sertel)} dari {fmt_idr(tot_bt)} BT")
+
+    with r2_c4:
+        render_orange_card("Progress Harian", f"+{fmt_idr(val_prog_harian)} Sertel", sub_card9)
+
+    with r2_c5:
+        render_orange_card(f"Peringkat ({rank_sulteng_str})", pct_nasional_str, sub_card10)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # ==========================================
+    # 5. GRAFIK KONTEN (BINGKAI AKSER ORANGE)
+    # ==========================================
+    KAB_MAP = {
+        'Banggai': 'BG', 'Banggai Kepulauan': 'BK', 'Banggai Laut': 'BL',
+        'Buol': 'BU', 'Donggala': 'DG', 'Parigi Moutong': 'PM',
+        'Poso': 'PS', 'Tojo Una-una': 'TU', 'Toli-toli': 'TL', 'Toli Toli': 'TL',
+        'Morowali': 'MW', 'Morowali Utara': 'MU', 'Palu': 'PL', 'Kota Palu': 'PL', 
+        'Sigi': 'SG', 'Sulawesi Tengah': 'ST'
+    }
+    if 'kabupaten_kota' in df.columns:
+        df['kab_singkat'] = df['kabupaten_kota'].map(lambda x: KAB_MAP.get(x, x))
+    else:
+        df['kab_singkat'] = '-'
+
+    df_kab = df.groupby('kab_singkat')[num_cols].sum().reset_index()
+
+    # GRAFIK 1: SURAT UKUR ELEKTRONIK
+    st.markdown('<div class="chart-container-orange">', unsafe_allow_html=True)
+    df_su = df_kab.melt(
+        id_vars=['kab_singkat'], 
+        value_vars=['jumlah_su', 'pra_suel'],
+        var_name='Indikator', value_name='Jumlah'
+    )
+    df_su['Indikator'] = df_su['Indikator'].map({'jumlah_su': 'Jumlah SU', 'pra_suel': 'Pra-SUEL'})
+
+    fig_su = px.bar(
+        df_su, x='kab_singkat', y='Jumlah', color='Indikator',
+        barmode='group', title="📊 Grafik Surat Ukur Elektronik (SU vs Pra-SUEL)",
+        color_discrete_sequence=['#e67e22', '#f39c12']
+    )
+    fig_su.update_traces(
+        hovertemplate="<b>Kab/Kota: %{x}</b><br>%{fullData.name}: %{y:,.0f}<extra></extra>",
+        marker=dict(line=dict(width=1, color='#111111'))
+    )
+    fig_su.update_layout(
+        height=260, xaxis_title="", yaxis_title="",
+        paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+        margin=dict(l=10, r=10, t=35, b=10),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        yaxis=dict(gridcolor='#f2f2f2')
+    )
+    st.plotly_chart(fig_su, use_container_width=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # GRAFIK 2: BUKU TANAH ELEKTRONIK
+    st.markdown('<div class="chart-container-orange">', unsafe_allow_html=True)
+    df_bt = df_kab.melt(
+        id_vars=['kab_singkat'], 
+        value_vars=['bt_valid', 'pra_btel', 'pra_sertel'],
+        var_name='Indikator', value_name='Jumlah'
+    )
+    df_bt['Indikator'] = df_bt['Indikator'].map({
+        'bt_valid': 'BT Valid', 
+        'pra_btel': 'Pra-BTEL', 
+        'pra_sertel': 'Pra-Sertel'
+    })
+
+    fig_bt = px.bar(
+        df_bt, x='kab_singkat', y='Jumlah', color='Indikator',
+        barmode='group', title="📘 Grafik Buku Tanah Elektronik (BT Valid, Pra-BTEL & Pra-Sertel)",
+        color_discrete_sequence=['#d35400', '#e67e22', '#f39c12']
+    )
+    fig_bt.update_traces(
+        hovertemplate="<b>Kab/Kota: %{x}</b><br>%{fullData.name}: %{y:,.0f}<extra></extra>",
+        marker=dict(line=dict(width=1, color='#111111'))
+    )
+    fig_bt.update_layout(
+        height=260, xaxis_title="", yaxis_title="",
+        paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+        margin=dict(l=10, r=10, t=35, b=10),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        yaxis=dict(gridcolor='#f2f2f2')
+    )
+    st.plotly_chart(fig_bt, use_container_width=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # -----------------------------------------------------------------------------
 # 3. SIDEBAR: FILTER & NAVIGATION
