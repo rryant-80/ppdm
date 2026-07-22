@@ -807,7 +807,7 @@ def render_layanan_pertanahan(df_filtered_layanan):
             legend=dict(
                 orientation="h", 
                 yanchor="top", 
-                y=0.88, 
+                y=0.92, 
                 xanchor="left", 
                 x=0.0,
                 font=dict(size=8.5)
