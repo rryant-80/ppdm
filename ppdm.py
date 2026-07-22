@@ -963,30 +963,44 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None):
         return
 
     # ==========================================
-    # 1. FUNGSI PEMBANTU PERSIAPAN & FORMAT DATA
+    # 1. FUNGSI PEMBANTU KETAT: TERJEMAHAN RIBUAN & PEMBERSIH #N/A
     # ==========================================
     def clean_num(val):
-        if pd.isna(val): return 0.0
-        if isinstance(val, (int, float)): return float(val)
-        s_val = str(val).replace('Rp', '').replace('%', '').strip()
-        if not s_val: return 0.0
-        if ',' in s_val:
-            clean_str = s_val.replace('.', '').replace(',', '.')
-        else:
-            clean_str = s_val.replace('.', '')
+        """
+        Membaca format Indonesia murni:
+        Tanda titik (.) adalah pemisah ribuan murni.
+        Nilai #N/A, NaN, atau teks kosong diubah menjadi 0.0
+        """
+        if pd.isna(val) or val is None:
+            return 0.0
+        s_val = str(val).strip()
+        invalid_patterns = {'#n/a', 'nan', 'none', '', '#ref!', '#value!', '#name?', '#null!'}
+        if s_val.lower() in invalid_patterns:
+            return 0.0
+        
+        # Hapus simbol non-numerik (kecuali angka dan tanda minus/koma jika ada)
+        s_val = s_val.replace('Rp', '').replace('%', '').strip()
+        
+        # Titik adalah pemisah ribuan -> Hapus titik murni
+        s_val = s_val.replace('.', '')
+        
+        # Jika ada koma desimal, ubah ke titik untuk parsing float
+        s_val = s_val.replace(',', '.')
+        
         try:
-            return float(clean_str)
+            return float(s_val)
         except ValueError:
             return 0.0
 
     def fmt_idr(val):
         return f"{val:,.0f}".replace(',', '.')
 
-    def fmt_dec(val):
-        parts = f"{val:,.2f}".split('.')
+    def fmt_dec1(val):
+        """Format desimal 1 digit di belakang koma"""
+        parts = f"{val:,.1f}".split('.')
         return f"{parts[0].replace(',', '.')},{parts[1]}"
 
-    # Salin & bersihkan kolom numerik
+    # Salin & bersihkan seluruh kolom numerik GID 1848496896
     df = df_elektronik.copy()
     num_cols = [
         'luas_adm', 'luas_apl', 'luas_persil', 'jumlah_persil', 'luas_persil_valid',
@@ -999,37 +1013,42 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None):
         else:
             df[col] = 0.0
 
-    # Total Sum Seluruh Provinsi
-    tot_adm          = df['luas_adm'].sum()
-    tot_apl          = df['luas_apl'].sum()
-    tot_persil       = df['luas_persil'].sum()
-    tot_jml_persil   = df['jumlah_persil'].sum()
-    tot_persil_valid = df['luas_persil_valid'].sum()
-    tot_kw456        = df['jumlah_kw456'].sum()
-    tot_luas_kw456   = df['luas_kw456'].sum()
-    tot_bt           = df['jumlah_bt'].sum()
-    tot_bt_valid     = df['bt_valid'].sum()
-    tot_su           = df['jumlah_su'].sum()
-    tot_pra_suel     = df['pra_suel'].sum()
-    tot_pra_btel     = df['pra_btel'].sum()
-    tot_pra_sertel   = df['pra_sertel'].sum()
+    # Total Akumulasi Murni (m² & Berkas/Unit)
+    tot_adm_m2          = df['luas_adm'].sum()
+    tot_apl_m2          = df['luas_apl'].sum()
+    tot_persil_m2       = df['luas_persil'].sum()
+    tot_jml_persil      = df['jumlah_persil'].sum()
+    tot_persil_valid_m2 = df['luas_persil_valid'].sum()
+    tot_kw456           = df['jumlah_kw456'].sum()
+    tot_luas_kw456_m2   = df['luas_kw456'].sum()
+    tot_bt              = df['jumlah_bt'].sum()
+    tot_bt_valid        = df['bt_valid'].sum()
+    tot_su              = df['jumlah_su'].sum()
+    tot_pra_suel        = df['pra_suel'].sum()
+    tot_pra_btel        = df['pra_btel'].sum()
+    tot_pra_sertel      = df['pra_sertel'].sum()
+
+    # KONVERSI SATUAN LUAS: m² -> Ha (dibagi 10.000)
+    tot_adm_ha          = tot_adm_m2 / 10000.0
+    tot_apl_ha          = tot_apl_m2 / 10000.0
+    tot_persil_ha       = tot_persil_m2 / 10000.0
+    tot_persil_valid_ha = tot_persil_valid_m2 / 10000.0
+    tot_luas_kw456_ha   = tot_luas_kw456_m2 / 10000.0
 
     # ==========================================
     # 2. KALKULASI CARD 9 & CARD 10 (GID 386436131)
     # ==========================================
-    # CARD 9: Progress Harian
     val_prog_harian = 0
-    jml_desa_berubah = 0
     sub_card9 = "Tidak ada perubahan data"
 
-    # CARD 10: Peringkat Nasional
     rank_sulteng_str = "-"
-    pct_nasional_str = "0,00%"
+    pct_nasional_str = "0,0%"
     sub_card10 = "0 dari 0 BT Valid Nasional"
 
     if df_progress is not None and not df_progress.empty:
         df_p = df_progress.copy()
         
+        # CARD 9: Progress Harian Perubahan Desa/Kelurahan
         if 'tgl_data' in df_p.columns:
             df_p['tgl_dt'] = pd.to_datetime(df_p['tgl_data'], errors='coerce')
             list_tgl = sorted(df_p['tgl_dt'].dropna().unique())
@@ -1053,45 +1072,30 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None):
                 
                 df_changed = m_df[m_df['diff'] > 0]
                 val_prog_harian = df_changed['diff'].sum()
-                jml_desa_berubah = len(df_changed)
-                sub_card9 = f"{jml_desa_berubah} Desa/Kelurahan bertambah"
+                sub_card9 = f"{len(df_changed)} Desa/Kelurahan bertambah"
             elif len(list_tgl) == 1:
                 sub_card9 = "Data H-1 belum tersedia"
 
-        # Peringkat Nasional
+        # CARD 10: PERINGKAT PROVINSI SULTENG DARI KOLOM 'peringkat' GID 386436131
         if 'provinsi' in df_p.columns:
-            for c_nas in ['prasertel_nasional', 'btvalid_nasional']:
-                if c_nas in df_p.columns:
-                    df_p[c_nas] = df_p[c_nas].apply(clean_num)
-
-            if 'tgl_dt' in df_p.columns and df_p['tgl_dt'].notna().any():
-                latest_p_tgl = df_p['tgl_dt'].max()
-                df_p_latest = df_p[df_p['tgl_dt'] == latest_p_tgl]
-            else:
-                df_p_latest = df_p.copy()
-
-            df_prov = df_p_latest.groupby('provinsi').agg({
-                'prasertel_nasional': 'max',
-                'btvalid_nasional': 'max'
-            }).reset_index()
-
-            df_prov['pct_nas'] = (df_prov['prasertel_nasional'] / df_prov['btvalid_nasional'] * 100).fillna(0)
-            df_prov = df_prov.sort_values(by='pct_nas', ascending=False).reset_index(drop=True)
-            df_prov['rank'] = df_prov.index + 1
-
-            sulteng_row = df_prov[df_prov['provinsi'].astype(str).str.contains('Sulteng|Sulawesi Tengah', case=False, na=False)]
-            if not sulteng_row.empty:
-                r_num = sulteng_row.iloc[0]['rank']
-                p_nas = sulteng_row.iloc[0]['prasertel_nasional']
-                b_nas = sulteng_row.iloc[0]['btvalid_nasional']
-                pct_val = sulteng_row.iloc[0]['pct_nas']
-
-                rank_sulteng_str = f"Peringkat #{r_num}"
-                pct_nasional_str = f"{fmt_dec(pct_val)}%"
+            sulteng_df = df_p[df_p['provinsi'].astype(str).str.contains('Sulteng|Sulawesi Tengah', case=False, na=False)]
+            
+            if not sulteng_df.empty:
+                # Ambil peringkat dari kolom 'peringkat'
+                if 'peringkat' in sulteng_df.columns:
+                    raw_rank = sulteng_df.iloc[0]['peringkat']
+                    rank_sulteng_str = f"Peringkat #{str(raw_rank).replace('.0', '')}"
+                
+                # Kalkulasi persentase nasional
+                p_nas = clean_num(sulteng_df.iloc[0].get('prasertel_nasional', 0))
+                b_nas = clean_num(sulteng_df.iloc[0].get('btvalid_nasional', 0))
+                pct_nas = (p_nas / b_nas * 100) if b_nas > 0 else 0.0
+                
+                pct_nasional_str = f"{fmt_dec1(pct_nas)}%"
                 sub_card10 = f"{fmt_idr(p_nas)} dari {fmt_idr(b_nas)} BT Valid"
 
     # ==========================================
-    # 3. COMPONENT CARD MODERN ORANGE CSS
+    # 3. CSS COMPONENT CARD MODERN ORANGE
     # ==========================================
     st.markdown("""
     <style>
@@ -1101,7 +1105,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None):
         border-radius: 12px;
         padding: 10px 12px;
         box-shadow: 0 4px 10px rgba(243, 156, 18, 0.12);
-        height: 100px;
+        height: 102px;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
@@ -1152,36 +1156,36 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None):
         st.markdown(html, unsafe_allow_html=True)
 
     # ==========================================
-    # 4. RENDER GRID 10 CARDS (TEKS UTAMA % & SATUAN m²)
+    # 4. RENDER GRID 10 CARDS (KONVERSI Ha & 1 DIGIT DESIMAL)
     # ==========================================
     # BARIS 1 (CARD 1 - 5)
     r1_c1, r1_c2, r1_c3, r1_c4, r1_c5 = st.columns(5)
 
     with r1_c1:
         # Card 1: Luas APL
-        pct_apl = (tot_apl / tot_adm * 100) if tot_adm > 0 else 0.0
+        pct_apl = (tot_apl_m2 / tot_adm_m2 * 100) if tot_adm_m2 > 0 else 0.0
         render_orange_card(
             "Luas APL", 
-            f"{fmt_dec(pct_apl)}%", 
-            f"Luas: {fmt_dec(tot_apl)} m² dari Adm ({fmt_dec(tot_adm)} m²)"
+            f"{fmt_dec1(pct_apl)}%", 
+            f"Luas: {fmt_dec1(tot_apl_ha)} Ha dari Adm ({fmt_dec1(tot_adm_ha)} Ha)"
         )
 
     with r1_c2:
         # Card 2: Luas Persil
-        pct_persil = (tot_persil / tot_apl * 100) if tot_apl > 0 else 0.0
+        pct_persil = (tot_persil_m2 / tot_apl_m2 * 100) if tot_apl_m2 > 0 else 0.0
         render_orange_card(
             "Luas Persil", 
-            f"{fmt_dec(pct_persil)}%", 
-            f"Luas: {fmt_dec(tot_persil)} m² | {fmt_idr(tot_jml_persil)} Persil"
+            f"{fmt_dec1(pct_persil)}%", 
+            f"Luas: {fmt_dec1(tot_persil_ha)} Ha | {fmt_idr(tot_jml_persil)} Persil"
         )
 
     with r1_c3:
         # Card 3: Luas Persil Valid
-        pct_persil_valid = (tot_persil_valid / tot_persil * 100) if tot_persil > 0 else 0.0
+        pct_persil_valid = (tot_persil_valid_m2 / tot_persil_m2 * 100) if tot_persil_m2 > 0 else 0.0
         render_orange_card(
             "Luas Persil Valid", 
-            f"{fmt_dec(pct_persil_valid)}%", 
-            f"Luas: {fmt_dec(tot_persil_valid)} m² dari Persil"
+            f"{fmt_dec1(pct_persil_valid)}%", 
+            f"Luas: {fmt_dec1(tot_persil_valid_ha)} Ha dari Persil"
         )
 
     with r1_c4:
@@ -1189,8 +1193,8 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None):
         pct_kw456 = (tot_kw456 / tot_bt * 100) if tot_bt > 0 else 0.0
         render_orange_card(
             "Jumlah KW456", 
-            f"{fmt_dec(pct_kw456)}%", 
-            f"{fmt_idr(tot_kw456)} Berkas | Luas: {fmt_dec(tot_luas_kw456)} m²"
+            f"{fmt_dec1(pct_kw456)}%", 
+            f"{fmt_idr(tot_kw456)} Berkas | Luas: {fmt_dec1(tot_luas_kw456_ha)} Ha"
         )
 
     with r1_c5:
@@ -1198,7 +1202,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None):
         pct_bt_valid = (tot_bt_valid / tot_bt * 100) if tot_bt > 0 else 0.0
         render_orange_card(
             "Jumlah BT Valid", 
-            f"{fmt_dec(pct_bt_valid)}%", 
+            f"{fmt_dec1(pct_bt_valid)}%", 
             f"{fmt_idr(tot_bt_valid)} dari {fmt_idr(tot_bt)} BT"
         )
 
@@ -1210,7 +1214,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None):
         pct_pra_suel = (tot_pra_suel / tot_su * 100) if tot_su > 0 else 0.0
         render_orange_card(
             "% PRA-SUEL", 
-            f"{fmt_dec(pct_pra_suel)}%", 
+            f"{fmt_dec1(pct_pra_suel)}%", 
             f"{fmt_idr(tot_pra_suel)} dari {fmt_idr(tot_su)} SU"
         )
 
@@ -1219,7 +1223,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None):
         pct_pra_btel = (tot_pra_btel / tot_bt_valid * 100) if tot_bt_valid > 0 else 0.0
         render_orange_card(
             "% PRA-BTEL", 
-            f"{fmt_dec(pct_pra_btel)}%", 
+            f"{fmt_dec1(pct_pra_btel)}%", 
             f"{fmt_idr(tot_pra_btel)} dari {fmt_idr(tot_bt_valid)} BT Valid"
         )
 
@@ -1228,7 +1232,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None):
         pct_pra_sertel = (tot_pra_sertel / tot_bt * 100) if tot_bt > 0 else 0.0
         render_orange_card(
             "% PRA-SERTEL", 
-            f"{fmt_dec(pct_pra_sertel)}%", 
+            f"{fmt_dec1(pct_pra_sertel)}%", 
             f"{fmt_idr(tot_pra_sertel)} dari {fmt_idr(tot_bt)} BT"
         )
 
@@ -1241,7 +1245,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None):
         )
 
     with r2_c5:
-        # Card 10: Peringkat Nasional
+        # Card 10: Peringkat Nasional dari Kolom 'peringkat'
         render_orange_card(
             f"Peringkat ({rank_sulteng_str})", 
             pct_nasional_str, 
