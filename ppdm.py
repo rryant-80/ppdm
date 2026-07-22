@@ -1064,32 +1064,72 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None):
     if df_progress is not None and not df_progress.empty:
         df_p = df_progress.copy()
 
-        # --------------------------------------
-        # CARD 9: PROGRESS HARIAN DESA PER KABUPATEN/KOTA
-        # --------------------------------------
-        if 'tgl_data' in df_p.columns and 'prasertel_desa' in df_p.columns and 'kabupaten_kota' in df_p.columns:
-            # Filter baris yang memiliki nilai tgl_data valid
-            df_p_tgl = df_p[df_p['tgl_data'].notna() & (df_p['tgl_data'].astype(str).str.strip() != '')].copy()
-            df_p_tgl['tgl_dt'] = pd.to_datetime(df_p_tgl['tgl_data'], dayfirst=True, errors='coerce')
-            
-            list_tgl = sorted(df_p_tgl['tgl_dt'].dropna().unique())
+        # Bersihkan seluruh nama kolom dari spasi liar & jadikan lowercase
+        df_p.columns = [str(c).strip().lower() for c in df_p.columns]
 
-            if len(list_tgl) >= 2:
-                tgl_latest = list_tgl[-1]
-                tgl_prev   = list_tgl[-2]
+        # --------------------------------------
+        # CARD 10: PERINGKAT NASIONAL (KOLOM A-D)
+        # --------------------------------------
+        col_prov = next((c for c in df_p.columns if 'prov' in c), None)
+        col_rank = next((c for c in df_p.columns if 'ringkat' in c), None)
+        col_pnas = next((c for c in df_p.columns if 'prasertel_nas' in c), None)
+        col_bnas = next((c for c in df_p.columns if 'btvalid_nas' in c), None)
+
+        if col_prov and col_prov in df_p.columns:
+            # Saring baris yang berisi kata Sulteng / Sulawesi Tengah
+            sulteng_df = df_p[df_p[col_prov].astype(str).str.contains('sulteng|sulawesi tengah', case=False, na=False)]
+
+            if not sulteng_df.empty:
+                row_s = sulteng_df.iloc[0]
+
+                # 1. Ambil Peringkat
+                if col_rank and pd.notna(row_s[col_rank]):
+                    r_val = str(row_s[col_rank]).strip()
+                    if r_val and r_val.lower() != 'nan':
+                        rank_num_val = r_val.replace('.0', '')
+
+                # 2. Ambil prasertel_nasional & btvalid_nasional
+                p_nas_val = parse_bilangan_cacah(row_s.get(col_pnas, 0)) if col_pnas else 0
+                b_nas_val = parse_bilangan_cacah(row_s.get(col_bnas, 0)) if col_bnas else 0
+
+                # 3. Hitung persentase: prasertel_nasional / btvalid_nasional
+                pct_nas = (p_nas_val / b_nas_val * 100.0) if b_nas_val > 0 else 0.0
+
+                # 4. Format Keterangan Bawah
+                sub_card10 = f"{fmt_dec2(pct_nas)}% dari {fmt_idr(b_nas_val)} BT"
+
+        # --------------------------------------
+        # CARD 9: PROGRESS HARIAN (KOLOM E-I)
+        # --------------------------------------
+        col_tgl  = next((c for c in df_p.columns if 'tgl' in c), None)
+        col_kab  = next((c for c in df_p.columns if 'kab' in c), None)
+        col_pdes = next((c for c in df_p.columns if 'prasertel_des' in c or 'prasertel_desa' in c), None)
+
+        if col_tgl and col_kab and col_pdes:
+            # Ambil data yang memiliki tgl_data valid
+            df_p_tgl = df_p[df_p[col_tgl].notna() & (df_p[col_tgl].astype(str).str.strip() != '')].copy()
+            
+            # Konversi string tgl_data
+            df_p_tgl['tgl_dt'] = pd.to_datetime(df_p_tgl[col_tgl], dayfirst=True, errors='coerce')
+            
+            # Jika pd.to_datetime gagal karena format beragam, urutkan berdasarkan string unik asli
+            list_tgl_dt = sorted(df_p_tgl['tgl_dt'].dropna().unique())
+
+            if len(list_tgl_dt) >= 2:
+                tgl_latest = list_tgl_dt[-1]
+                tgl_prev   = list_tgl_dt[-2]
 
                 df_latest = df_p_tgl[df_p_tgl['tgl_dt'] == tgl_latest].copy()
                 df_prev   = df_p_tgl[df_p_tgl['tgl_dt'] == tgl_prev].copy()
 
-                df_latest['val_prasertel'] = df_latest['prasertel_desa'].apply(parse_bilangan_cacah)
-                df_prev['val_prasertel']   = df_prev['prasertel_desa'].apply(parse_bilangan_cacah)
+                df_latest['val_pdes'] = df_latest[col_pdes].apply(parse_bilangan_cacah)
+                df_prev['val_pdes']   = df_prev[col_pdes].apply(parse_bilangan_cacah)
 
-                # Rekap total per kabupaten_kota
-                kab_latest = df_latest.groupby('kabupaten_kota')['val_prasertel'].sum().reset_index()
-                kab_prev   = df_prev.groupby('kabupaten_kota')['val_prasertel'].sum().reset_index()
+                kab_latest = df_latest.groupby(col_kab)['val_pdes'].sum().reset_index()
+                kab_prev   = df_prev.groupby(col_kab)['val_pdes'].sum().reset_index()
 
-                m_kab = pd.merge(kab_latest, kab_prev, on='kabupaten_kota', suffixes=('_latest', '_prev'))
-                m_kab['diff'] = m_kab['val_prasertel_latest'] - m_kab['val_prasertel_prev']
+                m_kab = pd.merge(kab_latest, kab_prev, on=col_kab, suffixes=('_latest', '_prev'))
+                m_kab['diff'] = m_kab['val_pdes_latest'] - m_kab['val_pdes_prev']
 
                 df_kab_changed = m_kab[m_kab['diff'] > 0]
                 val_prog_harian = df_kab_changed['diff'].sum()
@@ -1099,33 +1139,34 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None):
                     sub_card9 = f"{jml_kab_progres} Kabupaten/Kota berprogress"
                 else:
                     sub_card9 = "Tidak ada perubahan data"
-            elif len(list_tgl) == 1:
-                sub_card9 = "Data H-1 belum tersedia"
+            else:
+                # Fallback jika tanggal dibaca sebagai string unik
+                str_tgls = df_p_tgl[col_tgl].astype(str).str.strip().unique().tolist()
+                if len(str_tgls) >= 2:
+                    t_latest_str, t_prev_str = str_tgls[0], str_tgls[1]
+                    
+                    df_latest = df_p_tgl[df_p_tgl[col_tgl].astype(str).str.strip() == t_latest_str].copy()
+                    df_prev   = df_p_tgl[df_p_tgl[col_tgl].astype(str).str.strip() == t_prev_str].copy()
 
-        # --------------------------------------
-        # CARD 10: PERINGKAT NASIONAL (KOLOM A-D SULTENG)
-        # --------------------------------------
-        if 'provinsi' in df_p.columns:
-            sulteng_df = df_p[df_p['provinsi'].astype(str).str.contains('Sulteng|Sulawesi Tengah', case=False, na=False)]
+                    df_latest['val_pdes'] = df_latest[col_pdes].apply(parse_bilangan_cacah)
+                    df_prev['val_pdes']   = df_prev[col_pdes].apply(parse_bilangan_cacah)
 
-            if not sulteng_df.empty:
-                row_sulteng = sulteng_df.iloc[0]
+                    kab_latest = df_latest.groupby(col_kab)['val_pdes'].sum().reset_index()
+                    kab_prev   = df_prev.groupby(col_kab)['val_pdes'].sum().reset_index()
 
-                # 1. Ambil Peringkat dari Kolom 'peringkat'
-                if 'peringkat' in sulteng_df.columns:
-                    raw_rank = row_sulteng['peringkat']
-                    if pd.notna(raw_rank) and str(raw_rank).strip() != '':
-                        rank_num_val = str(raw_rank).replace('.0', '').strip()
+                    m_kab = pd.merge(kab_latest, kab_prev, on=col_kab, suffixes=('_latest', '_prev'))
+                    m_kab['diff'] = m_kab['val_pdes_latest'] - m_kab['val_pdes_prev']
 
-                # 2. Ambil prasertel_nasional & btvalid_nasional
-                p_nas = parse_bilangan_cacah(row_sulteng.get('prasertel_nasional', 0))
-                b_nas = parse_bilangan_cacah(row_sulteng.get('btvalid_nasional', 0))
+                    df_kab_changed = m_kab[m_kab['diff'] > 0]
+                    val_prog_harian = df_kab_changed['diff'].sum()
+                    jml_kab_progres = len(df_kab_changed)
 
-                # 3. Hitung persentase: prasertel_nasional / btvalid_nasional
-                pct_nas = (p_nas / b_nas * 100.0) if b_nas > 0 else 0.0
-
-                # 4. Format Keterangan Bawah Card 10
-                sub_card10 = f"{fmt_dec2(pct_nas)}% dari {fmt_idr(b_nas)} BT"
+                    if jml_kab_progres > 0:
+                        sub_card9 = f"{jml_kab_progres} Kabupaten/Kota berprogress"
+                    else:
+                        sub_card9 = "Tidak ada perubahan data"
+                elif len(str_tgls) == 1:
+                    sub_card9 = "Data H-1 belum tersedia"
 
     # ==========================================
     # 3. CSS COMPONENT CARD MODERN ORANGE
