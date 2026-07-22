@@ -1070,10 +1070,10 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
         col_pdes = next((c for c in df_p.columns if 'prasertel_des' in c or 'prasertel_desa' in c), 'prasertel_desa')
 
         if col_tgl in df_p.columns and col_pdes in df_p.columns:
-            # Filter data yang memiliki tanggal
+            # Ambil data yang memiliki tanggal
             df_p_valid = df_p[df_p[col_tgl].notna() & (df_p[col_tgl].astype(str).str.strip() != '')].copy()
             
-            # Konversi Tanggal dengan format fleksibel
+            # Urutkan berdasarkan nilai tgl_data unik secara otomatis
             df_p_valid['tgl_dt'] = pd.to_datetime(df_p_valid[col_tgl], format='%d/%m/%Y', errors='coerce')
             if df_p_valid['tgl_dt'].isna().all():
                 df_p_valid['tgl_dt'] = pd.to_datetime(df_p_valid[col_tgl], dayfirst=True, errors='coerce')
@@ -1081,8 +1081,8 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
             list_tgl_dt = sorted(df_p_valid['tgl_dt'].dropna().unique())
 
             if len(list_tgl_dt) >= 2:
-                tgl_new    = list_tgl_dt[-1] # Tanggal Terbaru (misal 22/07/2026)
-                tgl_latest = list_tgl_dt[-2] # Tanggal Sebelumnya (misal 14/07/2026)
+                tgl_new    = list_tgl_dt[-1]  # Tanggal Terbaru (misal 22/07/2026)
+                tgl_latest = list_tgl_dt[-2]  # Tanggal Sebelumnya (misal 14/07/2026)
 
                 df_new    = df_p_valid[df_p_valid['tgl_dt'] == tgl_new].copy()
                 df_latest = df_p_valid[df_p_valid['tgl_dt'] == tgl_latest].copy()
@@ -1090,22 +1090,19 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
                 df_new['val_pdes']    = df_new[col_pdes].apply(parse_bilangan_cacah)
                 df_latest['val_pdes'] = df_latest[col_pdes].apply(parse_bilangan_cacah)
 
-                # Cek Hirarki Filter yang Aktif
+                # Pengecekan Hirarki Filter Aktif
                 is_kec_active = selected_kec and str(selected_kec).strip() not in ['', 'Semua', 'All', 'None', 'Semua Kecamatan']
                 is_kab_active = selected_kab and str(selected_kab).strip() not in ['', 'Semua', 'All', 'None', 'Semua Kabupaten/Kota', 'Semua Kab/Kota']
 
                 if is_kec_active:
-                    group_keys = [col_kab, col_kec, col_des]
+                    group_keys = [k for k in [col_kab, col_kec, col_des] if k in df_p_valid.columns]
                     entity_label = "Desa/Kelurahan"
                 elif is_kab_active:
-                    group_keys = [col_kab, col_kec]
+                    group_keys = [k for k in [col_kab, col_kec] if k in df_p_valid.columns]
                     entity_label = "Kecamatan"
                 else:
-                    group_keys = [col_kab]
+                    group_keys = [k for k in [col_kab] if k in df_p_valid.columns]
                     entity_label = "Kabupaten/Kota"
-
-                # Pastikan kolom grup tersedia
-                group_keys = [k for k in group_keys if k in df_p_valid.columns]
 
                 grp_new    = df_new.groupby(group_keys)['val_pdes'].sum().reset_index()
                 grp_latest = df_latest.groupby(group_keys)['val_pdes'].sum().reset_index()
@@ -1137,22 +1134,22 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
         col_bnas = next((c for c in df_rank.columns if 'btvalid_nas' in c or 'btvalid' in c), 'btvalid_nasional')
 
         if col_prov in df_rank.columns:
-            sulteng_df = df_rank[df_rank[col_prov].astype(str).str.contains('Sulteng|Sulawesi Tengah', case=False, na=False)]
+            sulteng_df = df_rank[df_rank[col_prov].astype(str).str.contains('sulteng|sulawesi tengah', case=False, na=False)]
 
             if not sulteng_df.empty:
                 row_s = sulteng_df.iloc[0]
 
-                # 1. Peringkat
+                # 1. Ambil Peringkat
                 if col_rank in sulteng_df.columns and pd.notna(row_s[col_rank]):
                     r_val = str(row_s[col_rank]).strip()
                     if r_val and r_val.lower() != 'nan':
                         rank_num_val = r_val.replace('.0', '')
 
-                # 2. Nilai prasertel_nasional & btvalid_nasional
+                # 2. Ambil prasertel_nasional & btvalid_nasional
                 p_nas_val = parse_bilangan_cacah(row_s.get(col_pnas, 0))
                 b_nas_val = parse_bilangan_cacah(row_s.get(col_bnas, 0))
 
-                # 3. Hitung Persentase: prasertel_nasional / btvalid_nasional
+                # 3. Hitung Persentase
                 pct_nas = (p_nas_val / b_nas_val * 100.0) if b_nas_val > 0 else 0.0
 
                 # 4. Format Keterangan Bawah Card 10
@@ -1602,21 +1599,38 @@ with st.sidebar:
 # 4. PROSES FILTERING DATA
 # -----------------------------------------------------------------------------
 # Salinan dataframe untuk difilter berdasarkan sidebar
-df_f_layanan = df_layanan.copy()
-df_f_elektronik = df_elektronik.copy()
-df_f_sdm = df_sdm.copy()
-df_f_psn = df_psn.copy()
+df_f_layanan = df_layanan.copy() if 'df_layanan' in locals() and df_layanan is not None else pd.DataFrame()
+df_f_elektronik = df_elektronik.copy() if 'df_elektronik' in locals() and df_elektronik is not None else pd.DataFrame()
+df_f_sdm = df_sdm.copy() if 'df_sdm' in locals() and df_sdm is not None else pd.DataFrame()
+df_f_psn = df_psn.copy() if 'df_psn' in locals() and df_psn is not None else pd.DataFrame()
 
+# BUAT DENGAN AMAN df_f_progress DARI df_progress (GID 386436131)
+if 'df_progress' in locals() and df_progress is not None and not df_progress.empty:
+    df_f_progress = df_progress.copy()
+elif 'df_progress_raw' in locals() and df_progress_raw is not None and not df_progress_raw.empty:
+    df_f_progress = df_progress_raw.copy()
+else:
+    df_f_progress = pd.DataFrame()
+
+# Filter berdasarkan Kabupaten/Kota
 if selected_kab != "Semua Kabupaten/Kota":
-    df_f_layanan = df_f_layanan[df_f_layanan['kabupaten_kota'] == selected_kab]
-    df_f_elektronik = df_f_elektronik[df_f_elektronik['kabupaten_kota'] == selected_kab]
-    df_f_sdm = df_f_sdm[df_f_sdm['kabupaten_kota'] == selected_kab]
-    df_f_psn = df_f_psn[df_f_psn['kabupaten_kota'] == selected_kab]
+    if not df_f_layanan.empty and 'kabupaten_kota' in df_f_layanan.columns:
+        df_f_layanan = df_f_layanan[df_f_layanan['kabupaten_kota'] == selected_kab]
+    if not df_f_elektronik.empty and 'kabupaten_kota' in df_f_elektronik.columns:
+        df_f_elektronik = df_f_elektronik[df_f_elektronik['kabupaten_kota'] == selected_kab]
+    if not df_f_sdm.empty and 'kabupaten_kota' in df_f_sdm.columns:
+        df_f_sdm = df_f_sdm[df_f_sdm['kabupaten_kota'] == selected_kab]
+    if not df_f_psn.empty and 'kabupaten_kota' in df_f_psn.columns:
+        df_f_psn = df_f_psn[df_f_psn['kabupaten_kota'] == selected_kab]
+    if not df_f_progress.empty and 'kabupaten_kota' in df_f_progress.columns:
+        df_f_progress = df_f_progress[df_f_progress['kabupaten_kota'] == selected_kab]
 
+# Filter berdasarkan Kecamatan
 if selected_kec != "Semua Kecamatan":
-    # Hanya df_elektronik yang memiliki kolom 'kecamatan' secara eksplisit di daftar Anda
-    if 'kecamatan' in df_f_elektronik.columns:
+    if not df_f_elektronik.empty and 'kecamatan' in df_f_elektronik.columns:
         df_f_elektronik = df_f_elektronik[df_f_elektronik['kecamatan'] == selected_kec]
+    if not df_f_progress.empty and 'kecamatan' in df_f_progress.columns:
+        df_f_progress = df_f_progress[df_f_progress['kecamatan'] == selected_kec]
 
 # -----------------------------------------------------------------------------
 # 5. ROUTING HALAMAN UTAMA
@@ -1628,10 +1642,17 @@ elif menu_pilihan == "🎯 PSN 2026":
 elif menu_pilihan == "💼 Layanan Pertanahan":
     render_layanan_pertanahan(df_f_layanan)
 elif menu_pilihan == "⚡ Data Elektronik":
+    # Ambil dataframe peringkat (GID 880542789) dengan aman
+    df_peringkat_data = pd.DataFrame()
+    if 'df_peringkat' in locals() and df_peringkat is not None:
+        df_peringkat_data = df_peringkat
+    elif 'df_peringkat_raw' in locals() and df_peringkat_raw is not None:
+        df_peringkat_data = df_peringkat_raw
+
     render_pertanahan_elektronik(
         df_f_elektronik, 
         df_f_progress, 
-        df_peringkat_raw, # pastikan nama variabel df GID 880542789 disesuaikan
+        df_peringkat_data,
         selected_kab=selected_kab, 
         selected_kec=selected_kec
     )
