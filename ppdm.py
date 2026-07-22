@@ -857,33 +857,34 @@ def render_layanan_pertanahan(df_filtered_layanan):
 
         df_table = df_overdue.copy()
 
-        # 1. URUTKAN DATA DARI TAHUN LAMA KE SEKARANG
-        if 'thn_num' in df_table.columns:
-            df_table = df_table.sort_values(by=['thn_num', 'no_clean'], ascending=[True, True])
+        # 1. URUTKAN DATA: KABUPATEN/KOTA DAHULU, KEMUDIAN TAHUN (BERKAS TERTUA KE TERBARU)
+        if 'kab_clean' in df_table.columns and 'thn_num' in df_table.columns:
+            df_table = df_table.sort_values(by=['kab_clean', 'thn_num', 'no_clean'], ascending=[True, True, True])
 
-        # 2. FUNGSI PEMBERSIH KHUSUS AMAN UNTUK PYARROW & PYTHON 3.14
-        def clean_text_field(df_source, col_name):
+        # 2. FUNGSI PEMBERSIH KHUSUS (MENGATASI HASIL FORMULA SHEET / #N/A / NaN)
+        def clean_formula_text(df_source, col_name):
             if col_name not in df_source.columns:
                 return pd.Series(['-'] * len(df_source))
             
-            invalid_values = {'#n/a', 'nan', 'none', '', '#ref!', '#value!'}
+            invalid_patterns = {'#n/a', 'nan', 'none', '', '#ref!', '#value!', '#name?', '#null!'}
 
             def transform_val(val):
                 if pd.isna(val) or val is None:
                     return '-'
                 s_str = str(val).strip()
-                if not s_str or s_str.lower() in invalid_values:
+                # Jika hasil formula menghasilkan error #N/A atau kosong
+                if not s_str or s_str.lower() in invalid_patterns:
                     return '-'
                 return s_str
 
             return df_source[col_name].apply(transform_val)
 
-        # Ekstraksi kolom dengan pembersihan aman
-        df_table['pemohon_clean'] = clean_text_field(df_table, 'nama')
-        df_table['kendala_clean'] = clean_text_field(df_table, 'kendala')
-        df_table['upaya_clean'] = clean_text_field(df_table, 'upaya_penyelesaian')
-        df_table['prosedur_clean'] = clean_text_field(df_table, 'nama_prosedur')
-        df_table['posisi_clean'] = clean_text_field(df_table, 'posisi_berkas')
+        # Ekstraksi kolom dengan penanganan hasil formula
+        df_table['pemohon_clean'] = clean_formula_text(df_table, 'nama')
+        df_table['kendala_clean'] = clean_formula_text(df_table, 'kendala')
+        df_table['upaya_clean'] = clean_formula_text(df_table, 'upaya_penyelesaian')
+        df_table['prosedur_clean'] = clean_formula_text(df_table, 'nama_prosedur')
+        df_table['posisi_clean'] = clean_formula_text(df_table, 'posisi_berkas')
 
         # 3. BENTUK DATAFRAME TAMPILAN
         df_display = pd.DataFrame({
@@ -891,7 +892,7 @@ def render_layanan_pertanahan(df_filtered_layanan):
             "Nomor Berkas": df_table['berkas_thn'],
             "Pemohon": df_table['pemohon_clean'],
             "Prosedur": df_table['prosedur_clean'],
-            "Posisi Berkas Digital": df_table['posisi_clean'],
+            "Posisi Berkas Digital": df_table['posisi_val'] if 'posisi_val' in df_table.columns else df_table['posisi_clean'],
             "Kendala/Hambatan": df_table['kendala_clean'],
             "Upaya Penyelesaian": df_table['upaya_clean']
         }).reset_index(drop=True)
@@ -900,18 +901,18 @@ def render_layanan_pertanahan(df_filtered_layanan):
         df_display.index = df_display.index + 1
         df_display.index.name = "No"
 
-        # 4. RENDER DATAFRAME DENGAN KONFIGURASI LEBAR TERATUR
+        # 4. RENDER DATAFRAME DENGAN LEBAR OPTIMAL
         st.dataframe(
             df_display,
             use_container_width=True,
             column_config={
-                "Satker": st.column_config.TextColumn("Satker", width=110),
-                "Nomor Berkas": st.column_config.TextColumn("Nomor Berkas", width=110),
-                "Pemohon": st.column_config.TextColumn("Pemohon", width=150),
-                "Prosedur": st.column_config.TextColumn("Prosedur", width=200),
-                "Posisi Berkas Digital": st.column_config.TextColumn("Posisi Berkas Digital", width=140),
-                "Kendala/Hambatan": st.column_config.TextColumn("Kendala/Hambatan", width=350),
-                "Upaya Penyelesaian": st.column_config.TextColumn("Upaya Penyelesaian", width=350)
+                "Satker": st.column_config.TextColumn("Satker", width="small"),
+                "Nomor Berkas": st.column_config.TextColumn("Nomor Berkas", width="small"),
+                "Pemohon": st.column_config.TextColumn("Pemohon", width="medium"),
+                "Prosedur": st.column_config.TextColumn("Prosedur", width="medium"),
+                "Posisi Berkas Digital": st.column_config.TextColumn("Posisi Berkas Digital", width="small"),
+                "Kendala/Hambatan": st.column_config.TextColumn("Kendala/Hambatan", width="large"),
+                "Upaya Penyelesaian": st.column_config.TextColumn("Upaya Penyelesaian", width="large")
             },
             height=420
         )
