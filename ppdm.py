@@ -1359,7 +1359,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
     st.markdown("<br>", unsafe_allow_html=True)
 
     # ==========================================
-    # 5. GRAFIK KONTEN (TAMPILAN PERSEN % - MODERN PREMIUM COLOR)
+    # 5. GRAFIK KONTEN TUNGGAL (5 INDIKATOR PERSEN - WARNA PASTEL)
     # ==========================================
     KAB_MAP = {
         'Banggai': 'BG', 'Banggai Kepulauan': 'BK', 'Banggai Laut': 'BL',
@@ -1371,7 +1371,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
 
     df_chart = df_clean.copy()
 
-    # Sumbu-X Dinamis Berdasarkan Filter
+    # Sumbu-X Dinamis Berdasarkan Filter yang Aktif
     is_kec_active = selected_kec and str(selected_kec).strip() not in ['', 'Semua', 'Semua Kecamatan']
     is_kab_active = selected_kab and str(selected_kab).strip() not in ['', 'Semua', 'Semua Kabupaten/Kota']
 
@@ -1398,126 +1398,95 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
     df_grouped = df_chart.groupby(x_col)[req_cols].sum().reset_index()
 
     # ------------------------------------------
-    # 1. GRAFIK % SU VALID & % BT VALID
+    # FORMULA KALKULASI PERSENTASE (5 INDIKATOR)
     # ------------------------------------------
-    # Formula Kalkulasi %:
-    # % SU Valid = (jumlah_suvalid / jumlah_su) * 100
-    # % BT Valid = (bt_valid / jumlah_bt) * 100
-    df_grouped['pct_su_valid'] = (df_grouped['jumlah_suvalid'] / df_grouped['jumlah_su'].replace(0, 1)) * 100.0
-    df_grouped['pct_bt_valid'] = (df_grouped['bt_valid'] / df_grouped['jumlah_bt'].replace(0, 1)) * 100.0
+    # 1. % SU Valid   = (jumlah_suvalid / jumlah_su) * 100
+    # 2. % Pra-SUEL   = (pra_suel / jumlah_su) * 100
+    # 3. % BT Valid   = (bt_valid / jumlah_bt) * 100
+    # 4. % Pra-BTEL   = (pra_btel / bt_valid) * 100
+    # 5. % Pra-SERTEL = (pra_sertel / bt_valid) * 100
 
-    df_g1 = df_grouped.melt(
-        id_vars=[x_col, 'jumlah_suvalid', 'jumlah_su', 'bt_valid', 'jumlah_bt'],
-        value_vars=['pct_su_valid', 'pct_bt_valid'],
-        var_name='Indikator', value_name='Persentase'
-    )
-
-    df_g1['Indikator'] = df_g1['Indikator'].map({
-        'pct_su_valid': '% SU Valid', 
-        'pct_bt_valid': '% BT Valid'
-    })
-
-    # Buat Custom Data untuk Hover Kustom
-    # % SU Valid -> [jumlah_suvalid, jumlah_su]
-    # % BT Valid -> [bt_valid, jumlah_bt]
-    def get_custom_g1(row):
-        if row['Indikator'] == '% SU Valid':
-            return [row['jumlah_suvalid'], row['jumlah_su']]
-        else:
-            return [row['bt_valid'], row['jumlah_bt']]
-
-    df_g1['c_val1'] = df_g1.apply(lambda r: get_custom_g1(r)[0], axis=1)
-    df_g1['c_val2'] = df_g1.apply(lambda r: get_custom_g1(r)[1], axis=1)
-
-    st.markdown('<div class="chart-container-orange">', unsafe_allow_html=True)
-    fig_g1 = px.bar(
-        df_g1, x=x_col, y='Persentase', color='Indikator',
-        barmode='group', title=f"📊 Grafik % SU Valid & % BT Valid (Per {x_label})",
-        color_discrete_map={
-            '% SU Valid': '#0284C7', # Premium Cyan/Sky Blue
-            '% BT Valid': '#0451C9'  # Premium Royal Blue
-        },
-        custom_data=df_g1[['c_val1', 'c_val2']]
-    )
-
-    fig_g1.update_traces(
-        hovertemplate=f"<b>{x_label}: %{{x}}</b><br>%{{fullData.name}}: <b>%{{y:.2f}}%</b><br>Realisasi: %{{customdata[0]:,.0f}}<br>Total Target: %{{customdata[1]:,.0f}}<extra></extra>",
-        marker=dict(line=dict(width=1, color='#000000')) # Outline Hitam
-    )
-
-    fig_g1.update_layout(
-        height=280, xaxis_title="", yaxis_title="Persentase (%)",
-        paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
-        margin=dict(l=10, r=10, t=35, b=10),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-        yaxis=dict(gridcolor='#f2f2f2', range=[0, max(df_g1['Persentase'].max() * 1.15, 100)])
-    )
-    st.plotly_chart(fig_g1, use_container_width=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    # ------------------------------------------
-    # 2. GRAFIK % DATA ELEKTRONIK (PRA-SUEL, PRA-BTEL, PRA-SERTEL)
-    # ------------------------------------------
-    # Formula Kalkulasi % Sesuai Permintaan:
-    # % Pra-SUEL   = (pra_suel / jumlah_su) * 100
-    # % Pra-BTEL   = (pra_btel / bt_valid) * 100
-    # % Pra-SERTEL = (pra_sertel / bt_valid) * 100
+    df_grouped['pct_su_valid']   = (df_grouped['jumlah_suvalid'] / df_grouped['jumlah_su'].replace(0, 1)) * 100.0
     df_grouped['pct_pra_suel']   = (df_grouped['pra_suel'] / df_grouped['jumlah_su'].replace(0, 1)) * 100.0
+    df_grouped['pct_bt_valid']   = (df_grouped['bt_valid'] / df_grouped['jumlah_bt'].replace(0, 1)) * 100.0
     df_grouped['pct_pra_btel']   = (df_grouped['pra_btel'] / df_grouped['bt_valid'].replace(0, 1)) * 100.0
     df_grouped['pct_pra_sertel'] = (df_grouped['pra_sertel'] / df_grouped['bt_valid'].replace(0, 1)) * 100.0
 
-    df_g2 = df_grouped.melt(
-        id_vars=[x_col, 'pra_suel', 'jumlah_su', 'pra_btel', 'pra_sertel', 'bt_valid'],
-        value_vars=['pct_pra_suel', 'pct_pra_btel', 'pct_pra_sertel'],
-        var_name='Indikator', value_name='Persentase'
+    # Melt Dataframe sesuai urutan permintaan
+    df_merged = df_grouped.melt(
+        id_vars=[x_col, 'jumlah_suvalid', 'jumlah_su', 'pra_suel', 'bt_valid', 'jumlah_bt', 'pra_btel', 'pra_sertel'],
+        value_vars=['pct_su_valid', 'pct_pra_suel', 'pct_bt_valid', 'pct_pra_btel', 'pct_pra_sertel'],
+        var_name='Indikator_Code', value_name='Persentase'
     )
 
-    df_g2['Indikator'] = df_g2['Indikator'].map({
-        'pct_pra_suel': '% Pra-SUEL', 
+    # Pemetaan Nama Indikator
+    map_indikator = {
+        'pct_su_valid': '% SU Valid',
+        'pct_pra_suel': '% Pra-SUEL',
+        'pct_bt_valid': '% BT Valid',
         'pct_pra_btel': '% Pra-BTEL',
         'pct_pra_sertel': '% Pra-SERTEL'
-    })
+    }
+    df_merged['Indikator'] = df_merged['Indikator_Code'].map(map_indikator)
 
-    # Custom Data Hover Kustom:
-    # % Pra-SUEL   -> [pra_suel, jumlah_su]
-    # % Pra-BTEL   -> [pra_btel, bt_valid]
-    # % Pra-SERTEL -> [pra_sertel, bt_valid]
-    def get_custom_g2(row):
-        if row['Indikator'] == '% Pra-SUEL':
+    # Ekstraksi nilai realisasi & target untuk Tooltip Hover
+    def get_hover_values(row):
+        code = row['Indikator_Code']
+        if code == 'pct_su_valid':
+            return [row['jumlah_suvalid'], row['jumlah_su']]
+        elif code == 'pct_pra_suel':
             return [row['pra_suel'], row['jumlah_su']]
-        elif row['Indikator'] == '% Pra-BTEL':
+        elif code == 'pct_bt_valid':
+            return [row['bt_valid'], row['jumlah_bt']]
+        elif code == 'pct_pra_btel':
             return [row['pra_btel'], row['bt_valid']]
-        else:
+        else: # pct_pra_sertel
             return [row['pra_sertel'], row['bt_valid']]
 
-    df_g2['c_val1'] = df_g2.apply(lambda r: get_custom_g2(r)[0], axis=1)
-    df_g2['c_val2'] = df_g2.apply(lambda r: get_custom_g2(r)[1], axis=1)
+    df_merged['val_realisasi'] = df_merged.apply(lambda r: get_hover_values(r)[0], axis=1)
+    df_merged['val_pembagi']   = df_merged.apply(lambda r: get_hover_values(r)[1], axis=1)
 
+    # Palet Warna Pastel Soft Modern
+    pastel_color_map = {
+        '% SU Valid': '#7DD3FC',   # Soft Sky Blue
+        '% Pra-SUEL': '#FDE047',   # Soft Pastel Yellow
+        '% BT Valid': '#818CF8',   # Soft Indigo/Royal
+        '% Pra-BTEL': '#F9A8D4',   # Soft Soft Pink
+        '% Pra-SERTEL': '#86EFAC' # Soft Mint Green
+    }
+
+    # Render 1 Grafik Gabungan
     st.markdown('<div class="chart-container-orange">', unsafe_allow_html=True)
-    fig_g2 = px.bar(
-        df_g2, x=x_col, y='Persentase', color='Indikator',
-        barmode='group', title=f"📘 Grafik % Data Elektronik (Pra-SUEL, Pra-BTEL & Pra-SERTEL per {x_label})",
-        color_discrete_map={
-            '% Pra-SUEL': '#F59E0B',   # Premium Amber Gold
-            '% Pra-BTEL': '#0451C9',   # Premium Royal Blue
-            '% Pra-SERTEL': '#10B981' # Premium Emerald Green
-        },
-        custom_data=df_g2[['c_val1', 'c_val2']]
+    fig_combined = px.bar(
+        df_merged, x=x_col, y='Persentase', color='Indikator',
+        barmode='group',
+        title=f"📊 Rekapitulasi Capaian Elektronik & Sertifikasi (Per {x_label})",
+        color_discrete_map=pastel_color_map,
+        category_orders={'Indikator': ['% SU Valid', '% Pra-SUEL', '% BT Valid', '% Pra-BTEL', '% Pra-SERTEL']},
+        custom_data=df_merged[['val_realisasi', 'val_pembagi']]
     )
 
-    fig_g2.update_traces(
+    fig_combined.update_traces(
         hovertemplate=f"<b>{x_label}: %{{x}}</b><br>%{{fullData.name}}: <b>%{{y:.2f}}%</b><br>Jumlah Capaian: %{{customdata[0]:,.0f}}<br>Total Pembagi: %{{customdata[1]:,.0f}}<extra></extra>",
         marker=dict(line=dict(width=1, color='#000000')) # Outline Hitam
     )
 
-    fig_g2.update_layout(
-        height=280, xaxis_title="", yaxis_title="Persentase (%)",
-        paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+    fig_combined.update_layout(
+        height=320,
+        xaxis_title="",
+        yaxis_title="", # Hilangkan title axis sumbu Y
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
         margin=dict(l=10, r=10, t=35, b=10),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-        yaxis=dict(gridcolor='#f2f2f2', range=[0, max(df_g2['Persentase'].max() * 1.15, 100)])
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, title_text=''),
+        yaxis=dict(
+            gridcolor='#f2f2f2',
+            range=[0, max(df_merged['Persentase'].max() * 1.15, 100)],
+            tickvals=[0, 50, 100],
+            ticktext=['0%', '50%', '100%'] # Sumbu-Y dengan akhiran %
+        )
     )
-    st.plotly_chart(fig_g2, use_container_width=True)
+    st.plotly_chart(fig_combined, use_container_width=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
 # -----------------------------------------------------------------------------
