@@ -1159,10 +1159,11 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
                 sub_card10 = f"{fmt_dec2(pct_nas)}% dari {fmt_idr(b_nas_val)} BT"
 
     # ==========================================
-    # 3. CSS COMPONENT CARD MODERN ORANGE
+    # 3. CSS COMPONENT CARD (ORANGE & BLUE)
     # ==========================================
     st.markdown("""
     <style>
+    /* Style Card Standar (Orange) */
     .orange-card-box {
         background: linear-gradient(135deg, #ffffff 0%, #fff8f0 100%);
         border: 2px solid #f39c12;
@@ -1198,6 +1199,44 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
         overflow: hidden;
         text-overflow: ellipsis;
     }
+
+    /* Style Card Khusus Card 9 & Card 10 (Blue #0451c9) */
+    .blue-card-box {
+        background: linear-gradient(135deg, #ffffff 0%, #f0f5ff 100%);
+        border: 2px solid #0451c9;
+        border-radius: 12px;
+        padding: 10px 12px;
+        box-shadow: 0 4px 10px rgba(4, 81, 201, 0.12);
+        height: 104px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        margin-bottom: 12px;
+    }
+    .blue-card-title {
+        color: #0451c9;
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .blue-card-value {
+        color: #0451c9;
+        font-size: 1.25rem;
+        font-weight: 800;
+        line-height: 1.1;
+    }
+    .blue-card-sub {
+        color: #5c7299;
+        font-size: 0.68rem;
+        font-weight: 500;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
     .chart-container-orange {
         background-color: #ffffff;
         border: 2px solid #f39c12;
@@ -1215,6 +1254,16 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
             <div class="orange-card-title" title="{title}">{title}</div>
             <div class="orange-card-value">{value_str}</div>
             <div class="orange-card-sub" title="{sub_text}">{sub_text}</div>
+        </div>
+        """
+        st.markdown(html, unsafe_allow_html=True)
+
+    def render_blue_card(title, value_str, sub_text=""):
+        html = f"""
+        <div class="blue-card-box">
+            <div class="blue-card-title" title="{title}">{title}</div>
+            <div class="blue-card-value">{value_str}</div>
+            <div class="blue-card-sub" title="{sub_text}">{sub_text}</div>
         </div>
         """
         st.markdown(html, unsafe_allow_html=True)
@@ -1292,14 +1341,16 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
         )
 
     with r2_c4:
-        render_orange_card(
+        # CARD 9 MENGGUNAKAN BINGKAI & TEKS BIRU #0451c9
+        render_blue_card(
             "Progress Harian", 
             f"+{fmt_idr(val_prog_harian)} Sertel", 
             sub_card9
         )
 
     with r2_c5:
-        render_orange_card(
+        # CARD 10 MENGGUNAKAN BINGKAI & TEKS BIRU #0451c9
+        render_blue_card(
             "Peringkat Nasional", 
             f"#{rank_num_val}", 
             sub_card10
