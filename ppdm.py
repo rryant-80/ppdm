@@ -1389,6 +1389,10 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
 # 3. SIDEBAR: FILTER & NAVIGATION
 # -----------------------------------------------------------------------------
 with st.sidebar:
+    st.markdown("---")
+    if st.button("🔄 Refresh Data Google Sheet", use_container_width=True):
+        st.cache_data.clear()  # Hapus cache Streamlit
+        st.rerun()
     st.header("📍 Filter Wilayah")
     
     # Filter Kabupaten/Kota (diambil dari gabungan semua dataframe agar aman)
