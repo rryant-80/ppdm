@@ -954,7 +954,7 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
-def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=None):
+def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=None, selected_kab=None, selected_kec=None):
     st.title("💻 Data Elektronik")
     st.markdown("---")
 
@@ -995,11 +995,6 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
         """Format bulat integer dengan titik ribuan (contoh: 1.362.086)"""
         return f"{int(round(val)):,}".replace(',', '.')
 
-    def fmt_dec1(val):
-        """Format desimal 1 digit di belakang koma"""
-        parts = f"{val:,.1f}".split('.')
-        return f"{parts[0].replace(',', '.')},{parts[1]}"
-
     def fmt_dec2(val):
         """Format desimal 2 digit di belakang koma (contoh: 246,73 atau 37,28%)"""
         parts = f"{val:,.2f}".split('.')
@@ -1024,7 +1019,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
         else:
             df[col] = 0
 
-    # Filter baris agar tidak menghitung baris rekapitulasi/total ganda dari sheet GID 1848496896
+    # Filter baris agar tidak menghitung baris rekapitulasi/total ganda
     if 'kabupaten_kota' in df.columns:
         df_clean = df[~df['kabupaten_kota'].astype(str).str.contains('Total|Jumlah|Sulawesi Tengah', case=False, na=False)].copy()
     else:
@@ -1068,38 +1063,62 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
         df_p = df_progress.copy()
         df_p.columns = [str(c).strip().lower() for c in df_p.columns]
 
-        col_tgl  = next((c for c in df_p.columns if 'tgl' in c), None)
-        col_kab  = next((c for c in df_p.columns if 'kab' in c), None)
-        col_pdes = next((c for c in df_p.columns if 'prasertel_des' in c or 'prasertel_desa' in c), None)
+        col_tgl  = next((c for c in df_p.columns if 'tgl' in c), 'tgl_data')
+        col_kab  = next((c for c in df_p.columns if 'kab' in c), 'kabupaten_kota')
+        col_kec  = next((c for c in df_p.columns if 'kec' in c), 'kecamatan')
+        col_des  = next((c for c in df_p.columns if 'desa' in c or 'kelurahan' in c), 'desa_kelurahan')
+        col_pdes = next((c for c in df_p.columns if 'prasertel_des' in c or 'prasertel_desa' in c), 'prasertel_desa')
 
-        if col_tgl and col_kab and col_pdes:
+        if col_tgl in df_p.columns and col_pdes in df_p.columns:
+            # Filter data yang memiliki tanggal
             df_p_valid = df_p[df_p[col_tgl].notna() & (df_p[col_tgl].astype(str).str.strip() != '')].copy()
-            df_p_valid['tgl_dt'] = pd.to_datetime(df_p_valid[col_tgl], dayfirst=True, errors='coerce')
             
+            # Konversi Tanggal dengan format fleksibel
+            df_p_valid['tgl_dt'] = pd.to_datetime(df_p_valid[col_tgl], format='%d/%m/%Y', errors='coerce')
+            if df_p_valid['tgl_dt'].isna().all():
+                df_p_valid['tgl_dt'] = pd.to_datetime(df_p_valid[col_tgl], dayfirst=True, errors='coerce')
+
             list_tgl_dt = sorted(df_p_valid['tgl_dt'].dropna().unique())
 
             if len(list_tgl_dt) >= 2:
-                tgl_latest = list_tgl_dt[-1]
-                tgl_prev   = list_tgl_dt[-2]
+                tgl_new    = list_tgl_dt[-1] # Tanggal Terbaru (misal 22/07/2026)
+                tgl_latest = list_tgl_dt[-2] # Tanggal Sebelumnya (misal 14/07/2026)
 
+                df_new    = df_p_valid[df_p_valid['tgl_dt'] == tgl_new].copy()
                 df_latest = df_p_valid[df_p_valid['tgl_dt'] == tgl_latest].copy()
-                df_prev   = df_p_valid[df_p_valid['tgl_dt'] == tgl_prev].copy()
 
+                df_new['val_pdes']    = df_new[col_pdes].apply(parse_bilangan_cacah)
                 df_latest['val_pdes'] = df_latest[col_pdes].apply(parse_bilangan_cacah)
-                df_prev['val_pdes']   = df_prev[col_pdes].apply(parse_bilangan_cacah)
 
-                kab_latest = df_latest.groupby(col_kab)['val_pdes'].sum().reset_index()
-                kab_prev   = df_prev.groupby(col_kab)['val_pdes'].sum().reset_index()
+                # Cek Hirarki Filter yang Aktif
+                is_kec_active = selected_kec and str(selected_kec).strip() not in ['', 'Semua', 'All', 'None', 'Semua Kecamatan']
+                is_kab_active = selected_kab and str(selected_kab).strip() not in ['', 'Semua', 'All', 'None', 'Semua Kabupaten/Kota', 'Semua Kab/Kota']
 
-                m_kab = pd.merge(kab_latest, kab_prev, on=col_kab, suffixes=('_latest', '_prev'))
-                m_kab['diff'] = m_kab['val_pdes_latest'] - m_kab['val_pdes_prev']
+                if is_kec_active:
+                    group_keys = [col_kab, col_kec, col_des]
+                    entity_label = "Desa/Kelurahan"
+                elif is_kab_active:
+                    group_keys = [col_kab, col_kec]
+                    entity_label = "Kecamatan"
+                else:
+                    group_keys = [col_kab]
+                    entity_label = "Kabupaten/Kota"
 
-                df_kab_changed = m_kab[m_kab['diff'] > 0]
-                val_prog_harian = df_kab_changed['diff'].sum()
-                jml_kab_progres = len(df_kab_changed)
+                # Pastikan kolom grup tersedia
+                group_keys = [k for k in group_keys if k in df_p_valid.columns]
 
-                if jml_kab_progres > 0:
-                    sub_card9 = f"{jml_kab_progres} Kabupaten/Kota berprogress"
+                grp_new    = df_new.groupby(group_keys)['val_pdes'].sum().reset_index()
+                grp_latest = df_latest.groupby(group_keys)['val_pdes'].sum().reset_index()
+
+                m_grp = pd.merge(grp_new, grp_latest, on=group_keys, suffixes=('_new', '_latest'))
+                m_grp['diff'] = m_grp['val_pdes_new'] - m_grp['val_pdes_latest']
+
+                df_changed = m_grp[m_grp['diff'] > 0]
+                val_prog_harian = df_changed['diff'].sum()
+                jml_entity_progres = len(df_changed)
+
+                if jml_entity_progres > 0:
+                    sub_card9 = f"{jml_entity_progres} {entity_label} mengalami perubahan"
                 else:
                     sub_card9 = "Tidak ada perubahan data"
             elif len(list_tgl_dt) == 1:
@@ -1112,31 +1131,31 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
         df_rank = df_peringkat.copy()
         df_rank.columns = [str(c).strip().lower() for c in df_rank.columns]
 
-        col_prov = next((c for c in df_rank.columns if 'prov' in c), None)
-        col_rank = next((c for c in df_rank.columns if 'ringkat' in c), None)
-        col_pnas = next((c for c in df_rank.columns if 'prasertel_nas' in c), None)
-        col_bnas = next((c for c in df_rank.columns if 'btvalid_nas' in c), None)
+        col_prov = next((c for c in df_rank.columns if 'prov' in c), 'provinsi')
+        col_rank = next((c for c in df_rank.columns if 'ringkat' in c), 'peringkat')
+        col_pnas = next((c for c in df_rank.columns if 'prasertel_nas' in c or 'prasertel' in c), 'prasertel_nasional')
+        col_bnas = next((c for c in df_rank.columns if 'btvalid_nas' in c or 'btvalid' in c), 'btvalid_nasional')
 
-        if col_prov:
+        if col_prov in df_rank.columns:
             sulteng_df = df_rank[df_rank[col_prov].astype(str).str.contains('Sulteng|Sulawesi Tengah', case=False, na=False)]
 
             if not sulteng_df.empty:
                 row_s = sulteng_df.iloc[0]
 
                 # 1. Peringkat
-                if col_rank and pd.notna(row_s[col_rank]):
+                if col_rank in sulteng_df.columns and pd.notna(row_s[col_rank]):
                     r_val = str(row_s[col_rank]).strip()
                     if r_val and r_val.lower() != 'nan':
                         rank_num_val = r_val.replace('.0', '')
 
                 # 2. Nilai prasertel_nasional & btvalid_nasional
-                p_nas_val = parse_bilangan_cacah(row_s.get(col_pnas, 0)) if col_pnas else 0
-                b_nas_val = parse_bilangan_cacah(row_s.get(col_bnas, 0)) if col_bnas else 0
+                p_nas_val = parse_bilangan_cacah(row_s.get(col_pnas, 0))
+                b_nas_val = parse_bilangan_cacah(row_s.get(col_bnas, 0))
 
                 # 3. Hitung Persentase: prasertel_nasional / btvalid_nasional
                 pct_nas = (p_nas_val / b_nas_val * 100.0) if b_nas_val > 0 else 0.0
 
-                # 4. Format Keterangan Bawah
+                # 4. Format Keterangan Bawah Card 10
                 sub_card10 = f"{fmt_dec2(pct_nas)}% dari {fmt_idr(b_nas_val)} BT"
 
     # ==========================================
@@ -1609,4 +1628,10 @@ elif menu_pilihan == "🎯 PSN 2026":
 elif menu_pilihan == "💼 Layanan Pertanahan":
     render_layanan_pertanahan(df_f_layanan)
 elif menu_pilihan == "⚡ Data Elektronik":
-    render_pertanahan_elektronik(df_f_elektronik)
+    render_pertanahan_elektronik(
+        df_f_elektronik, 
+        df_f_progress, 
+        df_peringkat_raw, # pastikan nama variabel df GID 880542789 disesuaikan
+        selected_kab=selected_kab, 
+        selected_kec=selected_kec
+    )
