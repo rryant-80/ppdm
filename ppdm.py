@@ -1118,38 +1118,44 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
             elif len(list_tgl_dt) == 1:
                 sub_card9 = "Data H-1 belum tersedia"
 
-    # ------------------------------------------
-    # CARD 10: PERINGKAT NASIONAL (GID 880542789) - UNFILTERED
-    # ------------------------------------------
+    # ==========================================
+    # CARD 10: PERINGKAT NASIONAL (GID 880542789)
+    # ==========================================
+    rank_num_val = "-"
+    sub_card10 = "0,00% dari 0 BT"
+
     if df_peringkat is not None and not df_peringkat.empty:
         df_rank = df_peringkat.copy()
+        # Bersihkan nama kolom dari spasi dan ubah ke huruf kecil
         df_rank.columns = [str(c).strip().lower() for c in df_rank.columns]
 
+        # Cari kolom secara fleksibel
         col_prov = next((c for c in df_rank.columns if 'prov' in c), 'provinsi')
         col_rank = next((c for c in df_rank.columns if 'ringkat' in c), 'peringkat')
-        col_pnas = next((c for c in df_rank.columns if 'prasertel_nas' in c or 'prasertel' in c), 'prasertel_nasional')
-        col_bnas = next((c for c in df_rank.columns if 'btvalid_nas' in c or 'btvalid' in c), 'btvalid_nasional')
+        col_pnas = next((c for c in df_rank.columns if 'prasertel' in c), 'prasertel_nasional')
+        col_bnas = next((c for c in df_rank.columns if 'btvalid' in c), 'btvalid_nasional')
 
         if col_prov in df_rank.columns:
+            # Cari baris yang mengandung Sulteng / Sulawesi Tengah
             sulteng_df = df_rank[df_rank[col_prov].astype(str).str.contains('sulteng|sulawesi tengah', case=False, na=False)]
 
             if not sulteng_df.empty:
                 row_s = sulteng_df.iloc[0]
 
-                # 1. Ambil Peringkat
+                # 1. Ambil Angka Peringkat secara dinamis dari sheet
                 if col_rank in sulteng_df.columns and pd.notna(row_s[col_rank]):
-                    r_val = str(row_s[col_rank]).strip()
-                    if r_val and r_val.lower() != 'nan':
-                        rank_num_val = r_val.replace('.0', '')
+                    raw_r = str(row_s[col_rank]).strip()
+                    if raw_r and raw_r.lower() != 'nan':
+                        rank_num_val = raw_r.replace('.0', '')
 
-                # 2. Ambil prasertel_nasional & btvalid_nasional
+                # 2. Ambil prasertel_nasional & btvalid_nasional dari sheet
                 p_nas_val = parse_bilangan_cacah(row_s.get(col_pnas, 0))
                 b_nas_val = parse_bilangan_cacah(row_s.get(col_bnas, 0))
 
-                # 3. Hitung Persentase
+                # 3. Hitung persentase dinamis: (prasertel_nasional / btvalid_nasional) * 100
                 pct_nas = (p_nas_val / b_nas_val * 100.0) if b_nas_val > 0 else 0.0
 
-                # 4. Format Keterangan Bawah Card 10
+                # 4. Format tampilan Keterangan Bawah
                 sub_card10 = f"{fmt_dec2(pct_nas)}% dari {fmt_idr(b_nas_val)} BT"
 
     # ==========================================
