@@ -954,11 +954,6 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
-import datetime
-import pandas as pd
-import plotly.express as px
-import streamlit as st
-
 def render_pertanahan_elektronik(df_elektronik, df_progress=None):
     st.title("💻 Pertanahan Elektronik")
     st.markdown("---")
@@ -970,48 +965,38 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None):
     df = df_elektronik.copy()
 
     # ==========================================
-    # 1. FUNGSI PEMBANTU TERPISAH (DESIMAL LUAS vs INTEGER BERKAS)
+    # 1. FUNGSI PEMBANTU MULTI-PARSER ANGKAMURNI (TITIK = RIBUAN)
     # ==========================================
-    
-    # A. Pembersih Kolom Berkas / Unit (Ribuan Murni Tanpa Desimal)
-    def clean_int(val):
+    def clean_num_id(val):
         if pd.isna(val) or val is None:
-            return 0
-        s_val = str(val).strip()
-        invalid_patterns = {'#n/a', 'nan', 'none', '', '#ref!', '#value!', '#name?', '#null!'}
-        if s_val.lower() in invalid_patterns:
-            return 0
-        s_val = s_val.replace('Rp', '').replace('%', '').strip()
-        
-        # Hapus semua titik & koma ribuan
-        s_val = s_val.replace('.', '').replace(',', '')
-        try:
-            return int(round(float(s_val)))
-        except ValueError:
-            return 0
+            return 0.0
 
-    # B. Pembersih Kolom Luas (Desimal Float Murni m²)
-    def clean_float(val):
-        if pd.isna(val) or val is None:
-            return 0.0
-        if isinstance(val, (int, float)):
-            return float(val)
-        s_val = str(val).strip()
         invalid_patterns = {'#n/a', 'nan', 'none', '', '#ref!', '#value!', '#name?', '#null!'}
+        s_val = str(val).strip()
         if s_val.lower() in invalid_patterns:
             return 0.0
+
         s_val = s_val.replace('Rp', '').replace('%', '').strip()
-        
-        # Format Indonesia: koma desimal ke titik float
-        if ',' in s_val:
-            s_val = s_val.replace('.', '').replace(',', '.')
+
+        # Tangani masalah Pandas Float vs String Ribuan
+        if '.' in s_val:
+            parts = s_val.split('.')
+            # Jika pecahan desimal float pandas (misal 107.547 dibaca float jadi '107.547')
+            if len(parts) == 2 and len(parts[1]) > 0 and len(parts[1]) <= 3:
+                # Pad/genapkan ke 3 digit ribuan
+                s_val = parts[0] + parts[1].ljust(3, '0')
+            else:
+                s_val = s_val.replace('.', '')
+
+        s_val = s_val.replace(',', '')
+
         try:
             return float(s_val)
         except ValueError:
             return 0.0
 
     def fmt_idr(val):
-        """Format bulat integer dengan titik ribuan (contoh: 107.547)"""
+        """Format bulat integer dengan titik ribuan (contoh: 1.362.086)"""
         return f"{int(round(val)):,}".replace(',', '.')
 
     def fmt_dec1(val):
@@ -1024,26 +1009,20 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None):
         parts = f"{val:,.2f}".split('.')
         return f"{parts[0].replace(',', '.')},{parts[1]}"
 
-    # Salin & bersihkan kolom luas
-    luas_cols = ['luas_adm', 'luas_apl', 'luas_persil', 'luas_persil_valid', 'luas_kw456']
-    for col in luas_cols:
+    # Salin & bersihkan seluruh kolom numerik GID 1848496896
+    num_cols = [
+        'luas_adm', 'luas_apl', 'luas_persil', 'jumlah_persil', 'luas_persil_valid',
+        'jumlah_kw456', 'luas_kw456', 'jumlah_bt', 'bt_valid', 'jumlah_su',
+        'pra_suel', 'pra_btel', 'pra_sertel'
+    ]
+    
+    for col in num_cols:
         if col in df.columns:
-            df[col] = df[col].apply(clean_float)
+            df[col] = df[col].apply(clean_num_id)
         else:
             df[col] = 0.0
 
-    # Salin & bersihkan kolom jumlah berkas
-    int_cols = [
-        'jumlah_persil', 'jumlah_kw456', 'jumlah_bt', 'bt_valid', 
-        'jumlah_su', 'pra_suel', 'pra_btel', 'pra_sertel'
-    ]
-    for col in int_cols:
-        if col in df.columns:
-            df[col] = df[col].apply(clean_int)
-        else:
-            df[col] = 0
-
-    # Filter baris agar tidak menghitung baris rekapitulasi/total ganda
+    # Hindari penghitungan ganda jika ada baris rekapitulasi/total pada sheet
     if 'kabupaten_kota' in df.columns:
         df_clean = df[~df['kabupaten_kota'].astype(str).str.contains('Total|Jumlah|Sulawesi Tengah', case=False, na=False)].copy()
     else:
@@ -1101,8 +1080,8 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None):
                     suffixes=('_latest', '_prev')
                 )
                 
-                m_df['prasertel_latest'] = m_df['prasertel_desa_latest'].apply(clean_int)
-                m_df['prasertel_prev']   = m_df['prasertel_desa_prev'].apply(clean_int)
+                m_df['prasertel_latest'] = m_df['prasertel_desa_latest'].apply(clean_num_id)
+                m_df['prasertel_prev']   = m_df['prasertel_desa_prev'].apply(clean_num_id)
                 m_df['diff']             = m_df['prasertel_latest'] - m_df['prasertel_prev']
                 
                 df_changed = m_df[m_df['diff'] > 0]
@@ -1111,7 +1090,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None):
             elif len(list_tgl) == 1:
                 sub_card9 = "Data H-1 belum tersedia"
 
-        # CARD 10: PERINGKAT NASIONAL (30) DENGAN KETERANGAN PERSENTASE
+        # CARD 10: NOMOR PERINGKAT BESAR & KETERANGAN
         if 'provinsi' in df_p.columns:
             sulteng_df = df_p[df_p['provinsi'].astype(str).str.contains('Sulteng|Sulawesi Tengah', case=False, na=False)]
             
@@ -1121,8 +1100,8 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None):
                     if pd.notna(raw_rank) and str(raw_rank).strip() != '':
                         rank_num_val = str(raw_rank).replace('.0', '').strip()
                 
-                p_nas = clean_float(sulteng_df.iloc[0].get('prasertel_nasional', 0))
-                b_nas = clean_float(sulteng_df.iloc[0].get('btvalid_nasional', 0))
+                p_nas = clean_num_id(sulteng_df.iloc[0].get('prasertel_nasional', 0))
+                b_nas = clean_num_id(sulteng_df.iloc[0].get('btvalid_nasional', 0))
                 pct_nas = (p_nas / b_nas * 100) if b_nas > 0 else 0.0
                 
                 sub_card10 = f"{fmt_dec2(pct_nas)}% dari {fmt_idr(b_nas)} BT"
@@ -1189,7 +1168,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None):
         st.markdown(html, unsafe_allow_html=True)
 
     # ==========================================
-    # 4. RENDER GRID 10 CARDS (PRESISI DUA TIPIFIKASI)
+    # 4. RENDER GRID 10 CARDS
     # ==========================================
     # BARIS 1 (CARD 1 - 5)
     r1_c1, r1_c2, r1_c3, r1_c4, r1_c5 = st.columns(5)
@@ -1222,7 +1201,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None):
         )
 
     with r1_c4:
-        # Card 4: Total jumlah_kw456 (Bidang/Berkas)
+        # Card 4: Total jumlah_kw456
         render_orange_card(
             "Jumlah KW456", 
             f"{fmt_idr(tot_kw456)} Bidang", 
@@ -1230,7 +1209,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None):
         )
 
     with r1_c5:
-        # Card 5: Total bt_valid (BT)
+        # Card 5: Total bt_valid
         pct_bt_valid = (tot_bt_valid / tot_bt * 100) if tot_bt > 0 else 0.0
         render_orange_card(
             "Jumlah BT Valid", 
@@ -1277,7 +1256,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None):
         )
 
     with r2_c5:
-        # Card 10: Angka Peringkat Besar (#30) dan Keterangan %
+        # Card 10: Angka Peringkat Besar (#30) dan Keterangan
         render_orange_card(
             "Peringkat Nasional", 
             f"#{rank_num_val}", 
@@ -1301,8 +1280,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None):
     else:
         df_clean['kab_singkat'] = '-'
 
-    num_cols_all = luas_cols + int_cols
-    df_kab = df_clean.groupby('kab_singkat')[num_cols_all].sum().reset_index()
+    df_kab = df_clean.groupby('kab_singkat')[num_cols].sum().reset_index()
 
     # GRAFIK 1: SURAT UKUR ELEKTRONIK
     st.markdown('<div class="chart-container-orange">', unsafe_allow_html=True)
