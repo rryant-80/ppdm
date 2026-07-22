@@ -858,7 +858,8 @@ def render_layanan_pertanahan(df_filtered_layanan):
                 s_str = str(val).strip()
                 if not s_str or s_str.lower() in invalid_patterns:
                     return '-'
-                return s_str
+                # Escape karakter HTML agar aman
+                return s_str.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
             return df_source[col_name].apply(transform_val)
 
         df_table['pemohon_clean'] = clean_formula_text(df_table, 'nama')
@@ -867,84 +868,82 @@ def render_layanan_pertanahan(df_filtered_layanan):
         df_table['prosedur_clean'] = clean_formula_text(df_table, 'nama_prosedur')
         df_table['posisi_clean'] = clean_formula_text(df_table, 'posisi_berkas')
 
-        # CSS UNTUK WRAP TEXT & TABEL MODERN
-        table_css = """
-        <style>
-        .custom-table-container {
-            max-height: 480px;
-            overflow-y: auto;
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-            margin-top: 10px;
-        }
-        .custom-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-family: sans-serif;
-            font-size: 0.82rem;
-        }
-        .custom-table th {
-            position: sticky;
-            top: 0;
-            background-color: #f1f3f5;
-            color: #333;
-            font-weight: bold;
-            padding: 8px 10px;
-            text-align: left;
-            border-bottom: 2px solid #dee2e6;
-            z-index: 10;
-        }
-        .custom-table td {
-            padding: 8px 10px;
-            border-bottom: 1px solid #e9ecef;
-            vertical-align: top;
-            white-space: normal !important;
-            word-wrap: break-word !important;
-        }
-        .custom-table tr:hover {
-            background-color: #f8f9fa;
-        }
-        </style>
-        """
-        
-        # BENTUK BARIS TABEL
-        rows_html = ""
+        # BENTUK BARIS TABEL DENGAN FORMATING TIGHT (TANPA INDENTASI SPASI DI AWAL BARIS)
+        rows_html_list = []
         for idx, (_, row) in enumerate(df_table.iterrows(), start=1):
-            rows_html += f"""
-            <tr>
-                <td style="text-align: center; font-weight: bold; width: 40px;">{idx}</td>
-                <td style="width: 110px;"><b>{row['kab_clean']}</b></td>
-                <td style="width: 110px;">{row['berkas_thn']}</td>
-                <td style="width: 140px;">{row['pemohon_clean']}</td>
-                <td style="width: 180px;">{row['prosedur_clean']}</td>
-                <td style="width: 120px;">{row['posisi_clean']}</td>
-                <td style="width: 280px; color: #c0392b;">{row['kendala_clean']}</td>
-                <td style="width: 280px; color: #27ae60;">{row['upaya_clean']}</td>
-            </tr>
-            """
+            r_html = (
+                f"<tr>"
+                f"<td style='text-align: center; font-weight: bold; width: 40px;'>{idx}</td>"
+                f"<td style='width: 110px;'><b>{row['kab_clean']}</b></td>"
+                f"<td style='width: 110px;'>{row['berkas_thn']}</td>"
+                f"<td style='width: 140px;'>{row['pemohon_clean']}</td>"
+                f"<td style='width: 180px;'>{row['prosedur_clean']}</td>"
+                f"<td style='width: 120px;'>{row['posisi_clean']}</td>"
+                f"<td style='width: 280px; color: #c0392b;'>{row['kendala_clean']}</td>"
+                f"<td style='width: 280px; color: #27ae60;'>{row['upaya_clean']}</td>"
+                f"</tr>"
+            )
+            rows_html_list.append(r_html)
 
-        full_table_html = f"""
-        {table_css}
-        <div class="custom-table-container">
-            <table class="custom-table">
-                <thead>
-                    <tr>
-                        <th style="text-align: center;">No</th>
-                        <th>Satker</th>
-                        <th>Nomor Berkas</th>
-                        <th>Pemohon</th>
-                        <th>Prosedur</th>
-                        <th>Posisi Digital</th>
-                        <th>Kendala / Hambatan</th>
-                        <th>Upaya Penyelesaian</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {rows_html}
-                </tbody>
-            </table>
-        </div>
-        """
+        rows_html = "".join(rows_html_list)
+
+        # HTML DAN CSS TANPA SPASI INDENTASI DI AWAL BARIS
+        full_table_html = f"""<style>
+.custom-table-container {{
+    max-height: 480px;
+    overflow-y: auto;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    margin-top: 10px;
+}}
+.custom-table {{
+    width: 100%;
+    border-collapse: collapse;
+    font-family: sans-serif;
+    font-size: 0.82rem;
+}}
+.custom-table th {{
+    position: sticky;
+    top: 0;
+    background-color: #f1f3f5;
+    color: #333;
+    font-weight: bold;
+    padding: 8px 10px;
+    text-align: left;
+    border-bottom: 2px solid #dee2e6;
+    z-index: 10;
+}}
+.custom-table td {{
+    padding: 8px 10px;
+    border-bottom: 1px solid #e9ecef;
+    vertical-align: top;
+    white-space: normal !important;
+    word-wrap: break-word !important;
+}}
+.custom-table tr:hover {{
+    background-color: #f8f9fa;
+}}
+</style>
+<div class="custom-table-container">
+<table class="custom-table">
+<thead>
+<tr>
+<th style="text-align: center;">No</th>
+<th>Satker</th>
+<th>Nomor Berkas</th>
+<th>Pemohon</th>
+<th>Prosedur</th>
+<th>Posisi Digital</th>
+<th>Kendala / Hambatan</th>
+<th>Upaya Penyelesaian</th>
+</tr>
+</thead>
+<tbody>
+{rows_html}
+</tbody>
+</table>
+</div>"""
+
         st.markdown(full_table_html, unsafe_allow_html=True)
 
     else:
