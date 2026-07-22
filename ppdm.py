@@ -967,31 +967,42 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None):
     # ==========================================
     # 1. FUNGSI PEMBANTU PEMBERSIH FORMAT ANGKA SHEET
     # ==========================================
+    # ==========================================
+    # 1. FUNGSI PEMBANTU PEMBERSIH RIBUAN INDONESIA (MUTLAK)
+    # ==========================================
     def clean_num_id(val):
         """
-        Membaca nilai dari Google Sheets secara presisi:
-        Menangani string angka ribuan berformat Indonesia (titik = ribuan).
+        Mengonversi angka berformat titik ribuan Indonesia menjadi Integer Bulat.
+        Contoh: "1.000" -> 1000, "107.547" -> 107547, 107.547 (float) -> 107547
         """
         if pd.isna(val) or val is None:
             return 0.0
-        
-        # Jika nilai sudah float/int murni dari pandas
-        if isinstance(val, (int, float)):
-            return float(val)
-        
-        s_val = str(val).strip()
+
         invalid_patterns = {'#n/a', 'nan', 'none', '', '#ref!', '#value!', '#name?', '#null!'}
+        
+        # Paksa ubah ke string mentah
+        s_val = str(val).strip()
         if s_val.lower() in invalid_patterns:
             return 0.0
 
-        # Bersihkan simbol non-numerik
+        # Hapus simbol non-angka dasar
         s_val = s_val.replace('Rp', '').replace('%', '').strip()
 
-        # Deteksi format Indonesia: "107.547" -> "107547"
-        if ',' in s_val:
-            s_val = s_val.replace('.', '').replace(',', '.')
-        else:
-            s_val = s_val.replace('.', '')
+        # Jika Pandas terlanjur membaca angka bulat ber-titik sebagai Float (misal 107.547 / 1.0)
+        # Kita cek apakah ada titik
+        if '.' in s_val:
+            # Jika merupakan Float buatan Pandas dari format ribuan (misal: "1.689" -> "1.689")
+            # Kita pisahkan berdasarkan titik dan pastikan semua digabung sebagai angka bulat
+            parts = s_val.split('.')
+            if len(parts) == 2 and len(parts[1]) < 3:
+                # Menangani kasus floating point otomatis pandas misal 107.547 -> '107' dan '547'
+                # Jika desimal terbentuk akibat float pandas, gabungkan kembali
+                s_val = parts[0] + parts[1].ljust(3, '0')
+            else:
+                s_val = s_val.replace('.', '')
+
+        # Hapus koma atau karakter sisa jika ada
+        s_val = s_val.replace(',', '')
 
         try:
             return float(s_val)
