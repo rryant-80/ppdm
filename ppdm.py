@@ -1390,10 +1390,6 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
 # -----------------------------------------------------------------------------
 with st.sidebar:    
     st.header("📍 Filter Wilayah")
-    st.markdown("---")
-    if st.button("🔄 Refresh Data", use_container_width=True):
-        st.cache_data.clear()  # Hapus cache Streamlit
-        st.rerun()
     
     # Filter Kabupaten/Kota (diambil dari gabungan semua dataframe agar aman)
     list_kabupaten = sorted(list(set(
@@ -1414,6 +1410,11 @@ with st.sidebar:
         
     list_kecamatan.insert(0, "Semua Kecamatan")
     selected_kec = st.selectbox("Kecamatan", list_kecamatan)
+    
+    st.markdown("---")
+    if st.button("🔄 Refresh Data", use_container_width=True):
+        st.cache_data.clear()  # Hapus cache Streamlit
+        st.rerun()
     
     st.markdown("---")
     st.header("🗂️ Menu Utama")
