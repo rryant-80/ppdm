@@ -1359,7 +1359,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
     st.markdown("<br>", unsafe_allow_html=True)
 
     # ==========================================
-    # 5. GRAFIK KONTEN TUNGGAL (5 INDIKATOR PERSEN - WARNA PASTEL)
+    # 5. GRAFIK KONTEN TUNGGAL (TERURUT % PRA-SERTEL TERTINGGI)
     # ==========================================
     KAB_MAP = {
         'Banggai': 'BG', 'Banggai Kepulauan': 'BK', 'Banggai Laut': 'BL',
@@ -1400,19 +1400,19 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
     # ------------------------------------------
     # FORMULA KALKULASI PERSENTASE (5 INDIKATOR)
     # ------------------------------------------
-    # 1. % SU Valid   = (jumlah_suvalid / jumlah_su) * 100
-    # 2. % Pra-SUEL   = (pra_suel / jumlah_su) * 100
-    # 3. % BT Valid   = (bt_valid / jumlah_bt) * 100
-    # 4. % Pra-BTEL   = (pra_btel / bt_valid) * 100
-    # 5. % Pra-SERTEL = (pra_sertel / bt_valid) * 100
-
     df_grouped['pct_su_valid']   = (df_grouped['jumlah_suvalid'] / df_grouped['jumlah_su'].replace(0, 1)) * 100.0
     df_grouped['pct_pra_suel']   = (df_grouped['pra_suel'] / df_grouped['jumlah_su'].replace(0, 1)) * 100.0
     df_grouped['pct_bt_valid']   = (df_grouped['bt_valid'] / df_grouped['jumlah_bt'].replace(0, 1)) * 100.0
     df_grouped['pct_pra_btel']   = (df_grouped['pra_btel'] / df_grouped['bt_valid'].replace(0, 1)) * 100.0
     df_grouped['pct_pra_sertel'] = (df_grouped['pra_sertel'] / df_grouped['bt_valid'].replace(0, 1)) * 100.0
 
-    # Melt Dataframe sesuai urutan permintaan
+    # ------------------------------------------
+    # URUTKAN SUMBU-X BERDASARKAN % PRA-SERTEL TERTINGGI -> TERENDAH
+    # ------------------------------------------
+    df_grouped = df_grouped.sort_values(by='pct_pra_sertel', ascending=False)
+    x_order = df_grouped[x_col].tolist()  # Urutan lokasi dari % Pra-Sertel tertinggi
+
+    # Melt Dataframe sesuai urutan indikator
     df_merged = df_grouped.melt(
         id_vars=[x_col, 'jumlah_suvalid', 'jumlah_su', 'pra_suel', 'bt_valid', 'jumlah_bt', 'pra_btel', 'pra_sertel'],
         value_vars=['pct_su_valid', 'pct_pra_suel', 'pct_bt_valid', 'pct_pra_btel', 'pct_pra_sertel'],
@@ -1455,14 +1455,17 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
         '% Pra-SERTEL': '#86EFAC' # Soft Mint Green
     }
 
-    # Render 1 Grafik Gabungan
+    # Render 1 Grafik Gabungan Terurut
     st.markdown('<div class="chart-container-orange">', unsafe_allow_html=True)
     fig_combined = px.bar(
         df_merged, x=x_col, y='Persentase', color='Indikator',
         barmode='group',
-        title=f"📊 Rekapitulasi Capaian Elektronik & Sertifikasi (Per {x_label})",
+        title=f"📊 Rekapitulasi Capaian (Diurutkan dari % Pra-SERTEL Tertinggi)",
         color_discrete_map=pastel_color_map,
-        category_orders={'Indikator': ['% SU Valid', '% Pra-SUEL', '% BT Valid', '% Pra-BTEL', '% Pra-SERTEL']},
+        category_orders={
+            x_col: x_order,  # Mengunci urutan Sumbu-X sesuai % Pra-Sertel
+            'Indikator': ['% SU Valid', '% Pra-SUEL', '% BT Valid', '% Pra-BTEL', '% Pra-SERTEL']
+        },
         custom_data=df_merged[['val_realisasi', 'val_pembagi']]
     )
 
@@ -1483,7 +1486,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
             gridcolor='#f2f2f2',
             range=[0, max(df_merged['Persentase'].max() * 1.15, 100)],
             tickvals=[0, 50, 100],
-            ticktext=['0%', '50%', '100%'] # Sumbu-Y dengan akhiran %
+            ticktext=['0%', '50%', '100%']
         )
     )
     st.plotly_chart(fig_combined, use_container_width=True)
