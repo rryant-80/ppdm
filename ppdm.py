@@ -850,18 +850,18 @@ def render_layanan_pertanahan(df_filtered_layanan):
             render_green_card("Tahun 2026", f"{fmt_idr(b_26)} Berkas", "Berkas Berjalan 2026")
 
         # ==========================================
-        # 8. TABEL MODERN DETAIL BERKAS MELEBIHI SOP
+        # 8. TABEL MODERN DETAIL BERKAS MELEBIHI SOP (WRAP TEXT VIA DATA EDITOR)
         # ==========================================
         st.markdown("<br>", unsafe_allow_html=True)
         st.subheader("📋 Rincian Berkas Melebihi Durasi SOP")
 
         df_table = df_overdue.copy()
 
-        # 1. URUTKAN DATA: KABUPATEN/KOTA DAHULU, KEMUDIAN TAHUN (BERKAS TERTUA KE TERBARU)
+        # 1. URUTKAN DATA: KABUPATEN/KOTA DAHULU, KEMUDIAN TAHUN
         if 'kab_clean' in df_table.columns and 'thn_num' in df_table.columns:
             df_table = df_table.sort_values(by=['kab_clean', 'thn_num', 'no_clean'], ascending=[True, True, True])
 
-        # 2. FUNGSI PEMBERSIH KHUSUS (MENGATASI HASIL FORMULA SHEET / #N/A / NaN)
+        # 2. FUNGSI PEMBERSIH TEKS
         def clean_formula_text(df_source, col_name):
             if col_name not in df_source.columns:
                 return pd.Series(['-'] * len(df_source))
@@ -872,14 +872,13 @@ def render_layanan_pertanahan(df_filtered_layanan):
                 if pd.isna(val) or val is None:
                     return '-'
                 s_str = str(val).strip()
-                # Jika hasil formula menghasilkan error #N/A atau kosong
                 if not s_str or s_str.lower() in invalid_patterns:
                     return '-'
                 return s_str
 
             return df_source[col_name].apply(transform_val)
 
-        # Ekstraksi kolom dengan penanganan hasil formula
+        # Ekstraksi kolom
         df_table['pemohon_clean'] = clean_formula_text(df_table, 'nama')
         df_table['kendala_clean'] = clean_formula_text(df_table, 'kendala')
         df_table['upaya_clean'] = clean_formula_text(df_table, 'upaya_penyelesaian')
@@ -892,18 +891,18 @@ def render_layanan_pertanahan(df_filtered_layanan):
             "Nomor Berkas": df_table['berkas_thn'],
             "Pemohon": df_table['pemohon_clean'],
             "Prosedur": df_table['prosedur_clean'],
-            "Posisi Berkas Digital": df_table['posisi_val'] if 'posisi_val' in df_table.columns else df_table['posisi_clean'],
+            "Posisi Berkas Digital": df_table['posisi_clean'],
             "Kendala/Hambatan": df_table['kendala_clean'],
             "Upaya Penyelesaian": df_table['upaya_clean']
         }).reset_index(drop=True)
 
-        # Penomoran otomatis mulai dari 1
         df_display.index = df_display.index + 1
         df_display.index.name = "No"
 
-        # 4. RENDER DATAFRAME DENGAN LEBAR OPTIMAL
-        st.dataframe(
+        # 4. RENDER DENGAN ST.DATA_EDITOR (MENDUKUNG WRAP TEKS SECARA OTOMATIS)
+        st.data_editor(
             df_display,
+            disabled=True, # Dibuat read-only (hanya untuk tampilan)
             use_container_width=True,
             column_config={
                 "Satker": st.column_config.TextColumn("Satker", width="small"),
@@ -914,7 +913,7 @@ def render_layanan_pertanahan(df_filtered_layanan):
                 "Kendala/Hambatan": st.column_config.TextColumn("Kendala/Hambatan", width="large"),
                 "Upaya Penyelesaian": st.column_config.TextColumn("Upaya Penyelesaian", width="large")
             },
-            height=420
+            height=450
         )
 
     else:
