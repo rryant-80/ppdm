@@ -861,20 +861,24 @@ def render_layanan_pertanahan(df_filtered_layanan):
         if 'thn_num' in df_table.columns:
             df_table = df_table.sort_values(by=['thn_num', 'no_clean'], ascending=[True, True])
 
-        # 2. FUNGSI PEMBERSIH KHUSUS ERRROR #N/A & KOSONG
+        # 2. FUNGSI PEMBERSIH KHUSUS AMAN UNTUK PYARROW & PYTHON 3.14
         def clean_text_field(df_source, col_name):
             if col_name not in df_source.columns:
                 return pd.Series(['-'] * len(df_source))
             
-            # Ubah ke string, hapus spasi di awal/akhir
-            s = df_source[col_name].astype(str).str.strip()
-            
-            # Ganti nilai-nilai tidak valid (#N/A, nan, None, string kosong) menjadi '-'
-            invalid_values = ['#n/a', 'nan', 'none', '', '#N/A', 'NaN', 'NONE', '#REF!', '#VALUE!']
-            s = s.apply(lambda x: '-' if x.lower() in [inv.lower() for inv in invalid_values] or not x else x)
-            return s
+            invalid_values = {'#n/a', 'nan', 'none', '', '#ref!', '#value!'}
 
-        # Extraksi kolom dengan pembersihan ketat
+            def transform_val(val):
+                if pd.isna(val) or val is None:
+                    return '-'
+                s_str = str(val).strip()
+                if not s_str or s_str.lower() in invalid_values:
+                    return '-'
+                return s_str
+
+            return df_source[col_name].apply(transform_val)
+
+        # Ekstraksi kolom dengan pembersihan aman
         df_table['pemohon_clean'] = clean_text_field(df_table, 'nama')
         df_table['kendala_clean'] = clean_text_field(df_table, 'kendala')
         df_table['upaya_clean'] = clean_text_field(df_table, 'upaya_penyelesaian')
