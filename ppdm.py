@@ -1055,59 +1055,74 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None):
     val_prog_harian = 0
     sub_card9 = "Tidak ada perubahan data"
 
-    rank_num_val = "30"
-    sub_card10 = "31,92% dari 1.362.086 BT"
+    rank_num_val = "-"
+    sub_card10 = "0,00% dari 0 BT"
 
     if df_progress is not None and not df_progress.empty:
         df_p = df_progress.copy()
-        
-        # CARD 9: Progress Harian Perubahan Desa/Kelurahan
+
+        # --------------------------------------
+        # CARD 9: PROGRESS HARIAN DESA/KELURAHAN
+        # --------------------------------------
         if 'tgl_data' in df_p.columns:
-            df_p['tgl_dt'] = pd.to_datetime(df_p['tgl_data'], errors='coerce')
+            # Parsing tanggal aman (dayfirst=True untuk format DD/MM/YYYY)
+            df_p['tgl_dt'] = pd.to_datetime(df_p['tgl_data'], dayfirst=True, errors='coerce')
             list_tgl = sorted(df_p['tgl_dt'].dropna().unique())
-            
+
             if len(list_tgl) >= 2:
                 tgl_latest = list_tgl[-1]
                 tgl_prev   = list_tgl[-2]
-                
+
                 df_latest = df_p[df_p['tgl_dt'] == tgl_latest]
                 df_prev   = df_p[df_p['tgl_dt'] == tgl_prev]
-                
-                m_df = pd.merge(
-                    df_latest, df_prev, 
-                    on=['kabupaten_kota', 'kecamatan', 'desa_kelurahan'], 
-                    suffixes=('_latest', '_prev')
-                )
-                
-                m_df['prasertel_latest'] = m_df['prasertel_desa_latest'].apply(parse_bilangan_cacah)
-                m_df['prasertel_prev']   = m_df['prasertel_desa_prev'].apply(parse_bilangan_cacah)
-                m_df['diff']             = m_df['prasertel_latest'] - m_df['prasertel_prev']
-                
-                df_changed = m_df[m_df['diff'] > 0]
-                val_prog_harian = df_changed['diff'].sum()
-                sub_card9 = f"{len(df_changed)} Desa/Kelurahan bertambah"
+
+                # Merge data tanggal terbaru dan H-1 berdasarkan lokasi desa
+                merge_keys = [k for k in ['kabupaten_kota', 'kecamatan', 'desa_kelurahan'] if k in df_p.columns]
+                if merge_keys and 'prasertel_desa' in df_p.columns:
+                    m_df = pd.merge(
+                        df_latest, df_prev,
+                        on=merge_keys,
+                        suffixes=('_latest', '_prev')
+                    )
+
+                    m_df['prasertel_latest'] = m_df['prasertel_desa_latest'].apply(parse_bilangan_cacah)
+                    m_df['prasertel_prev']   = m_df['prasertel_desa_prev'].apply(parse_bilangan_cacah)
+                    m_df['diff']             = m_df['prasertel_latest'] - m_df['prasertel_prev']
+
+                    # Saring desa/kelurahan yang mengalami penambahan prasertel
+                    df_changed = m_df[m_df['diff'] > 0]
+                    val_prog_harian = df_changed['diff'].sum()
+                    sub_card9 = f"{len(df_changed)} Desa/Kelurahan bertambah"
             elif len(list_tgl) == 1:
                 sub_card9 = "Data H-1 belum tersedia"
 
-        # CARD 10: MEMBACA KATA KUNCI "Sulteng" PADA KOLOM provinsi
+        # --------------------------------------
+        # CARD 10: PERINGKAT NASIONAL SULTENG
+        # --------------------------------------
         if 'provinsi' in df_p.columns:
-            sulteng_df = df_p[df_p['provinsi'].astype(str).str.contains('Sulteng|Sulawesi Tengah', case=False, na=False)]
-            
+            sulteng_df = df_p[df_p['provinsi'].astype(str).str.contains('Sulteng|Sulawesi Tengah', case=False, na=False)].copy()
+
             if not sulteng_df.empty:
+                # Jika ada beberapa baris/tanggal, ambil baris dengan tanggal terbaru
+                if 'tgl_dt' in sulteng_df.columns and sulteng_df['tgl_dt'].notna().any():
+                    sulteng_df = sulteng_df.sort_values(by='tgl_dt', ascending=False)
+
+                row_sulteng = sulteng_df.iloc[0]
+
                 # 1. Ambil Nilai Peringkat dari Kolom 'peringkat'
                 if 'peringkat' in sulteng_df.columns:
-                    raw_rank = sulteng_df.iloc[0]['peringkat']
+                    raw_rank = row_sulteng['peringkat']
                     if pd.notna(raw_rank) and str(raw_rank).strip() != '':
                         rank_num_val = str(raw_rank).replace('.0', '').strip()
-                
+
                 # 2. Ambil prasertel_nasional dan btvalid_nasional
-                p_nas = parse_bilangan_cacah(sulteng_df.iloc[0].get('prasertel_nasional', 0))
-                b_nas = parse_bilangan_cacah(sulteng_df.iloc[0].get('btvalid_nasional', 0))
-                
-                # 3. Hitung persentase: prasertel_nasional / btvalid_nasional
+                p_nas = parse_bilangan_cacah(row_sulteng.get('prasertel_nasional', 0))
+                b_nas = parse_bilangan_cacah(row_sulteng.get('btvalid_nasional', 0))
+
+                # 3. Hitung Persentase: prasertel_nasional / btvalid_nasional
                 pct_nas = (p_nas / b_nas * 100.0) if b_nas > 0 else 0.0
-                
-                # Format Keterangan: % dari nilai btvalid_nasional
+
+                # 4. Format Keterangan Bawah
                 sub_card10 = f"{fmt_dec2(pct_nas)}% dari {fmt_idr(b_nas)} BT"
 
     # ==========================================
