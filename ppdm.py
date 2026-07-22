@@ -1055,7 +1055,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None):
     val_prog_harian = 0
     sub_card9 = "Tidak ada perubahan data"
 
-    rank_num_val = "19"
+    rank_num_val = "30"
     sub_card10 = "31,92% dari 1.362.086 BT"
 
     if df_progress is not None and not df_progress.empty:
