@@ -855,45 +855,55 @@ def render_layanan_pertanahan(df_filtered_layanan):
         st.markdown("<br>", unsafe_allow_html=True)
         st.subheader("📋 Rincian Berkas Melebihi Durasi SOP")
 
-        # Menyiapkan kolom pendukung untuk tabel
         df_table = df_overdue.copy()
-        
-        # Penanganan kolom baru (nama, kendala, upaya_penyelesaian)
-        df_table['pemohon'] = df_table['nama'].fillna('-') if 'nama' in df_table.columns else '-'
-        df_table['kendala_val'] = df_table['kendala'].fillna('-') if 'kendala' in df_table.columns else '-'
-        df_table['upaya_val'] = df_table['upaya_penyelesaian'].fillna('-') if 'upaya_penyelesaian' in df_table.columns else '-'
-        df_table['prosedur_val'] = df_table['nama_prosedur'].fillna('-') if 'nama_prosedur' in df_table.columns else '-'
-        df_table['posisi_val'] = df_table['posisi_berkas'].fillna('-') if 'posisi_berkas' in df_table.columns else '-'
 
-        # Menyusun DataFrame Tampilan
+        # 1. URUTKAN DATA DARI TAHUN LAMA KE SEKARANG (ASCENDING)
+        if 'thn_num' in df_table.columns:
+            df_table = df_table.sort_values(by=['thn_num', 'no_clean'], ascending=[True, True])
+
+        # 2. EKSTRAKSI KOLOM KENDALA & UPAYA (Aman dari variasi nama kolom / NaN)
+        def get_col_value(df_source, target_keywords):
+            for col in df_source.columns:
+                for kw in target_keywords:
+                    if kw in col.lower():
+                        return df_source[col].fillna('-').astype(str).replace(r'^\s*$', '-', regex=True)
+            return pd.Series(['-'] * len(df_source))
+
+        df_table['pemohon_clean'] = get_col_value(df_table, ['nama', 'pemohon'])
+        df_table['kendala_clean'] = get_col_value(df_table, ['kendala', 'hambatan'])
+        df_table['upaya_clean'] = get_col_value(df_table, ['upaya', 'solusi', 'penyelesaian'])
+        df_table['prosedur_clean'] = df_table['nama_prosedur'].fillna('-').astype(str) if 'nama_prosedur' in df_table.columns else '-'
+        df_table['posisi_clean'] = df_table['posisi_berkas'].fillna('-').astype(str) if 'posisi_berkas' in df_table.columns else '-'
+
+        # 3. BENTUK DATAFRAME TAMPILAN
         df_display = pd.DataFrame({
             "Satker": df_table['kab_clean'],
             "Nomor Berkas": df_table['berkas_thn'],
-            "Pemohon": df_table['pemohon'],
-            "Prosedur": df_table['prosedur_val'],
-            "Posisi Berkas Digital": df_table['posisi_val'],
-            "Kendala/Hambatan": df_table['kendala_val'],
-            "Upaya Penyelesaian": df_table['upaya_val']
+            "Pemohon": df_table['pemohon_clean'],
+            "Prosedur": df_table['prosedur_clean'],
+            "Posisi Berkas Digital": df_table['posisi_clean'],
+            "Kendala/Hambatan": df_table['kendala_clean'],
+            "Upaya Penyelesaian": df_table['upaya_clean']
         }).reset_index(drop=True)
 
         # Penomoran otomatis mulai dari 1
         df_display.index = df_display.index + 1
         df_display.index.name = "No"
 
-        # Tampilkan menggunakan st.dataframe yang modern, berskala lebar, dan bisa disortir/dicari
+        # 4. RENDER DATAFRAME DENGAN LEBAR KOLOM TERATUR
         st.dataframe(
             df_display,
             use_container_width=True,
             column_config={
-                "Satker": st.column_config.TextColumn("Satker", width="medium"),
-                "Nomor Berkas": st.column_config.TextColumn("Nomor Berkas", width="small"),
-                "Pemohon": st.column_config.TextColumn("Pemohon", width="medium"),
-                "Prosedur": st.column_config.TextColumn("Prosedur", width="large"),
-                "Posisi Berkas Digital": st.column_config.TextColumn("Posisi Berkas Digital", width="medium"),
-                "Kendala/Hambatan": st.column_config.TextColumn("Kendala/Hambatan", width="large"),
-                "Upaya Penyelesaian": st.column_config.TextColumn("Upaya Penyelesaian", width="large")
+                "Satker": st.column_config.TextColumn("Satker", width=110),
+                "Nomor Berkas": st.column_config.TextColumn("Nomor Berkas", width=120),
+                "Pemohon": st.column_config.TextColumn("Pemohon", width=140),
+                "Prosedur": st.column_config.TextColumn("Prosedur", width=220),
+                "Posisi Berkas Digital": st.column_config.TextColumn("Posisi Berkas Digital", width=150),
+                "Kendala/Hambatan": st.column_config.TextColumn("Kendala/Hambatan", width=300),
+                "Upaya Penyelesaian": st.column_config.TextColumn("Upaya Penyelesaian", width=300)
             },
-            height=380
+            height=400
         )
 
     else:
