@@ -857,23 +857,29 @@ def render_layanan_pertanahan(df_filtered_layanan):
 
         df_table = df_overdue.copy()
 
-        # 1. URUTKAN DATA DARI TAHUN LAMA KE SEKARANG (ASCENDING)
+        # 1. URUTKAN DATA DARI TAHUN LAMA KE SEKARANG
         if 'thn_num' in df_table.columns:
             df_table = df_table.sort_values(by=['thn_num', 'no_clean'], ascending=[True, True])
 
-        # 2. EKSTRAKSI KOLOM KENDALA & UPAYA (Aman dari variasi nama kolom / NaN)
-        def get_col_value(df_source, target_keywords):
-            for col in df_source.columns:
-                for kw in target_keywords:
-                    if kw in col.lower():
-                        return df_source[col].fillna('-').astype(str).replace(r'^\s*$', '-', regex=True)
-            return pd.Series(['-'] * len(df_source))
+        # 2. FUNGSI PEMBERSIH KHUSUS ERRROR #N/A & KOSONG
+        def clean_text_field(df_source, col_name):
+            if col_name not in df_source.columns:
+                return pd.Series(['-'] * len(df_source))
+            
+            # Ubah ke string, hapus spasi di awal/akhir
+            s = df_source[col_name].astype(str).str.strip()
+            
+            # Ganti nilai-nilai tidak valid (#N/A, nan, None, string kosong) menjadi '-'
+            invalid_values = ['#n/a', 'nan', 'none', '', '#N/A', 'NaN', 'NONE', '#REF!', '#VALUE!']
+            s = s.apply(lambda x: '-' if x.lower() in [inv.lower() for inv in invalid_values] or not x else x)
+            return s
 
-        df_table['pemohon_clean'] = get_col_value(df_table, ['nama', 'pemohon'])
-        df_table['kendala_clean'] = get_col_value(df_table, ['kendala', 'hambatan'])
-        df_table['upaya_clean'] = get_col_value(df_table, ['upaya', 'solusi', 'penyelesaian'])
-        df_table['prosedur_clean'] = df_table['nama_prosedur'].fillna('-').astype(str) if 'nama_prosedur' in df_table.columns else '-'
-        df_table['posisi_clean'] = df_table['posisi_berkas'].fillna('-').astype(str) if 'posisi_berkas' in df_table.columns else '-'
+        # Extraksi kolom dengan pembersihan ketat
+        df_table['pemohon_clean'] = clean_text_field(df_table, 'nama')
+        df_table['kendala_clean'] = clean_text_field(df_table, 'kendala')
+        df_table['upaya_clean'] = clean_text_field(df_table, 'upaya_penyelesaian')
+        df_table['prosedur_clean'] = clean_text_field(df_table, 'nama_prosedur')
+        df_table['posisi_clean'] = clean_text_field(df_table, 'posisi_berkas')
 
         # 3. BENTUK DATAFRAME TAMPILAN
         df_display = pd.DataFrame({
@@ -890,20 +896,20 @@ def render_layanan_pertanahan(df_filtered_layanan):
         df_display.index = df_display.index + 1
         df_display.index.name = "No"
 
-        # 4. RENDER DATAFRAME DENGAN LEBAR KOLOM TERATUR
+        # 4. RENDER DATAFRAME DENGAN KONFIGURASI LEBAR TERATUR
         st.dataframe(
             df_display,
             use_container_width=True,
             column_config={
                 "Satker": st.column_config.TextColumn("Satker", width=110),
-                "Nomor Berkas": st.column_config.TextColumn("Nomor Berkas", width=120),
-                "Pemohon": st.column_config.TextColumn("Pemohon", width=140),
-                "Prosedur": st.column_config.TextColumn("Prosedur", width=220),
-                "Posisi Berkas Digital": st.column_config.TextColumn("Posisi Berkas Digital", width=150),
-                "Kendala/Hambatan": st.column_config.TextColumn("Kendala/Hambatan", width=300),
-                "Upaya Penyelesaian": st.column_config.TextColumn("Upaya Penyelesaian", width=300)
+                "Nomor Berkas": st.column_config.TextColumn("Nomor Berkas", width=110),
+                "Pemohon": st.column_config.TextColumn("Pemohon", width=150),
+                "Prosedur": st.column_config.TextColumn("Prosedur", width=200),
+                "Posisi Berkas Digital": st.column_config.TextColumn("Posisi Berkas Digital", width=140),
+                "Kendala/Hambatan": st.column_config.TextColumn("Kendala/Hambatan", width=350),
+                "Upaya Penyelesaian": st.column_config.TextColumn("Upaya Penyelesaian", width=350)
             },
-            height=400
+            height=420
         )
 
     else:
