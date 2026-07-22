@@ -550,6 +550,12 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
+import datetime
+import re
+import pandas as pd
+import plotly.express as px
+import streamlit as st
+
 def render_layanan_pertanahan(df_filtered_layanan):
     st.markdown("### 🚨 Berkas Melebihi Durasi SOP")
     st.markdown("<small style='color:gray;'>💡 Tips: Arahkan kursor ke kotak merah strobo untuk melihat detail nama prosedur dan nomor berkas.</small>", unsafe_allow_html=True)
@@ -634,10 +640,10 @@ def render_layanan_pertanahan(df_filtered_layanan):
     # Filter berkas terlambat
     df_overdue = df[(today > df['tgl_batas_sop']) & (df['tgl_mulai_dt'].notna())].copy()
 
-    # Format nomor/tahun bersih & buat kolom thn_num (PENCEGAHAN KEYERROR)
+    # Format nomor/tahun bersih & kolom numerik tahun
     df_overdue['no_clean'] = df_overdue['nmr_berkas'].apply(fmt_no_thn)
     df_overdue['thn_clean'] = df_overdue['thn_berkas'].apply(fmt_no_thn)
-    df_overdue['thn_num'] = df_overdue['thn_clean'].apply(clean_durasi) # Kolom thn_num dibuat disini
+    df_overdue['thn_num'] = df_overdue['thn_clean'].apply(clean_durasi)
     df_overdue['berkas_thn'] = df_overdue['no_clean'] + "/" + df_overdue['thn_clean']
 
     POSISI_TARGET = ["Kakan", "Kasi SP", "Kasi PHP", "Loket"]
@@ -791,27 +797,27 @@ def render_layanan_pertanahan(df_filtered_layanan):
         )
         
         fig_pos.update_layout(
-            height=450,
+            height=340,
             xaxis_title="",
             yaxis_title="",
             legend_title_text="",
             paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(0,0,0,0)',
-            margin=dict(l=10, r=10, t=110, b=10),
+            margin=dict(l=10, r=10, t=80, b=10),
             
             title=dict(
-                text="Rekapitulasi Berkas Melebihi Durasi SOP",
+                text="Rekapitulasi Berkas Melebihi SOP per Posisi Berkas",
                 font=dict(size=13, color="#2c3e50"),
                 x=0.0,
-                y=0.90,
+                y=0.98,
                 xanchor='left',
                 yanchor='top'
             ),
             
             legend=dict(
                 orientation="h", 
-                yanchor="bottom", 
-                y=0.95, 
+                yanchor="top", 
+                y=0.88, 
                 xanchor="left", 
                 x=0.0,
                 font=dict(size=8.5)
@@ -832,16 +838,63 @@ def render_layanan_pertanahan(df_filtered_layanan):
         col_c1, col_c2, col_c3, col_c4 = st.columns(4)
 
         with col_c1:
-            render_green_card("Total Berkas (2017 - 2026)", f"{fmt_idr(b_17_26)} Berkas",)
+            render_green_card("Total Berkas (2017 - 2026)", f"{fmt_idr(b_17_26)} Berkas", "Akumulasi Berkas Melebihi SOP")
 
         with col_c2:
-            render_green_card("Tahun 2017 - 2024", f"{fmt_idr(b_17_24)} Berkas",)
+            render_green_card("Tahun 2017 - 2024", f"{fmt_idr(b_17_24)} Berkas", "Berkas Tunggakan Lama")
 
         with col_c3:
-            render_green_card("Tahun 2025", f"{fmt_idr(b_25)} Berkas",)
+            render_green_card("Tahun 2025", f"{fmt_idr(b_25)} Berkas", "Berkas Tunggakan 2025")
 
         with col_c4:
-            render_green_card("Tahun 2026", f"{fmt_idr(b_26)} Berkas",)
+            render_green_card("Tahun 2026", f"{fmt_idr(b_26)} Berkas", "Berkas Berjalan 2026")
+
+        # ==========================================
+        # 8. TABEL MODERN DETAIL BERKAS MELEBIHI SOP
+        # ==========================================
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.subheader("📋 Rincian Berkas Melebihi Durasi SOP")
+
+        # Menyiapkan kolom pendukung untuk tabel
+        df_table = df_overdue.copy()
+        
+        # Penanganan kolom baru (nama, kendala, upaya_penyelesaian)
+        df_table['pemohon'] = df_table['nama'].fillna('-') if 'nama' in df_table.columns else '-'
+        df_table['kendala_val'] = df_table['kendala'].fillna('-') if 'kendala' in df_table.columns else '-'
+        df_table['upaya_val'] = df_table['upaya_penyelesaian'].fillna('-') if 'upaya_penyelesaian' in df_table.columns else '-'
+        df_table['prosedur_val'] = df_table['nama_prosedur'].fillna('-') if 'nama_prosedur' in df_table.columns else '-'
+        df_table['posisi_val'] = df_table['posisi_berkas'].fillna('-') if 'posisi_berkas' in df_table.columns else '-'
+
+        # Menyusun DataFrame Tampilan
+        df_display = pd.DataFrame({
+            "Satker": df_table['kab_clean'],
+            "Nomor Berkas": df_table['berkas_thn'],
+            "Pemohon": df_table['pemohon'],
+            "Prosedur": df_table['prosedur_val'],
+            "Posisi Berkas Digital": df_table['posisi_val'],
+            "Kendala/Hambatan": df_table['kendala_val'],
+            "Upaya Penyelesaian": df_table['upaya_val']
+        }).reset_index(drop=True)
+
+        # Penomoran otomatis mulai dari 1
+        df_display.index = df_display.index + 1
+        df_display.index.name = "No"
+
+        # Tampilkan menggunakan st.dataframe yang modern, berskala lebar, dan bisa disortir/dicari
+        st.dataframe(
+            df_display,
+            use_container_width=True,
+            column_config={
+                "Satker": st.column_config.TextColumn("Satker", width="medium"),
+                "Nomor Berkas": st.column_config.TextColumn("Nomor Berkas", width="small"),
+                "Pemohon": st.column_config.TextColumn("Pemohon", width="medium"),
+                "Prosedur": st.column_config.TextColumn("Prosedur", width="large"),
+                "Posisi Berkas Digital": st.column_config.TextColumn("Posisi Berkas Digital", width="medium"),
+                "Kendala/Hambatan": st.column_config.TextColumn("Kendala/Hambatan", width="large"),
+                "Upaya Penyelesaian": st.column_config.TextColumn("Upaya Penyelesaian", width="large")
+            },
+            height=380
+        )
 
     else:
         st.success("🎉 Seluruh berkas layanan pertanahan tepat waktu (SOP Tuntas).")
