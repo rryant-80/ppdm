@@ -30,6 +30,8 @@ df_layanan = load_data("1447858691")
 df_elektronik = load_data("1848496896")
 df_sdm = load_data("1168898330")
 df_psn = load_data("193371600")
+df_progress_raw  = load_data("386436131")  # Data Progress Harian (Card 9)
+df_peringkat_raw = load_data("880542789")
 
 # -----------------------------------------------------------------------------
 # 2. MODUL HALAMAN UTAMA (Dipisah per fungsi agar mudah diubah)
@@ -948,11 +950,6 @@ def render_layanan_pertanahan(df_filtered_layanan):
 
     else:
         st.success("🎉 Seluruh berkas layanan pertanahan tepat waktu (SOP Tuntas).")
-
-import datetime
-import pandas as pd
-import plotly.express as px
-import streamlit as st
 
 def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=None, selected_kab=None, selected_kec=None):
     st.title("💻 Data Elektronik")
