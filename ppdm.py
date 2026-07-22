@@ -1674,52 +1674,52 @@ with st.sidebar:
         st.plotly_chart(fig_layanan, use_container_width=True)
 
     # ==========================================
-# 4. GRAFIK: Persentase Prasertel (Terurut)
-# ==========================================
-if not df_elek_singkat.empty and 'pra_sertel' in df_elek_singkat.columns and 'bt_valid' in df_elek_singkat.columns:
-    # 1. PERBAIKAN UTAMA: Konversi ke numerik DULU sebelum di-groupby/sum
-    df_elek_singkat['pra_sertel_num'] = pd.to_numeric(df_elek_singkat['pra_sertel'], errors='coerce').fillna(0)
-    df_elek_singkat['bt_valid_num']   = pd.to_numeric(df_elek_singkat['bt_valid'], errors='coerce').fillna(0)
-
-    # 2. Groupby data yang sudah bersih/murni angka
-    df_elek_rekap = df_elek_singkat.groupby('kab_singkat')[['pra_sertel_num', 'bt_valid_num']].sum().reset_index()        
+    # 4. GRAFIK: Persentase Prasertel (Terurut)
+    # ==========================================
+    if not df_elek_singkat.empty and 'pra_sertel' in df_elek_singkat.columns and 'bt_valid' in df_elek_singkat.columns:
+        # 1. PERBAIKAN UTAMA: Konversi ke numerik DULU sebelum di-groupby/sum
+        df_elek_singkat['pra_sertel_num'] = pd.to_numeric(df_elek_singkat['pra_sertel'], errors='coerce').fillna(0)
+        df_elek_singkat['bt_valid_num']   = pd.to_numeric(df_elek_singkat['bt_valid'], errors='coerce').fillna(0)
     
-    # 3. Kalkulasi Persentase Aman (Hanya hitung jika bt_valid > 0, sisanya 0)
-    df_elek_rekap['Persentase'] = np.where(
-        df_elek_rekap['bt_valid_num'] > 0,
-        (df_elek_rekap['pra_sertel_num'] / df_elek_rekap['bt_valid_num']) * 100,
-        0
-    )
-    
-    # Sort berdasarkan persentase tertinggi
-    df_elek_rekap = df_elek_rekap.sort_values(by='Persentase', ascending=False)
-    
-    # 4. Render Bar Chart Plotly
-    fig_elek = px.bar(
-        df_elek_rekap, x='kab_singkat', y='Persentase',
-        title="Persentase Prasertel",
-        custom_data=df_elek_rekap[['pra_sertel_num', 'bt_valid_num']]
-    )
-    fig_elek.update_traces(
-        hovertemplate="<b>Kab/Kota: %{x}</b><br>Persentase: %{y:.2f}%<br>Jumlah Prasertel: %{customdata[0]:,.0f}<br>Jumlah BT Valid: %{customdata[1]:,.0f}<extra></extra>",
-        marker_color='#00CC96'
-    )
-    fig_elek.update_layout(
-        showlegend=False, 
-        height=250,
-        xaxis_title="", 
-        yaxis_title="",
-        # Mengunci urutan sumbu X sesuai data yang sudah di-sort oleh Pandas
-        xaxis={'categoryorder': 'array', 'categoryarray': df_elek_rekap['kab_singkat']},
-        paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)',
-        margin=dict(l=10, r=10, t=35, b=10)
-    )
-    
-    # Tambahkan pembatas format % pada sumbu Y agar rapi
-    fig_elek.update_yaxes(ticksuffix="%")
-    
-    st.plotly_chart(fig_elek, use_container_width=True)
+        # 2. Groupby data yang sudah bersih/murni angka
+        df_elek_rekap = df_elek_singkat.groupby('kab_singkat')[['pra_sertel_num', 'bt_valid_num']].sum().reset_index()        
+        
+        # 3. Kalkulasi Persentase Aman (Hanya hitung jika bt_valid > 0, sisanya 0)
+        df_elek_rekap['Persentase'] = np.where(
+            df_elek_rekap['bt_valid_num'] > 0,
+            (df_elek_rekap['pra_sertel_num'] / df_elek_rekap['bt_valid_num']) * 100,
+            0
+        )
+        
+        # Sort berdasarkan persentase tertinggi
+        df_elek_rekap = df_elek_rekap.sort_values(by='Persentase', ascending=False)
+        
+        # 4. Render Bar Chart Plotly
+        fig_elek = px.bar(
+            df_elek_rekap, x='kab_singkat', y='Persentase',
+            title="Persentase Prasertel",
+            custom_data=df_elek_rekap[['pra_sertel_num', 'bt_valid_num']]
+        )
+        fig_elek.update_traces(
+            hovertemplate="<b>Kab/Kota: %{x}</b><br>Persentase: %{y:.2f}%<br>Jumlah Prasertel: %{customdata[0]:,.0f}<br>Jumlah BT Valid: %{customdata[1]:,.0f}<extra></extra>",
+            marker_color='#00CC96'
+        )
+        fig_elek.update_layout(
+            showlegend=False, 
+            height=250,
+            xaxis_title="", 
+            yaxis_title="",
+            # Mengunci urutan sumbu X sesuai data yang sudah di-sort oleh Pandas
+            xaxis={'categoryorder': 'array', 'categoryarray': df_elek_rekap['kab_singkat']},
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            margin=dict(l=10, r=10, t=35, b=10)
+        )
+        
+        # Tambahkan pembatas format % pada sumbu Y agar rapi
+        fig_elek.update_yaxes(ticksuffix="%")
+        
+        st.plotly_chart(fig_elek, use_container_width=True)
 
 # -----------------------------------------------------------------------------
 # 4. PROSES FILTERING DATA
