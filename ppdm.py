@@ -949,11 +949,6 @@ def render_layanan_pertanahan(df_filtered_layanan):
     else:
         st.success("🎉 Seluruh berkas layanan pertanahan tepat waktu (SOP Tuntas).")
 
-import datetime
-import pandas as pd
-import plotly.express as px
-import streamlit as st
-
 def render_pertanahan_elektronik(df_elektronik, df_progress=None):
     st.title("💻 Data Elektronik")
     st.markdown("---")
@@ -1179,7 +1174,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None):
         render_orange_card(
             "Luas APL", 
             f"{fmt_dec1(pct_apl)}%", 
-            f"{fmt_dec1(tot_apl_ha)} Ha dari ({fmt_dec1(tot_adm_ha)} Ha)"
+            f"{fmt_dec1(tot_apl_ha)} Ha dari {fmt_dec1(tot_adm_ha)} Ha"
         )
 
     with r1_c2:
