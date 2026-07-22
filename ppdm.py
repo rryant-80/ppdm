@@ -1524,30 +1524,38 @@ with st.sidebar:
         )
         st.plotly_chart(fig_layanan, use_container_width=True)
 
-
     # ==========================================
     # 4. GRAFIK: Persentase Prasertel (Terurut)
     # ==========================================
     if not df_elek_singkat.empty and 'pra_sertel' in df_elek_singkat.columns and 'bt_valid' in df_elek_singkat.columns:
         df_elek_rekap = df_elek_singkat.groupby('kab_singkat')[['pra_sertel', 'bt_valid']].sum().reset_index()        
+        
+        # 1. Konversi Tipe Data Numerik dengan Aman
         s_pra_sertel = pd.to_numeric(df_elek_rekap['pra_sertel'], errors='coerce').fillna(0)
-        s_bt_valid   = pd.to_numeric(df_elektronik_rekap['bt_valid'] if 'bt_valid' in df_elek_rekap.columns else df_elek_rekap['bt_valid'], errors='coerce').fillna(0)
+        s_bt_valid   = pd.to_numeric(df_elek_rekap['bt_valid'], errors='coerce').fillna(0)
+        
+        # 2. Kalkulasi Persentase (Mencegah Pembagian dengan Nol)
         df_elek_rekap['Persentase'] = (s_pra_sertel / s_bt_valid.replace(0, 1)) * 100
         df_elek_rekap = df_elek_rekap.sort_values(by='Persentase', ascending=False)
         
+        # 3. Render Bar Chart Plotly
         fig_elek = px.bar(
             df_elek_rekap, x='kab_singkat', y='Persentase',
             title="Persentase Prasertel",
             custom_data=df_elek_rekap[['pra_sertel', 'bt_valid']]
         )
         fig_elek.update_traces(
-            hovertemplate="<b>Kab/Kota: %{x}</b><br>Persentase: %{y:.2f}%<br>Jumlah Prasertel: %{customdata[0]}<br>Jumlah BT Valid: %{customdata[1]}<extra></extra>",
+            hovertemplate="<b>Kab/Kota: %{x}</b><br>Persentase: %{y:.2f}%<br>Jumlah Prasertel: %{customdata[0]:,.0f}<br>Jumlah BT Valid: %{customdata[1]:,.0f}<extra></extra>",
             marker_color='#00CC96'
         )
         fig_elek.update_layout(
-            showlegend=False, height=250,
-            xaxis_title="", yaxis_title="",
-            xaxis={'categoryorder':'total descending'},
+            showlegend=False, 
+            height=250,
+            xaxis_title="", 
+            yaxis_title="",
+            xaxis={'categoryorder': 'total descending'},
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
             margin=dict(l=10, r=10, t=35, b=10)
         )
         st.plotly_chart(fig_elek, use_container_width=True)
