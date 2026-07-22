@@ -955,11 +955,11 @@ import plotly.express as px
 import streamlit as st
 
 def render_pertanahan_elektronik(df_elektronik, df_progress=None):
-    st.title("💻 Pertanahan Elektronik")
+    st.title("💻 Data Elektronik")
     st.markdown("---")
 
     if df_elektronik.empty:
-        st.warning("Data Pertanahan Elektronik (GID 1848496896) tidak ditemukan atau kosong.")
+        st.warning("Data Elektronik (GID 1848496896) tidak ditemukan atau kosong.")
         return
 
     df = df_elektronik.copy()
@@ -1179,7 +1179,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None):
         render_orange_card(
             "Luas APL", 
             f"{fmt_dec1(pct_apl)}%", 
-            f"Luas: {fmt_dec1(tot_apl_ha)} Ha dari Adm ({fmt_dec1(tot_adm_ha)} Ha)"
+            f"{fmt_dec1(tot_apl_ha)} Ha dari ({fmt_dec1(tot_adm_ha)} Ha)"
         )
 
     with r1_c2:
@@ -1188,7 +1188,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None):
         render_orange_card(
             "Luas Persil", 
             f"{fmt_dec1(pct_persil)}%", 
-            f"Luas: {fmt_dec1(tot_persil_ha)} Ha | {fmt_idr(tot_jml_persil)} Persil"
+            f"{fmt_dec1(tot_persil_ha)} Ha | {fmt_idr(tot_jml_persil)} Persil"
         )
 
     with r1_c3:
@@ -1197,7 +1197,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None):
         render_orange_card(
             "Luas Persil Valid", 
             f"{fmt_dec1(pct_persil_valid)}%", 
-            f"Luas: {fmt_dec1(tot_persil_valid_ha)} Ha dari Persil"
+            f"{fmt_dec1(tot_persil_valid_ha)} Ha"
         )
 
     with r1_c4:
@@ -1378,7 +1378,7 @@ with st.sidebar:
             "🏛️ Profil & Anggaran",
             "🎯 PSN 2026",
             "💼 Layanan Pertanahan",
-            "⚡ Pertanahan Elektronik"
+            "⚡ Data Elektronik"
         ]
     )
     
@@ -1574,5 +1574,5 @@ elif menu_pilihan == "🎯 PSN 2026":
     render_psn_2026(df_f_psn)
 elif menu_pilihan == "💼 Layanan Pertanahan":
     render_layanan_pertanahan(df_f_layanan)
-elif menu_pilihan == "⚡ Pertanahan Elektronik":
+elif menu_pilihan == "⚡ Data Elektronik":
     render_pertanahan_elektronik(df_f_elektronik)
