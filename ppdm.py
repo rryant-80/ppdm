@@ -3,6 +3,7 @@ import re
 import pandas as pd
 import plotly.express as px
 import streamlit as st
+import numpy as np
 
 # Konfigurasi Halaman
 st.set_page_config(
@@ -1636,7 +1637,6 @@ with st.sidebar:
             margin=dict(l=10, r=10, t=35, b=10)
         )
         st.plotly_chart(fig_anggaran, use_container_width=True)
-
 
     # ==========================================
     # 3. GRAFIK: Berkas Lewat SOP (Terurut)
