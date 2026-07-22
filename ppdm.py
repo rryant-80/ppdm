@@ -850,24 +850,20 @@ def render_layanan_pertanahan(df_filtered_layanan):
             render_green_card("Tahun 2026", f"{fmt_idr(b_26)} Berkas", "Berkas Berjalan 2026")
 
         # ==========================================
-        # 8. TABEL MODERN DETAIL BERKAS MELEBIHI SOP (WRAP TEXT VIA DATA EDITOR)
+        # 8. TABEL HTML MODERN DENGAN WRAP TEXT FULL
         # ==========================================
         st.markdown("<br>", unsafe_allow_html=True)
         st.subheader("📋 Rincian Berkas Melebihi Durasi SOP")
 
         df_table = df_overdue.copy()
 
-        # 1. URUTKAN DATA: KABUPATEN/KOTA DAHULU, KEMUDIAN TAHUN
         if 'kab_clean' in df_table.columns and 'thn_num' in df_table.columns:
             df_table = df_table.sort_values(by=['kab_clean', 'thn_num', 'no_clean'], ascending=[True, True, True])
 
-        # 2. FUNGSI PEMBERSIH TEKS
         def clean_formula_text(df_source, col_name):
             if col_name not in df_source.columns:
                 return pd.Series(['-'] * len(df_source))
-            
             invalid_patterns = {'#n/a', 'nan', 'none', '', '#ref!', '#value!', '#name?', '#null!'}
-
             def transform_val(val):
                 if pd.isna(val) or val is None:
                     return '-'
@@ -875,46 +871,93 @@ def render_layanan_pertanahan(df_filtered_layanan):
                 if not s_str or s_str.lower() in invalid_patterns:
                     return '-'
                 return s_str
-
             return df_source[col_name].apply(transform_val)
 
-        # Ekstraksi kolom
         df_table['pemohon_clean'] = clean_formula_text(df_table, 'nama')
         df_table['kendala_clean'] = clean_formula_text(df_table, 'kendala')
         df_table['upaya_clean'] = clean_formula_text(df_table, 'upaya_penyelesaian')
         df_table['prosedur_clean'] = clean_formula_text(df_table, 'nama_prosedur')
         df_table['posisi_clean'] = clean_formula_text(df_table, 'posisi_berkas')
 
-        # 3. BENTUK DATAFRAME TAMPILAN
-        df_display = pd.DataFrame({
-            "Satker": df_table['kab_clean'],
-            "Nomor Berkas": df_table['berkas_thn'],
-            "Pemohon": df_table['pemohon_clean'],
-            "Prosedur": df_table['prosedur_clean'],
-            "Posisi Berkas Digital": df_table['posisi_clean'],
-            "Kendala/Hambatan": df_table['kendala_clean'],
-            "Upaya Penyelesaian": df_table['upaya_clean']
-        }).reset_index(drop=True)
+        # CSS UNTUK WRAP TEXT & TABEL MODERN
+        table_css = """
+        <style>
+        .custom-table-container {
+            max-height: 480px;
+            overflow-y: auto;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+        .custom-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: sans-serif;
+            font-size: 0.82rem;
+        }
+        .custom-table th {
+            position: sticky;
+            top: 0;
+            background-color: #f1f3f5;
+            color: #333;
+            font-weight: bold;
+            padding: 8px 10px;
+            text-align: left;
+            border-bottom: 2px solid #dee2e6;
+            z-index: 10;
+        }
+        .custom-table td {
+            padding: 8px 10px;
+            border-bottom: 1px solid #e9ecef;
+            vertical-align: top;
+            white-space: normal !important; /* MENGAKTIFKAN WRAP TEXT */
+            word-wrap: break-word !important;
+        }
+        .custom-table tr:hover {
+            background-color: #f8f9fa;
+        }
+        </style>
+        """
+        
+        # BENTUK BARIS TABEL
+        rows_html = ""
+        for idx, (_, row) in enumerate(df_table.iterrows(), start=1):
+            rows_html += f"""
+            <tr>
+                <td style="text-align: center; font-weight: bold; width: 40px;">{idx}</td>
+                <td style="width: 110px;"><b>{row['kab_clean']}</b></td>
+                <td style="width: 110px;">{row['berkas_thn']}</td>
+                <td style="width: 140px;">{row['pemohon_clean']}</td>
+                <td style="width: 180px;">{row['prosedur_clean']}</td>
+                <td style="width: 120px;">{row['posisi_clean']}</td>
+                <td style="width: 280px; color: #c0392b;">{row['kendala_clean']}</td>
+                <td style="width: 280px; color: #27ae60;">{row['upaya_clean']}</td>
+            </tr>
+            """
 
-        df_display.index = df_display.index + 1
-        df_display.index.name = "No"
-
-        # 4. RENDER DENGAN ST.DATA_EDITOR (MENDUKUNG WRAP TEKS SECARA OTOMATIS)
-        st.data_editor(
-            df_display,
-            disabled=True, # Dibuat read-only (hanya untuk tampilan)
-            use_container_width=True,
-            column_config={
-                "Satker": st.column_config.TextColumn("Satker", width="small"),
-                "Nomor Berkas": st.column_config.TextColumn("Nomor Berkas", width="small"),
-                "Pemohon": st.column_config.TextColumn("Pemohon", width="medium"),
-                "Prosedur": st.column_config.TextColumn("Prosedur", width="medium"),
-                "Posisi Berkas Digital": st.column_config.TextColumn("Posisi Berkas Digital", width="small"),
-                "Kendala/Hambatan": st.column_config.TextColumn("Kendala/Hambatan", width="large"),
-                "Upaya Penyelesaian": st.column_config.TextColumn("Upaya Penyelesaian", width="large")
-            },
-            height=450
-        )
+        full_table_html = f"""
+        {table_css}
+        <div class="custom-table-container">
+            <table class="custom-table">
+                <thead>
+                    <tr>
+                        <th style="text-align: center;">No</th>
+                        <th>Satker</th>
+                        <th>Nomor Berkas</th>
+                        <th>Pemohon</th>
+                        <th>Prosedur</th>
+                        <th>Posisi Digital</th>
+                        <th>Kendala / Hambatan</th>
+                        <th>Upaya Penyelesaian</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {rows_html}
+                </tbody>
+            </table>
+        </div>
+        """
+        st.markdown(full_table_html, unsafe_allow_html=True)
 
     else:
         st.success("🎉 Seluruh berkas layanan pertanahan tepat waktu (SOP Tuntas).")
