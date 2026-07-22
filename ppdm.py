@@ -962,32 +962,51 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None):
         st.warning("Data Pertanahan Elektronik (GID 1848496896) tidak ditemukan atau kosong.")
         return
 
+    df = df_elektronik.copy()
+
     # ==========================================
-    # 1. FUNGSI PEMBANTU KETAT INTEGER & DESIMAL
+    # 1. FUNGSI PEMBANTU PEMBERSIH ANGKA PRESISI
     # ==========================================
-    def clean_num(val):
+    def clean_num_precise(val):
         """
-        Membaca format Indonesia murni.
-        Pemisah ribuan murni adalah titik.
+        Mengonversi nilai dari Google Sheets secara akurat tanpa merusak tipe angka.
         """
         if pd.isna(val) or val is None:
             return 0.0
+        
+        # Jika nilai sudah berupa angka (int/float) dari Pandas
+        if isinstance(val, (int, float)):
+            return float(val)
+        
         s_val = str(val).strip()
         invalid_patterns = {'#n/a', 'nan', 'none', '', '#ref!', '#value!', '#name?', '#null!'}
         if s_val.lower() in invalid_patterns:
             return 0.0
-        
+
+        # Bersihkan karakter non-standar
         s_val = s_val.replace('Rp', '').replace('%', '').strip()
-        s_val = s_val.replace('.', '') # Hapus pemisah ribuan
-        s_val = s_val.replace(',', '.') # Ubah koma ke titik jika ada
-        
+
+        # Deteksi format Indonesia: 1.689 atau 100.407
+        # Jika ada titik dan TANPA koma (Format Ribuan Indonesia)
+        if '.' in s_val and ',' not in s_val:
+            parts = s_val.split('.')
+            # Jika bagian setelah titik terdiri dari 3 digit, itu adalah pemisah ribuan
+            if all(len(p) == 3 for p in parts[1:]):
+                s_val = s_val.replace('.', '')
+            else:
+                # Jika bukan (misal 12.5), biarkan sebagai desimal
+                pass
+        elif ',' in s_val:
+            # Format Indonesia dengan koma desimal: 1.689,50 -> 1689.50
+            s_val = s_val.replace('.', '').replace(',', '.')
+
         try:
             return float(s_val)
         except ValueError:
             return 0.0
 
     def fmt_idr(val):
-        """Format integer bulat dengan titik ribuan murni (tanpa desimal)"""
+        """Format bulat integer tanpa desimal"""
         return f"{int(round(val)):,}".replace(',', '.')
 
     def fmt_dec1(val):
@@ -996,32 +1015,38 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None):
         return f"{parts[0].replace(',', '.')},{parts[1]}"
 
     # Salin & bersihkan seluruh kolom numerik GID 1848496896
-    df = df_elektronik.copy()
     num_cols = [
         'luas_adm', 'luas_apl', 'luas_persil', 'jumlah_persil', 'luas_persil_valid',
         'jumlah_kw456', 'luas_kw456', 'jumlah_bt', 'bt_valid', 'jumlah_su',
         'pra_suel', 'pra_btel', 'pra_sertel'
     ]
+    
     for col in num_cols:
         if col in df.columns:
-            df[col] = df[col].apply(clean_num)
+            df[col] = df[col].apply(clean_num_precise)
         else:
             df[col] = 0.0
 
-    # Total Akumulasi Murni (Integer / Float Murni dari Sheet)
-    tot_adm_m2          = df['luas_adm'].sum()
-    tot_apl_m2          = df['luas_apl'].sum()
-    tot_persil_m2       = df['luas_persil'].sum()
-    tot_jml_persil      = df['jumlah_persil'].sum()
-    tot_persil_valid_m2 = df['luas_persil_valid'].sum()
-    tot_kw456           = df['jumlah_kw456'].sum()
-    tot_luas_kw456_m2   = df['luas_kw456'].sum()
-    tot_bt              = df['jumlah_bt'].sum()
-    tot_bt_valid        = df['bt_valid'].sum()
-    tot_su              = df['jumlah_su'].sum()
-    tot_pra_suel        = df['pra_suel'].sum()
-    tot_pra_btel        = df['pra_btel'].sum()
-    tot_pra_sertel      = df['pra_sertel'].sum()
+    # Pastikan tidak ada baris Total / Rekapitulasi yang ikut terhitung ganda
+    if 'kabupaten_kota' in df.columns:
+        df_clean = df[~df['kabupaten_kota'].astype(str).str.contains('Total|Jumlah|Sulawesi Tengah', case=False, na=False)].copy()
+    else:
+        df_clean = df.copy()
+
+    # Total Akumulasi Murni (Integer / Float Murni dari Setiap Baris Kabupaten/Kota)
+    tot_adm_m2          = df_clean['luas_adm'].sum()
+    tot_apl_m2          = df_clean['luas_apl'].sum()
+    tot_persil_m2       = df_clean['luas_persil'].sum()
+    tot_jml_persil      = df_clean['jumlah_persil'].sum()
+    tot_persil_valid_m2 = df_clean['luas_persil_valid'].sum()
+    tot_kw456           = df_clean['jumlah_kw456'].sum()
+    tot_luas_kw456_m2   = df_clean['luas_kw456'].sum()
+    tot_bt              = df_clean['jumlah_bt'].sum()
+    tot_bt_valid        = df_clean['bt_valid'].sum()
+    tot_su              = df_clean['jumlah_su'].sum()
+    tot_pra_suel        = df_clean['pra_suel'].sum()
+    tot_pra_btel        = df_clean['pra_btel'].sum()
+    tot_pra_sertel      = df_clean['pra_sertel'].sum()
 
     # KONVERSI SATUAN LUAS: m² -> Ha (dibagi 10.000)
     tot_adm_ha          = tot_adm_m2 / 10000.0
@@ -1061,8 +1086,8 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None):
                     suffixes=('_latest', '_prev')
                 )
                 
-                m_df['prasertel_latest'] = m_df['prasertel_desa_latest'].apply(clean_num)
-                m_df['prasertel_prev']   = m_df['prasertel_desa_prev'].apply(clean_num)
+                m_df['prasertel_latest'] = m_df['prasertel_desa_latest'].apply(clean_num_precise)
+                m_df['prasertel_prev']   = m_df['prasertel_desa_prev'].apply(clean_num_precise)
                 m_df['diff']             = m_df['prasertel_latest'] - m_df['prasertel_prev']
                 
                 df_changed = m_df[m_df['diff'] > 0]
@@ -1076,15 +1101,13 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None):
             sulteng_df = df_p[df_p['provinsi'].astype(str).str.contains('Sulteng|Sulawesi Tengah', case=False, na=False)]
             
             if not sulteng_df.empty:
-                # Ambil nomor peringkat murni dari kolom 'peringkat'
                 if 'peringkat' in sulteng_df.columns:
                     raw_rank = sulteng_df.iloc[0]['peringkat']
                     if pd.notna(raw_rank) and str(raw_rank).strip() != '':
                         rank_num_str = f"#{str(raw_rank).replace('.0', '').strip()}"
                 
-                # Kalkulasi prasertel_nasional / btvalid_nasional
-                p_nas = clean_num(sulteng_df.iloc[0].get('prasertel_nasional', 0))
-                b_nas = clean_num(sulteng_df.iloc[0].get('btvalid_nasional', 0))
+                p_nas = clean_num_precise(sulteng_df.iloc[0].get('prasertel_nasional', 0))
+                b_nas = clean_num_precise(sulteng_df.iloc[0].get('btvalid_nasional', 0))
                 pct_nas = (p_nas / b_nas * 100) if b_nas > 0 else 0.0
                 
                 pct_nasional_str = f"{fmt_dec1(pct_nas)}%"
@@ -1152,7 +1175,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None):
         st.markdown(html, unsafe_allow_html=True)
 
     # ==========================================
-    # 4. RENDER GRID 10 CARDS
+    # 4. RENDER GRID 10 CARDS (KALKULASI AKURAT)
     # ==========================================
     # BARIS 1 (CARD 1 - 5)
     r1_c1, r1_c2, r1_c3, r1_c4, r1_c5 = st.columns(5)
@@ -1205,7 +1228,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None):
     r2_c1, r2_c2, r2_c3, r2_c4, r2_c5 = st.columns(5)
 
     with r2_c1:
-        # Card 6: % PRA-SUEL
+        # Card 6: % PRA-SUEL = (pra_suel / jumlah_su) * 100
         pct_pra_suel = (tot_pra_suel / tot_su * 100) if tot_su > 0 else 0.0
         render_orange_card(
             "% PRA-SUEL", 
@@ -1214,7 +1237,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None):
         )
 
     with r2_c2:
-        # Card 7: % PRA-BTEL
+        # Card 7: % PRA-BTEL = (pra_btel / bt_valid) * 100
         pct_pra_btel = (tot_pra_btel / tot_bt_valid * 100) if tot_bt_valid > 0 else 0.0
         render_orange_card(
             "% PRA-BTEL", 
@@ -1223,7 +1246,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None):
         )
 
     with r2_c3:
-        # Card 8: % PRA-SERTEL
+        # Card 8: % PRA-SERTEL = (pra_sertel / jumlah_bt) * 100
         pct_pra_sertel = (tot_pra_sertel / tot_bt * 100) if tot_bt > 0 else 0.0
         render_orange_card(
             "% PRA-SERTEL", 
@@ -1259,12 +1282,12 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None):
         'Morowali': 'MW', 'Morowali Utara': 'MU', 'Palu': 'PL', 'Kota Palu': 'PL', 
         'Sigi': 'SG', 'Sulawesi Tengah': 'ST'
     }
-    if 'kabupaten_kota' in df.columns:
-        df['kab_singkat'] = df['kabupaten_kota'].map(lambda x: KAB_MAP.get(x, x))
+    if 'kabupaten_kota' in df_clean.columns:
+        df_clean['kab_singkat'] = df_clean['kabupaten_kota'].map(lambda x: KAB_MAP.get(x, x))
     else:
-        df['kab_singkat'] = '-'
+        df_clean['kab_singkat'] = '-'
 
-    df_kab = df.groupby('kab_singkat')[num_cols].sum().reset_index()
+    df_kab = df_clean.groupby('kab_singkat')[num_cols].sum().reset_index()
 
     # GRAFIK 1: SURAT UKUR ELEKTRONIK
     st.markdown('<div class="chart-container-orange">', unsafe_allow_html=True)
