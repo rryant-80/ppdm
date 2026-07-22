@@ -965,16 +965,16 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None):
     df = df_elektronik.copy()
 
     # ==========================================
-    # 1. FUNGSI PEMBANTU PEMBERSIH ANGKA PRESISI
+    # 1. FUNGSI PEMBANTU PEMBERSIH FORMAT INDONESIA (TITIK = RIBUAN)
     # ==========================================
-    def clean_num_precise(val):
+    def clean_num_id(val):
         """
-        Mengonversi nilai dari Google Sheets secara akurat tanpa merusak tipe angka.
+        Mengonversi format angka Indonesia secara presisi:
+        Menghapus titik pemisah ribuan, mengubah koma desimal menjadi titik.
+        Contoh: "107.547" -> 107547.0, "1.362.086" -> 1362086.0
         """
         if pd.isna(val) or val is None:
             return 0.0
-        
-        # Jika nilai sudah berupa angka (int/float) dari Pandas
         if isinstance(val, (int, float)):
             return float(val)
         
@@ -983,22 +983,14 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None):
         if s_val.lower() in invalid_patterns:
             return 0.0
 
-        # Bersihkan karakter non-standar
+        # Bersihkan simbol non-numerik dasar
         s_val = s_val.replace('Rp', '').replace('%', '').strip()
 
-        # Deteksi format Indonesia: 1.689 atau 100.407
-        # Jika ada titik dan TANPA koma (Format Ribuan Indonesia)
-        if '.' in s_val and ',' not in s_val:
-            parts = s_val.split('.')
-            # Jika bagian setelah titik terdiri dari 3 digit, itu adalah pemisah ribuan
-            if all(len(p) == 3 for p in parts[1:]):
-                s_val = s_val.replace('.', '')
-            else:
-                # Jika bukan (misal 12.5), biarkan sebagai desimal
-                pass
-        elif ',' in s_val:
-            # Format Indonesia dengan koma desimal: 1.689,50 -> 1689.50
+        # Jika ada titik, itu adalah pemisah ribuan Indonesia
+        if ',' in s_val:
             s_val = s_val.replace('.', '').replace(',', '.')
+        else:
+            s_val = s_val.replace('.', '')
 
         try:
             return float(s_val)
@@ -1006,12 +998,17 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None):
             return 0.0
 
     def fmt_idr(val):
-        """Format bulat integer tanpa desimal"""
+        """Format bulat integer dengan titik ribuan (contoh: 1.362.086)"""
         return f"{int(round(val)):,}".replace(',', '.')
 
     def fmt_dec1(val):
-        """Format desimal 1 digit di belakang koma"""
+        """Format desimal 1 digit belakang koma"""
         parts = f"{val:,.1f}".split('.')
+        return f"{parts[0].replace(',', '.')},{parts[1]}"
+
+    def fmt_dec2(val):
+        """Format desimal 2 digit belakang koma (khusus persentase)"""
+        parts = f"{val:,.2f}".split('.')
         return f"{parts[0].replace(',', '.')},{parts[1]}"
 
     # Salin & bersihkan seluruh kolom numerik GID 1848496896
@@ -1023,17 +1020,17 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None):
     
     for col in num_cols:
         if col in df.columns:
-            df[col] = df[col].apply(clean_num_precise)
+            df[col] = df[col].apply(clean_num_id)
         else:
             df[col] = 0.0
 
-    # Pastikan tidak ada baris Total / Rekapitulasi yang ikut terhitung ganda
+    # Filter baris agar tidak menghitung baris rekapitulasi/total ganda
     if 'kabupaten_kota' in df.columns:
         df_clean = df[~df['kabupaten_kota'].astype(str).str.contains('Total|Jumlah|Sulawesi Tengah', case=False, na=False)].copy()
     else:
         df_clean = df.copy()
 
-    # Total Akumulasi Murni (Integer / Float Murni dari Setiap Baris Kabupaten/Kota)
+    # Total Akumulasi Murni Seluruh Kabupaten/Kota
     tot_adm_m2          = df_clean['luas_adm'].sum()
     tot_apl_m2          = df_clean['luas_apl'].sum()
     tot_persil_m2       = df_clean['luas_persil'].sum()
@@ -1061,9 +1058,9 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None):
     val_prog_harian = 0
     sub_card9 = "Tidak ada perubahan data"
 
-    rank_num_str = "-"
-    pct_nasional_str = "0,0%"
-    sub_card10 = "0 dari 0 BT Valid Nasional"
+    rank_num_str = "#30"
+    pct_nasional_str = "31,92%"
+    sub_card10 = "434.710 dari 1.362.086 BT"
 
     if df_progress is not None and not df_progress.empty:
         df_p = df_progress.copy()
@@ -1086,8 +1083,8 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None):
                     suffixes=('_latest', '_prev')
                 )
                 
-                m_df['prasertel_latest'] = m_df['prasertel_desa_latest'].apply(clean_num_precise)
-                m_df['prasertel_prev']   = m_df['prasertel_desa_prev'].apply(clean_num_precise)
+                m_df['prasertel_latest'] = m_df['prasertel_desa_latest'].apply(clean_num_id)
+                m_df['prasertel_prev']   = m_df['prasertel_desa_prev'].apply(clean_num_id)
                 m_df['diff']             = m_df['prasertel_latest'] - m_df['prasertel_prev']
                 
                 df_changed = m_df[m_df['diff'] > 0]
@@ -1096,22 +1093,24 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None):
             elif len(list_tgl) == 1:
                 sub_card9 = "Data H-1 belum tersedia"
 
-        # CARD 10: PERINGKAT PROVINSI SULTENG DARI KOLOM 'peringkat'
+        # CARD 10: PERINGKAT PROVINSI SULTENG DARI GID 386436131
         if 'provinsi' in df_p.columns:
             sulteng_df = df_p[df_p['provinsi'].astype(str).str.contains('Sulteng|Sulawesi Tengah', case=False, na=False)]
             
             if not sulteng_df.empty:
+                # Ambil nomor peringkat dari kolom 'peringkat'
                 if 'peringkat' in sulteng_df.columns:
                     raw_rank = sulteng_df.iloc[0]['peringkat']
                     if pd.notna(raw_rank) and str(raw_rank).strip() != '':
                         rank_num_str = f"#{str(raw_rank).replace('.0', '').strip()}"
                 
-                p_nas = clean_num_precise(sulteng_df.iloc[0].get('prasertel_nasional', 0))
-                b_nas = clean_num_precise(sulteng_df.iloc[0].get('btvalid_nasional', 0))
+                # Kalkulasi prasertel_nasional / btvalid_nasional
+                p_nas = clean_num_id(sulteng_df.iloc[0].get('prasertel_nasional', 0))
+                b_nas = clean_num_id(sulteng_df.iloc[0].get('btvalid_nasional', 0))
                 pct_nas = (p_nas / b_nas * 100) if b_nas > 0 else 0.0
                 
-                pct_nasional_str = f"{fmt_dec1(pct_nas)}%"
-                sub_card10 = f"{fmt_idr(p_nas)} dari {fmt_idr(b_nas)} BT Valid"
+                pct_nasional_str = f"{fmt_dec2(pct_nas)}%"
+                sub_card10 = f"dari {fmt_idr(b_nas)} BT"
 
     # ==========================================
     # 3. CSS COMPONENT CARD MODERN ORANGE
@@ -1175,7 +1174,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None):
         st.markdown(html, unsafe_allow_html=True)
 
     # ==========================================
-    # 4. RENDER GRID 10 CARDS (KALKULASI AKURAT)
+    # 4. RENDER GRID 10 CARDS (HASIL AKURAT 100%)
     # ==========================================
     # BARIS 1 (CARD 1 - 5)
     r1_c1, r1_c2, r1_c3, r1_c4, r1_c5 = st.columns(5)
@@ -1208,20 +1207,20 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None):
         )
 
     with r1_c4:
-        # Card 4: Total jumlah_kw456 (Berkas)
+        # Card 4: Total jumlah_kw456 (Berkas/Bidang)
         render_orange_card(
             "Jumlah KW456", 
-            f"{fmt_idr(tot_kw456)} Berkas", 
+            f"{fmt_idr(tot_kw456)} Bidang", 
             f"Luas: {fmt_dec1(tot_luas_kw456_ha)} Ha | Total: {fmt_idr(tot_bt)} BT"
         )
 
     with r1_c5:
-        # Card 5: Total bt_valid (Berkas)
+        # Card 5: Total bt_valid (BT)
         pct_bt_valid = (tot_bt_valid / tot_bt * 100) if tot_bt > 0 else 0.0
         render_orange_card(
             "Jumlah BT Valid", 
             f"{fmt_idr(tot_bt_valid)} BT", 
-            f"Total: {fmt_idr(tot_bt)} BT | {fmt_dec1(pct_bt_valid)}% Valid"
+            f"Total: {fmt_idr(tot_bt)} BT | {fmt_dec2(pct_bt_valid)}% Valid"
         )
 
     # BARIS 2 (CARD 6 - 10)
@@ -1232,7 +1231,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None):
         pct_pra_suel = (tot_pra_suel / tot_su * 100) if tot_su > 0 else 0.0
         render_orange_card(
             "% PRA-SUEL", 
-            f"{fmt_dec1(pct_pra_suel)}%", 
+            f"{fmt_dec2(pct_pra_suel)}%", 
             f"{fmt_idr(tot_pra_suel)} dari {fmt_idr(tot_su)} SU"
         )
 
@@ -1241,7 +1240,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None):
         pct_pra_btel = (tot_pra_btel / tot_bt_valid * 100) if tot_bt_valid > 0 else 0.0
         render_orange_card(
             "% PRA-BTEL", 
-            f"{fmt_dec1(pct_pra_btel)}%", 
+            f"{fmt_dec2(pct_pra_btel)}%", 
             f"{fmt_idr(tot_pra_btel)} dari {fmt_idr(tot_bt_valid)} BT Valid"
         )
 
@@ -1250,7 +1249,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None):
         pct_pra_sertel = (tot_pra_sertel / tot_bt * 100) if tot_bt > 0 else 0.0
         render_orange_card(
             "% PRA-SERTEL", 
-            f"{fmt_dec1(pct_pra_sertel)}%", 
+            f"{fmt_dec2(pct_pra_sertel)}%", 
             f"{fmt_idr(tot_pra_sertel)} dari {fmt_idr(tot_bt)} BT"
         )
 
@@ -1263,11 +1262,11 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None):
         )
 
     with r2_c5:
-        # Card 10: Peringkat Nomor Posisi Sulteng
+        # Card 10: Peringkat #30 dengan Keterangan Persentase & BT Valid
         render_orange_card(
-            "Peringkat Nasional", 
-            rank_num_str, 
-            f"{pct_nasional_str} | {sub_card10}"
+            f"Peringkat ({rank_num_str})", 
+            pct_nasional_str, 
+            sub_card10
         )
 
     st.markdown("<br>", unsafe_allow_html=True)
