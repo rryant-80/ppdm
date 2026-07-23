@@ -1476,7 +1476,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
     )
 
     fig_combined.update_layout(
-        height=320,
+        height=450,
         xaxis_title="",
         yaxis_title="", # Hilangkan title axis sumbu Y
         paper_bgcolor='rgba(0,0,0,0)',
@@ -1591,8 +1591,8 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
             # Format Layout Grafik Full-Width
             fig_line.update_layout(
                 height=480,
-                xaxis_title="Tanggal Data",
-                yaxis_title="Jml Prasertel",
+                xaxis_title="",
+                yaxis_title="",
                 paper_bgcolor='rgba(0,0,0,0)',
                 plot_bgcolor='rgba(0,0,0,0)',
                 margin=dict(l=15, r=15, t=60, b=80),
