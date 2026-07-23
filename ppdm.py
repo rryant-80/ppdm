@@ -1677,6 +1677,9 @@ with st.sidebar:
         'Sigi': 'SG', 'Sulawesi Tengah': 'ST'
     }
     
+    # Kamus pembalik untuk mengubah kode singkatan kembali ke nama lengkap di hover
+    REVERSE_KAB_MAP = {v: k for k, v in KAB_MAP.items()}
+
     # Fungsi pembantu untuk menyingkat nama kabupaten di DataFrame
     def singkat_kab(df):
         if not df.empty and 'kabupaten_kota' in df.columns:
@@ -1698,10 +1701,13 @@ with st.sidebar:
         df_sdm_rekap = df_sdm_rekap.merge(df_sdm_pivot, on='kab_singkat').merge(df_sdm_total, on='kab_singkat')
         df_sdm_rekap = df_sdm_rekap.sort_values(by='total_all', ascending=False)
         
-        hover_text = "<b>Kab/Kota: %{x}</b><br>Total ASN: %{customdata[0]} orang<br>"
-        custom_data_cols = ['total_all']
+        # Tambahkan kolom nama lengkap untuk hover
+        df_sdm_rekap['kab_full'] = df_sdm_rekap['kab_singkat'].map(lambda x: REVERSE_KAB_MAP.get(x, x))
+        
+        hover_text = "<b>Kab/Kota: %{customdata[0]}</b><br>Total ASN: %{customdata[1]} orang<br>"
+        custom_data_cols = ['kab_full', 'total_all']
         for i, col in enumerate(df_sdm_pivot.columns):
-            hover_text += f"{col}: %{{customdata[{i+1}]}} orang<br>"
+            hover_text += f"{col}: %{{customdata[{i+2}]}} orang<br>"
             custom_data_cols.append(col)
 
         fig_sdm = px.bar(
@@ -1746,16 +1752,19 @@ with st.sidebar:
         df_ang_rekap['realisasi_fmt'] = df_ang_rekap['realisasi_clean'].apply(lambda x: f"{x:,.0f}".replace(',', '.'))
         df_ang_rekap['persen_fmt'] = df_ang_rekap['persen_realisasi'].apply(lambda x: f"{x:.2f}".replace('.', ','))
         
+        # Tambahkan kolom nama lengkap untuk hover
+        df_ang_rekap['kab_full'] = df_ang_rekap['kab_singkat'].map(lambda x: REVERSE_KAB_MAP.get(x, x))
+        
         # Urutkan dari persentase realisasi tertinggi ke terendah
         df_ang_rekap = df_ang_rekap.sort_values(by='persen_realisasi', ascending=False)
 
         fig_anggaran = px.bar(
             df_ang_rekap, x='kab_singkat', y='persen_realisasi',
             title="% Realisasi Anggaran",
-            custom_data=df_ang_rekap[['target_fmt', 'realisasi_fmt', 'persen_fmt']]
+            custom_data=df_ang_rekap[['kab_full', 'target_fmt', 'realisasi_fmt', 'persen_fmt']]
         )
         fig_anggaran.update_traces(
-            hovertemplate="<b>Kab/Kota: %{x}</b><br>Rp Target: Rp %{customdata[0]}<br>Rp Realisasi: Rp %{customdata[1]}<br>% Realisasi: %{customdata[2]}%<extra></extra>",
+            hovertemplate="<b>Kab/Kota: %{customdata[0]}</b><br>Rp Target: Rp %{customdata[1]}<br>Rp Realisasi: Rp %{customdata[2]}<br>% Realisasi: %{customdata[3]}%<extra></extra>",
             marker_color='#17BECF'
         )
         fig_anggaran.update_layout(
@@ -1777,19 +1786,22 @@ with st.sidebar:
         df_layanan_total = df_layanan_singkat.groupby('kab_singkat')['nmr_berkas'].count().reset_index(name='total_berkas')
         df_layanan_total = df_layanan_total.sort_values(by='total_berkas', ascending=False)
         
+        # Tambahkan kolom nama lengkap untuk hover
+        df_layanan_total['kab_full'] = df_layanan_total['kab_singkat'].map(lambda x: REVERSE_KAB_MAP.get(x, x))
+        
         if 'posisi_berkas' in df_layanan_singkat.columns:
             df_layanan_pos = df_layanan_singkat.groupby(['kab_singkat', 'posisi_berkas']).size().reset_index(name='jml_pos')
             df_layanan_pivot = df_layanan_pos.pivot(index='kab_singkat', columns='posisi_berkas', values='jml_pos').fillna(0).astype(int)
             df_layanan_total = df_layanan_total.merge(df_layanan_pivot, on='kab_singkat')
             
-            hover_layanan = "<b>Kab/Kota: %{x}</b><br>Total Berkas: %{y}<br>--- Detail Posisi ---<br>"
-            custom_data_layanan = ['total_berkas']
+            hover_layanan = "<b>Kab/Kota: %{customdata[0]}</b><br>Total Berkas: %{y}<br>--- Detail Posisi ---<br>"
+            custom_data_layanan = ['kab_full', 'total_berkas']
             for i, col in enumerate(df_layanan_pivot.columns):
-                hover_layanan += f"{col}: %{{customdata[{i+1}]}}<br>"
+                hover_layanan += f"{col}: %{{customdata[{i+2}]}}<br>"
                 custom_data_layanan.append(col)
         else:
-            hover_layanan = "<b>Kab/Kota: %{x}</b><br>Total Berkas: %{y}<extra></extra>"
-            custom_data_layanan = ['total_berkas']
+            hover_layanan = "<b>Kab/Kota: %{customdata[0]}</b><br>Total Berkas: %{y}<extra></extra>"
+            custom_data_layanan = ['kab_full', 'total_berkas']
 
         fig_layanan = px.bar(
             df_layanan_total, x='kab_singkat', y='total_berkas',
@@ -1846,16 +1858,19 @@ with st.sidebar:
         df_elek_grp['pra_sertel_fmt'] = df_elek_grp['pra_sertel_clean'].apply(lambda x: f"{x:,.0f}".replace(',', '.'))
         df_elek_grp['bt_valid_fmt']   = df_elek_grp['bt_valid_clean'].apply(lambda x: f"{x:,.0f}".replace(',', '.'))
 
+        # Tambahkan kolom nama lengkap untuk hover
+        df_elek_grp['kab_full'] = df_elek_grp['kab_singkat'].map(lambda x: REVERSE_KAB_MAP.get(x, x))
+
         # Render Bar Chart Plotly Sidebar
         fig_elek = px.bar(
             df_elek_grp, x='kab_singkat', y='Persentase',
             title="% Prasertel",
-            custom_data=df_elek_grp[['pra_sertel_fmt', 'bt_valid_fmt']]
+            custom_data=df_elek_grp[['kab_full', 'pra_sertel_fmt', 'bt_valid_fmt']]
         )
         
         # Hover format khusus string murni Indonesia
         fig_elek.update_traces(
-            hovertemplate="<b>Kab/Kota: %{x}</b><br>Persentase: <b>%{y:.2f}%</b><br>Jumlah Prasertel: <b>%{customdata[0]}</b><br>Jumlah BT Valid: <b>%{customdata[1]}</b><extra></extra>",
+            hovertemplate="<b>Kab/Kota: %{customdata[0]}</b><br>Persentase: <b>%{y:.2f}%</b><br>Jumlah Prasertel: <b>%{customdata[1]}</b><br>Jumlah BT Valid: <b>%{customdata[2]}</b><extra></extra>",
             marker_color='#00CC96'
         )
         
