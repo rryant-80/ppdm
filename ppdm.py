@@ -1663,7 +1663,7 @@ with st.sidebar:
             "💼 Layanan Pertanahan",
             "⚡ Data Elektronik"
         ],
-        key="menu_pilihan"  # <--- Kunci utama agar menu tidak ter-reset
+        key="🏛️ Profil & Anggaran"  # <--- Kunci utama agar menu tidak ter-reset
     )
     
     st.markdown("---")
