@@ -1280,7 +1280,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
         render_orange_card(
             "Luas APL", 
             f"{fmt_dec2(pct_apl)}%", 
-            f"Luas: {fmt_dec2(tot_apl_ha)} Ha dari Adm ({fmt_dec2(tot_adm_ha)} Ha)"
+            f"Luas: {fmt_dec2(tot_apl_ha)} Ha dari Luas Wilayah ({fmt_dec2(tot_adm_ha)} Ha)"
         )
 
     with r1_c2:
@@ -1296,7 +1296,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
         render_orange_card(
             "Luas Persil Valid", 
             f"{fmt_dec2(pct_persil_valid)}%", 
-            f"Luas: {fmt_dec2(tot_persil_valid_ha)} Ha dari Persil"
+            f"Luas: {fmt_dec2(tot_persil_valid_ha)} Ha"
         )
 
     with r1_c4:
@@ -1311,7 +1311,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
         render_orange_card(
             "Jumlah BT Valid", 
             f"{fmt_idr(tot_bt_valid)} BT", 
-            f"Total: {fmt_idr(tot_bt)} BT | {fmt_dec2(pct_bt_valid)}% Valid"
+            f"Total: {fmt_dec2(pct_bt_valid)}% | {fmt_idr(tot_bt)} BT"
         )
 
     # BARIS 2 (CARD 6 - 10)
