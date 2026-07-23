@@ -4,6 +4,7 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 import numpy as np
+from datetime import datetime, date, timedelta
 
 # Konfigurasi Halaman
 st.set_page_config(
@@ -1621,6 +1622,88 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
             st.markdown("---")
             st.plotly_chart(fig_line, use_container_width=True)
             st.markdown('</div>', unsafe_allow_html=True)
+
+    # ==========================================
+    # 7. TABEL TARGET HARIAN PRASERTEL MENUJU 70% DESEMBER 2026
+    # ==========================================
+    st.markdown("---")
+    st.subheader("🎯 Target Harian Prasertel Menuju 70% (Desember 2026)")
+
+    # 1. Hitung jumlah hari kerja (Senin - Jumat) dari hari ini hingga 31 Desember 2026
+    today = datetime.now().date()
+    end_date = date(2026, 12, 31)
+
+    if today < end_date:
+        # np.busday_count menghitung hari kerja (excl. Sabtu & Minggu)
+        sisa_hari_kerja = np.busday_count(today, end_date + timedelta(days=1))
+    else:
+        sisa_hari_kerja = 1  # Mencegah pembagian dengan nol
+
+    # Tampilkan informasi sisa hari kerja
+    st.info(f"📅 **Sisa Hari Kerja (Senin–Jumat):** `{sisa_hari_kerja} hari` (hitung mundur hingga 31 Desember 2026)")
+
+    # 2. Olah Dataframe dari df_clean (gid 1848496896)
+    df_tabel_target = df_clean.copy()
+
+    # Tentukan Sumbu/Hirarki Kolom Wilayah Berdasarkan Filter Aktif
+    is_kec_active = selected_kec and str(selected_kec).strip() not in ['', 'Semua', 'Semua Kecamatan']
+    is_kab_active = selected_kab and str(selected_kab).strip() not in ['', 'Semua', 'Semua Kabupaten/Kota']
+
+    if is_kec_active and 'desa_kelurahan' in df_tabel_target.columns:
+        col_wilayah = 'desa_kelurahan'
+        label_wilayah = "Desa / Kelurahan"
+    elif is_kab_active and 'kecamatan' in df_tabel_target.columns:
+        col_wilayah = 'kecamatan'
+        label_wilayah = "Kecamatan"
+    else:
+        col_wilayah = 'kabupaten_kota'
+        label_wilayah = "Kabupaten / Kota"
+
+    # Pastikan kolom numerik ada dan dibersihkan dari karakter liar
+    for c in ['pra_sertel', 'bt_valid']:
+        if c not in df_tabel_target.columns:
+            df_tabel_target[c] = 0
+        else:
+            df_tabel_target[c] = df_tabel_target[c].apply(lambda x: parse_bilangan_cacah(x) if 'parse_bilangan_cacah' in locals() else int(round(float(str(x).replace('.','').replace(',','')) if pd.notna(x) and str(x).strip()!='' else 0)))
+
+    # 3. Agregasi Total Per Wilayah
+    df_target_grp = df_tabel_target.groupby(col_wilayah, as_index=False)[['bt_valid', 'pra_sertel']].sum()
+
+    # 4. Kalkulasi Formula Persentase & Target Harian
+    # % Saat Ini = (pra_sertel / bt_valid) * 100
+    df_target_grp['pct_saat_ini'] = (df_target_grp['pra_sertel'] / df_target_grp['bt_valid'].replace(0, 1)) * 100.0
+
+    # Target BT 70% = 70% * bt_valid
+    df_target_grp['target_bt_70'] = df_target_grp['bt_valid'] * 0.70
+
+    # Sisa BT yang Harus Dikejar
+    df_target_grp['sisa_bt_kejar'] = df_target_grp['target_bt_70'] - df_target_grp['pra_sertel']
+
+    # Jika sisa < 0 (artinya sudah 70% atau lebih), set ke 0
+    df_target_grp['sisa_bt_kejar'] = df_target_grp['sisa_bt_kejar'].apply(lambda x: max(0, x))
+
+    # Target Harian = Sisa BT Kejar / Sisa Hari Kerja
+    df_target_grp['target_harian'] = (df_target_grp['sisa_bt_kejar'] / sisa_hari_kerja).apply(np.ceil).astype(int)
+
+    # Urutkan dari Target Harian Tertinggi
+    df_target_grp = df_target_grp.sort_values(by='target_harian', ascending=False).reset_index(drop=True)
+
+    # 5. Format Tampilan Tabel
+    df_display = pd.DataFrame()
+    df_display['No'] = range(1, len(df_target_grp) + 1)
+    df_display[label_wilayah] = df_target_grp[col_wilayah]
+    df_display['Jumlah BT Valid'] = df_target_grp['bt_valid'].apply(lambda x: f"{x:,.0f}".replace(',', '.'))
+    df_display['Jumlah Prasertel'] = df_target_grp['pra_sertel'].apply(lambda x: f"{x:,.0f}".replace(',', '.'))
+    df_display['Persentase saat ini'] = df_target_grp['pct_saat_ini'].apply(lambda x: f"{x:.2f}%")
+    df_display['Target Harian (BT/Hari)'] = df_target_grp['target_harian'].apply(lambda x: f"{x:,.0f} BT".replace(',', '.'))
+
+    # Render Tabel di Streamlit dengan Fitur Pencarian & Desain Modern
+    st.dataframe(
+        df_display,
+        use_container_width=True,
+        hide_index=True,
+        height=380
+    )
 
 # -----------------------------------------------------------------------------
 # 3. SIDEBAR: FILTER & NAVIGATION
