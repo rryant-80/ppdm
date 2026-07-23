@@ -1494,7 +1494,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
     st.markdown('</div>', unsafe_allow_html=True)
 
     # ==========================================
-    # 6. GRAFIK TREN PROGRESS HARIAN (SESUAI GOOGLESHEET)
+    # 6. GRAFIK TREN PROGRESS HARIAN (NAMA KOLOM: prasertel_desa)
     # ==========================================
     if df_progress is not None and not df_progress.empty:
         df_p_line = df_progress.copy()
@@ -1502,14 +1502,14 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
         # Bersihkan nama kolom dari spasi & ubah ke huruf kecil
         df_p_line.columns = [str(c).strip().lower() for c in df_p_line.columns]
 
-        # Pencarian nama kolom presisi sesuai Google Sheet Anda:
+        # Pencarian nama kolom presisi
         col_tgl  = next((c for c in df_p_line.columns if 'tgl' in c), 'tgl_data')
         col_kab  = next((c for c in df_p_line.columns if 'kab' in c), 'kabupaten_kota')
         col_kec  = next((c for c in df_p_line.columns if 'kec' in c), 'kecamatan')
         col_des  = next((c for c in df_p_line.columns if 'des' in c or 'kel' in c), 'desa_kelurahan')
         
-        # PENTING: Mendukung 'prasertel_desa' maupun 'prasertel_desa'
-        col_pdes = next((c for c in df_p_line.columns if 'prasertel' in c), 'prasertel_desa')
+        # Patok eksplisit ke 'prasertel_desa'
+        col_pdes = 'prasertel_desa' if 'prasertel_desa' in df_p_line.columns else next((c for c in df_p_line.columns if 'prasertel' in c), 'prasertel_desa')
 
         if col_tgl in df_p_line.columns and col_pdes in df_p_line.columns:
             # Filter baris dengan tanggal valid
@@ -1519,7 +1519,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
             def clean_to_int_pure(val):
                 if pd.isna(val) or val is None:
                     return 0
-                # Hapus titik ribuan, koma, atau teks liar dari sheet
+                # Hapus titik ribuan, koma, atau karakter non-numerik
                 s = str(val).strip().replace('.', '').replace(',', '').replace('Rp', '').replace('%', '')
                 try:
                     return int(round(float(s)))
@@ -1528,7 +1528,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
 
             df_p_line['val_pdes'] = df_p_line[col_pdes].apply(clean_to_int_pure)
 
-            # Format Tanggal tanpa mengubah urutan kronologis asli
+            # Format Tanggal
             df_p_line['tgl_dt'] = pd.to_datetime(df_p_line[col_tgl], format='%d/%m/%Y', errors='coerce')
             if df_p_line['tgl_dt'].isna().all():
                 df_p_line['tgl_dt'] = pd.to_datetime(df_p_line[col_tgl], dayfirst=True, errors='coerce')
@@ -1574,13 +1574,13 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
                 )
                 fig_line.update_traces(line_color='#0451C9', line_width=3)
 
-            # Format Hover: Menampilkan Label Wilayah & Angka Murni dengan Pemisah Ribuan Indonesia
+            # Format Hover: Label Wilayah & Angka Murni dengan Pemisah Ribuan Indonesia
             fig_line.update_traces(
                 hovertemplate=f"<b>{hover_area_label}: %{{fullData.name}}</b><br>Tanggal: %{{x}}<br>Jml Prasertel: <b>%{{y:,.0f}}</b><extra></extra>",
                 marker=dict(size=8, line=dict(width=1.5, color='#000000'))
             )
 
-            # Format Tampilan Grafik Full-Width & Legenda Terpisah di Bawah
+            # Format Tampilan Grafik Full-Width & Legenda di Bawah
             fig_line.update_layout(
                 height=480,
                 xaxis_title="Tanggal Data",
@@ -1603,7 +1603,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
                 ),
                 yaxis=dict(
                     gridcolor='#f2f2f2',
-                    separators=',.', # Menyesuaikan format pemisah ribuan dengan titik (contoh: 1.007)
+                    separators=',.', # Pemisah ribuan dengan titik
                 ),
                 xaxis=dict(
                     type='category'
@@ -1613,38 +1613,6 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
             st.markdown('<div class="chart-container-orange">', unsafe_allow_html=True)
             st.plotly_chart(fig_line, use_container_width=True)
             st.markdown('</div>', unsafe_allow_html=True)
-
-    # ==========================================
-    # 1. GRAFIK: Distribusi Pegawai (Stacked Bar - Terurut)
-    # ==========================================
-    if not df_sdm_singkat.empty and 'kategori_asn' in df_sdm_singkat.columns:
-        df_sdm_rekap = df_sdm_singkat.groupby(['kab_singkat', 'kategori_asn']).size().reset_index(name='jumlah')
-        df_sdm_pivot = df_sdm_rekap.pivot(index='kab_singkat', columns='kategori_asn', values='jumlah').fillna(0).astype(int)
-        df_sdm_total = df_sdm_singkat.groupby('kab_singkat').size().reset_index(name='total_all')
-        df_sdm_rekap = df_sdm_rekap.merge(df_sdm_pivot, on='kab_singkat').merge(df_sdm_total, on='kab_singkat')
-        df_sdm_rekap = df_sdm_rekap.sort_values(by='total_all', ascending=False)
-        
-        hover_text = "<b>Kab/Kota: %{x}</b><br>Total ASN: %{customdata[0]} orang<br>"
-        custom_data_cols = ['total_all']
-        for i, col in enumerate(df_sdm_pivot.columns):
-            hover_text += f"{col}: %{{customdata[{i+1}]}} orang<br>"
-            custom_data_cols.append(col)
-
-        fig_sdm = px.bar(
-            df_sdm_rekap, x='kab_singkat', y='jumlah', color='kategori_asn',
-            title="Distribusi Pegawai",
-            custom_data=df_sdm_rekap[custom_data_cols]
-        )
-        fig_sdm.update_traces(hovertemplate=hover_text + "<extra></extra>")
-        fig_sdm.update_layout(
-            showlegend=True, legend_title_text='', height=310,
-            xaxis_title="", yaxis_title="",
-            xaxis={'categoryorder':'total descending'},
-            margin=dict(l=10, r=10, t=35, b=10),
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-        )
-        st.plotly_chart(fig_sdm, use_container_width=True)
-
 
     # ==========================================
     # 2. GRAFIK BARU: % Realisasi Anggaran (GID 1168898330)
