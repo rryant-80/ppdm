@@ -1764,7 +1764,7 @@ with st.sidebar:
             custom_data=df_ang_rekap[['kab_full', 'target_fmt', 'realisasi_fmt', 'persen_fmt']]
         )
         fig_anggaran.update_traces(
-            hovertemplate="<b>%{customdata[0]%{customdata[3]}%}</b><br>Target Rp %{customdata[1]}<br>Realisasi Rp %{customdata[2]}<br>% Realisasi: %{customdata[3]}%<extra></extra>",
+            hovertemplate="<b>%{customdata[0]}%{customdata[3]}%}</b><br>Target Rp %{customdata[1]}<br>Realisasi Rp %{customdata[2]}<br>% Realisasi: %{customdata[3]}%<extra></extra>",
             marker_color='#17BECF'
         )
         fig_anggaran.update_layout(
