@@ -1494,33 +1494,39 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
     st.markdown('</div>', unsafe_allow_html=True)
 
     # ==========================================
-    # 6. GRAFIK TREN PROGRESS HARIAN (FULL WIDTH - NO OVERLAP - NO DECIMAL)
+    # 6. GRAFIK TREN PROGRESS HARIAN (NAMA KOLOM: prasertel_desa)
     # ==========================================
     if df_progress is not None and not df_progress.empty:
         df_p_line = df_progress.copy()
+        
+        # Bersihkan nama kolom dari spasi & ubah ke huruf kecil
         df_p_line.columns = [str(c).strip().lower() for c in df_p_line.columns]
 
+        # Pencarian nama kolom presisi
         col_tgl  = next((c for c in df_p_line.columns if 'tgl' in c), 'tgl_data')
         col_kab  = next((c for c in df_p_line.columns if 'kab' in c), 'kabupaten_kota')
         col_kec  = next((c for c in df_p_line.columns if 'kec' in c), 'kecamatan')
         col_des  = next((c for c in df_p_line.columns if 'des' in c or 'kel' in c), 'desa_kelurahan')
-        col_pdes = next((c for c in df_p_line.columns if 'prasertel' in c), 'prasertel_desa')
+        
+        # Patok eksplisit ke 'prasertel_desa'
+        col_pdes = 'prasertel_desa' if 'prasertel_desa' in df_p_line.columns else next((c for c in df_p_line.columns if 'prasertel' in c), 'prasertel_desa')
 
         if col_tgl in df_p_line.columns and col_pdes in df_p_line.columns:
             # Filter baris dengan tanggal valid
             df_p_line = df_p_line[df_p_line[col_tgl].notna() & (df_p_line[col_tgl].astype(str).str.strip() != '')].copy()
 
-            # PARSER KETAT: Menghapus titik ribuan Google Sheet (misal "1.007" menjadi 1007)
-            def parse_prasertel_pure(val):
+            # Fungsi konversi murni angka integer dari Google Sheet
+            def clean_to_int_pure(val):
                 if pd.isna(val) or val is None:
                     return 0
-                s = str(val).strip().replace('.', '').replace(',', '')
+                # Hapus titik ribuan, koma, atau karakter non-numerik
+                s = str(val).strip().replace('.', '').replace(',', '').replace('Rp', '').replace('%', '')
                 try:
                     return int(round(float(s)))
                 except ValueError:
                     return 0
 
-            df_p_line['val_pdes'] = df_p_line[col_pdes].apply(parse_prasertel_pure)
+            df_p_line['val_pdes'] = df_p_line[col_pdes].apply(clean_to_int_pure)
 
             # Format Tanggal
             df_p_line['tgl_dt'] = pd.to_datetime(df_p_line[col_tgl], format='%d/%m/%Y', errors='coerce')
@@ -1547,15 +1553,12 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
                 hover_area_label = "Kab/Kota"
                 chart_title = "📈 Tren Progress Prasertel Desa Se-Sulawesi Tengah dari Waktu ke Waktu"
 
-            # Agregasi Total Prasertel
+            # Agregasi Total Prasertel Desa Murni
             if group_col and group_col in df_p_line.columns:
                 df_trend = df_p_line.groupby(['tgl_str', 'tgl_dt', group_col])['val_pdes'].sum().reset_index()
                 df_trend = df_trend.sort_values('tgl_dt')
 
-                fig_line = px.bar(  # atau px.line jika ingin bentuk garis murni
-                    df_trend, x='tgl_str', y='val_pdes', color=group_col,
-                    title=chart_title
-                ) if False else px.line(
+                fig_line = px.line(
                     df_trend, x='tgl_str', y='val_pdes', color=group_col,
                     markers=True,
                     title=chart_title
@@ -1571,20 +1574,20 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
                 )
                 fig_line.update_traces(line_color='#0451C9', line_width=3)
 
-            # Custom Hover sesuai instruksi: Kab/Kota & Jml Prasertel
+            # Format Hover: Label Wilayah & Angka Murni dengan Pemisah Ribuan Indonesia
             fig_line.update_traces(
                 hovertemplate=f"<b>{hover_area_label}: %{{fullData.name}}</b><br>Tanggal: %{{x}}<br>Jml Prasertel: <b>%{{y:,.0f}}</b><extra></extra>",
                 marker=dict(size=8, line=dict(width=1.5, color='#000000'))
             )
 
-            # Layout 1 Layar Full & Legenda Tidak Menumpuk Judul
+            # Format Tampilan Grafik Full-Width & Legenda di Bawah
             fig_line.update_layout(
-                height=480, # Ukuran tinggi proporsional full screen
+                height=480,
                 xaxis_title="Tanggal Data",
                 yaxis_title="Jml Prasertel",
                 paper_bgcolor='rgba(0,0,0,0)',
                 plot_bgcolor='rgba(0,0,0,0)',
-                margin=dict(l=15, r=15, t=60, b=80), # Margin atas & bawah cukup untuk legenda
+                margin=dict(l=15, r=15, t=60, b=80),
                 title=dict(
                     text=chart_title,
                     x=0, y=0.98,
@@ -1592,18 +1595,18 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
                     font=dict(size=15, color='#1e293b')
                 ),
                 legend=dict(
-                    orientation="h",       # Legenda menyamping/horizontal
-                    yanchor="top", y=-0.2, # Pindahkan legenda ke bawah sumbu-X
+                    orientation="h",
+                    yanchor="top", y=-0.2,
                     xanchor="center", x=0.5,
                     title_text='',
                     font=dict(size=11)
                 ),
                 yaxis=dict(
                     gridcolor='#f2f2f2',
-                    tickformat=",d" # Integer murni dengan titik ribuan
+                    separators=',.', # Pemisah ribuan dengan titik
                 ),
                 xaxis=dict(
-                    type='category' # Menjaga urutan label string tanggal
+                    type='category'
                 )
             )
 
