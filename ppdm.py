@@ -1626,7 +1626,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
 # 3. SIDEBAR: FILTER & NAVIGATION
 # -----------------------------------------------------------------------------
 with st.sidebar:    
-    st.header("📍 Filter Wilayah")
+    st.header("📋 Data Tgl. 14/07/2026")
     
     # Filter Kabupaten/Kota (diambil dari gabungan semua dataframe agar aman)
     list_kabupaten = sorted(list(set(
@@ -1667,8 +1667,7 @@ with st.sidebar:
     )
     
     st.markdown("---")
-    st.header("📊 Grafik Rekapitulasi (Sulteng)")
-
+    
     # Kamus untuk mempersingkat nama kabupaten
     KAB_MAP = {
         'Banggai': 'BG', 'Banggai Kepulauan': 'BK', 'Banggai Laut': 'BL',
