@@ -1590,7 +1590,9 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
 
             # Format Layout Grafik Full-Width
             fig_line.update_layout(
-                height=480,                
+                height=480,
+                xaxis_title="Tanggal Data",
+                yaxis_title="Jml Prasertel",
                 paper_bgcolor='rgba(0,0,0,0)',
                 plot_bgcolor='rgba(0,0,0,0)',
                 margin=dict(l=15, r=15, t=60, b=80),
