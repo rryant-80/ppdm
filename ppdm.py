@@ -183,18 +183,18 @@ def render_profil_anggaran(df_filtered_sdm):
         with c2:
             render_modern_card("Jumlah Kecamatan", f"{fmt_idr(jml_kec)}")
         with c3:
-            render_modern_card("Jumlah Desa/Kel", f"{fmt_idr(jml_desa)}")
+            render_modern_card("Jumlah Desa/Kelurahan", f"{fmt_idr(jml_desa)}")
 
         c4, c5, c6 = st.columns(3)
         with c4:
-            render_modern_card("Total % Realisasi Dipa", f"{fmt_pct(total_persen_dipa)}%", f"Rp {fmt_idr(total_realisasi)}")
+            render_modern_card("Realisasi Dipa", f"{fmt_pct(total_persen_dipa)}%", f"Rp {fmt_idr(total_realisasi)}")
         with c5:
-            render_modern_card("Luas ADM", f"{fmt_decimal(luas_adm_ha)} <span style='font-size:0.8rem;'>Ha</span>")
+            render_modern_card("Luas Wilayah", f"{fmt_decimal(luas_adm_ha)} <span style='font-size:0.8rem;'>Ha</span>")
         with c6:
             render_modern_card(
                 "Luas APL", 
                 f"{fmt_decimal(luas_apl_ha)} <span style='font-size:0.8rem;'>Ha</span>", 
-                f"{fmt_pct(persen_apl_adm)}% dari Luas ADM"
+                f"{fmt_pct(persen_apl_adm)}% dari Luas Wilayah"
             )
 
     st.markdown("<br>", unsafe_allow_html=True)
