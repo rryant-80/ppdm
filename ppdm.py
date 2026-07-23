@@ -1870,7 +1870,7 @@ with st.sidebar:
         
         # Hover format khusus string murni Indonesia
         fig_elek.update_traces(
-            hovertemplate="<b>Kab/Kota: %{customdata[0]}</b><br>Persentase: <b>%{y:.2f}%</b><br>Jumlah Prasertel: <b>%{customdata[1]}</b><br>Jumlah BT Valid: <b>%{customdata[2]}</b><extra></extra>",
+            hovertemplate="<b>%{customdata[0]} | %{y:.2f}%</b><br>Jumlah Prasertel: <b>%{customdata[1]}</b><br>Jumlah BT Valid: <b>%{customdata[2]}</b><extra></extra>",
             marker_color='#00CC96'
         )
         
