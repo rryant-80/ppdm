@@ -829,16 +829,16 @@ def render_layanan_pertanahan(df_filtered_layanan):
         col_c1, col_c2, col_c3, col_c4 = st.columns(4)
 
         with col_c1:
-            render_green_card("Total Berkas (2017 - 2026)", f"{fmt_idr(b_17_26)} Berkas", "Akumulasi Berkas Melebihi SOP")
+            render_green_card("Total Berkas (2017 - 2026)", f"{fmt_idr(b_17_26)} Berkas",)
 
         with col_c2:
-            render_green_card("Tahun 2017 - 2024", f"{fmt_idr(b_17_24)} Berkas", "Berkas Tunggakan Lama")
+            render_green_card("Tahun 2017 - 2024", f"{fmt_idr(b_17_24)} Berkas",)
 
         with col_c3:
-            render_green_card("Tahun 2025", f"{fmt_idr(b_25)} Berkas", "Berkas Tunggakan 2025")
+            render_green_card("Tahun 2025", f"{fmt_idr(b_25)} Berkas",)
 
         with col_c4:
-            render_green_card("Tahun 2026", f"{fmt_idr(b_26)} Berkas", "Berkas Berjalan 2026")
+            render_green_card("Tahun 2026", f"{fmt_idr(b_26)} Berkas",)
 
         # ==========================================
         # 8. TABEL HTML MODERN DENGAN WRAP TEXT FULL
