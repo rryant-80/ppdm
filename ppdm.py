@@ -489,13 +489,13 @@ def render_psn_2026(df_filtered_psn):
     with row1_col1:
         st.markdown(card_wrapper_start, unsafe_allow_html=True)
         metrics_pbt = {
-            'Realisasi Baru': 'realisasi_baru',
-            'Realisasi K4': 'realisasi_k4',
-            'Realisasi Repo': 'realisasi_repo'
+            'Bidang Baru': 'realisasi_baru',
+            'Pemetaan K4': 'realisasi_k4',
+            'Reposisi Bidang': 'realisasi_repo'
         }
         fig_pbt = create_psn_chart(
             "1. Realisasi PBT", df_rekap, 'target_pbt', metrics_pbt, 
-            ['#636EFA', '#EF553B', '#00CC96'], unit="Ha", is_stacked=True
+            ['#a9a9a9', '#7b7b7b', '#656565'], unit="Ha", is_stacked=True
         )
         st.plotly_chart(fig_pbt, use_container_width=True)
         st.markdown(card_wrapper_end, unsafe_allow_html=True)
@@ -511,7 +511,7 @@ def render_psn_2026(df_filtered_psn):
         }
         fig_shat = create_psn_chart(
             "2. Realisasi SHAT", df_rekap, 'target_shat', metrics_shat, 
-            ['#AB63FA', '#FFA15A', '#19D3F3', '#FF6692'], unit="Bdg"
+            ['#b4ffb3', '#44bc43', '#1f9f1d', '#067b04'], unit="Bdg"
         )
         st.plotly_chart(fig_shat, use_container_width=True)
         st.markdown(card_wrapper_end, unsafe_allow_html=True)
