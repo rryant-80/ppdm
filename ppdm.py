@@ -1449,11 +1449,11 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
 
     # Palet Warna Pastel Soft Modern
     pastel_color_map = {
-        '% SU Valid': '#7DD3FC',   # Soft Sky Blue
-        '% Pra-SUEL': '#FDE047',   # Soft Pastel Yellow
-        '% BT Valid': '#818CF8',   # Soft Indigo/Royal
-        '% Pra-BTEL': '#F9A8D4',   # Soft Soft Pink
-        '% Pra-SERTEL': '#86EFAC' # Soft Mint Green
+        '% SU Valid': '#ffd383',   # Soft Sky Blue
+        '% Pra-SUEL': '#ffb224',   # Soft Pastel Yellow
+        '% BT Valid': '#b4ffb3',   # Soft Indigo/Royal
+        '% Pra-BTEL': '#51ce4f',   # Soft Soft Pink
+        '% Pra-SERTEL': '#1f9f1d' # Soft Mint Green
     }
 
     # Render 1 Grafik Gabungan Terurut
