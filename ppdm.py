@@ -1618,7 +1618,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
                 )
             )
 
-            st.markdown('<div class="chart-container-orange">', unsafe_allow_html=True)
+            st.markdown("---")
             st.plotly_chart(fig_line, use_container_width=True)
             st.markdown('</div>', unsafe_allow_html=True)
 
