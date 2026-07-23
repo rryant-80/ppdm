@@ -1794,13 +1794,13 @@ with st.sidebar:
             df_layanan_pivot = df_layanan_pos.pivot(index='kab_singkat', columns='posisi_berkas', values='jml_pos').fillna(0).astype(int)
             df_layanan_total = df_layanan_total.merge(df_layanan_pivot, on='kab_singkat')
             
-            hover_layanan = "<b>Kab/Kota: %{customdata[0]}</b><br>Total Berkas: %{y}<br>--- Detail Posisi ---<br>"
+            hover_layanan = "<b>%{customdata[0]}, %{y}</b><br>Total Berkas: %{y}<br>--- Detail Posisi ---<br>"
             custom_data_layanan = ['kab_full', 'total_berkas']
             for i, col in enumerate(df_layanan_pivot.columns):
                 hover_layanan += f"{col}: %{{customdata[{i+2}]}}<br>"
                 custom_data_layanan.append(col)
         else:
-            hover_layanan = "<b>%{customdata[0]}, %{y}</b><br>"
+            hover_layanan = "<b>Kab/Kota: %{x}</b><br>Total Berkas: %{y}<extra></extra>"
             custom_data_layanan = ['kab_full', 'total_berkas']
 
         fig_layanan = px.bar(
