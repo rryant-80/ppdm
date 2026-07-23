@@ -1800,7 +1800,7 @@ with st.sidebar:
                 hover_layanan += f"{col}: %{{customdata[{i+2}]}}<br>"
                 custom_data_layanan.append(col)
         else:
-            hover_layanan = "<b>%{customdata[0]}, %{y}</b><br>Total Berkas: %{y}<extra></extra>"
+            hover_layanan = "<b>%{customdata[0]}, %{y}</b><br>"
             custom_data_layanan = ['kab_full', 'total_berkas']
 
         fig_layanan = px.bar(
