@@ -542,7 +542,7 @@ def render_psn_2026(df_filtered_psn):
         }
         fig_lintor = create_psn_chart(
             "4. Realisasi Lintor", df_rekap, 'target_lintor', metrics_lintor, 
-            ['#f0d9a0', '#FECB52', '#f0ae12'], unit="Bdg"
+            ['#f0d9a0', '#FECB52', '#fcb100'], unit="Bdg"
         )
         st.plotly_chart(fig_lintor, use_container_width=True)
         st.markdown(card_wrapper_end, unsafe_allow_html=True)
