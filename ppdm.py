@@ -1704,7 +1704,7 @@ with st.sidebar:
         # Tambahkan kolom nama lengkap untuk hover
         df_sdm_rekap['kab_full'] = df_sdm_rekap['kab_singkat'].map(lambda x: REVERSE_KAB_MAP.get(x, x))
         
-        hover_text = "<b>%{customdata[0]} %{customdata[1]} orang<br>"
+        hover_text = "<b>%{customdata[0]} | ASN %{customdata[1]} orang<br>"
         custom_data_cols = ['kab_full', 'total_all']
         for i, col in enumerate(df_sdm_pivot.columns):
             hover_text += f"{col}: %{{customdata[{i+2}]}} orang<br>"
