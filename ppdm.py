@@ -1803,51 +1803,74 @@ with st.sidebar:
         st.plotly_chart(fig_layanan, use_container_width=True)
 
     # ==========================================
-    # 4. GRAFIK: Persentase Prasertel (Terurut)
+    # 4. GRAFIK: Persentase Prasertel (Sidebar - Fix Parsing Integer Murni)
     # ==========================================
     if not df_elek_singkat.empty and 'pra_sertel' in df_elek_singkat.columns and 'bt_valid' in df_elek_singkat.columns:
-        # 1. PERBAIKAN UTAMA: Konversi ke numerik DULU sebelum di-groupby/sum
-        df_elek_singkat['pra_sertel_num'] = pd.to_numeric(df_elek_singkat['pra_sertel'], errors='coerce').fillna(0)
-        df_elek_singkat['bt_valid_num']   = pd.to_numeric(df_elek_singkat['bt_valid'], errors='coerce').fillna(0)
-    
-        # 2. Groupby data yang sudah bersih/murni angka
-        df_elek_rekap = df_elek_singkat.groupby('kab_singkat')[['pra_sertel_num', 'bt_valid_num']].sum().reset_index()        
+        df_elek_rekap = df_elek_singkat.copy()
         
-        # 3. Kalkulasi Persentase Aman (Hanya hitung jika bt_valid > 0, sisanya 0)
-        df_elek_rekap['Persentase'] = np.where(
-            df_elek_rekap['bt_valid_num'] > 0,
-            (df_elek_rekap['pra_sertel_num'] / df_elek_rekap['bt_valid_num']) * 100,
-            0
-        )
-        
-        # Sort berdasarkan persentase tertinggi
-        df_elek_rekap = df_elek_rekap.sort_values(by='Persentase', ascending=False)
-        
-        # 4. Render Bar Chart Plotly
+        # PARSER ABSOLUT: Mengonversi format "30.822" menjadi 30822 secara bulat tanpa desimal
+        def parse_sidebar_int(val):
+            if pd.isna(val) or val is None:
+                return 0
+            s = str(val).strip()
+            if not s or s.lower() in ['nan', 'none', 'null', '']:
+                return 0
+            
+            # Jika tipe data awal terlanjur dibaca float oleh pandas
+            if isinstance(val, float):
+                s_float = f"{val:.3f}"
+                s = s_float.replace('.', '')
+            else:
+                s = s.replace('.', '').replace(',', '').replace('Rp', '').replace('%', '').strip()
+            
+            try:
+                return int(s)
+            except ValueError:
+                return 0
+
+        # Terapkan konversi murni ke kolom pra_sertel dan bt_valid
+        df_elek_rekap['pra_sertel_clean'] = df_elek_rekap['pra_sertel'].apply(parse_sidebar_int)
+        df_elek_rekap['bt_valid_clean']   = df_elek_rekap['bt_valid'].apply(parse_sidebar_int)
+
+        # Agregasi total per kabupaten/kota
+        df_elek_grp = df_elek_rekap.groupby('kab_singkat')[['pra_sertel_clean', 'bt_valid_clean']].sum().reset_index()
+
+        # Kalkulasi persentase (%): (Pra-SERTEL / BT Valid) * 100
+        df_elek_grp['Persentase'] = (df_elek_grp['pra_sertel_clean'] / df_elek_grp['bt_valid_clean'].replace(0, 1)) * 100.0
+        df_elek_grp = df_elek_grp.sort_values(by='Persentase', ascending=False)
+
+        # Format string Indonesia dengan titik pemisah ribuan murni (tanpa desimal)
+        df_elek_grp['pra_sertel_fmt'] = df_elek_grp['pra_sertel_clean'].apply(lambda x: f"{x:,.0f}".replace(',', '.'))
+        df_elek_grp['bt_valid_fmt']   = df_elek_grp['bt_valid_clean'].apply(lambda x: f"{x:,.0f}".replace(',', '.'))
+
+        # Render Bar Chart Plotly Sidebar
         fig_elek = px.bar(
-            df_elek_rekap, x='kab_singkat', y='Persentase',
+            df_elek_grp, x='kab_singkat', y='Persentase',
             title="Persentase Prasertel",
-            custom_data=df_elek_rekap[['pra_sertel_num', 'bt_valid_num']]
+            custom_data=df_elek_grp[['pra_sertel_fmt', 'bt_valid_fmt']]
         )
+        
+        # Hover format khusus string murni Indonesia
         fig_elek.update_traces(
-            hovertemplate="<b>Kab/Kota: %{x}</b><br>Persentase: %{y:.2f}%<br>Jumlah Prasertel: %{customdata[0]:,.0f}<br>Jumlah BT Valid: %{customdata[1]:,.0f}<extra></extra>",
+            hovertemplate="<b>Kab/Kota: %{x}</b><br>Persentase: <b>%{y:.2f}%</b><br>Jumlah Prasertel: <b>%{customdata[0]}</b><br>Jumlah BT Valid: <b>%{customdata[1]}</b><extra></extra>",
             marker_color='#00CC96'
         )
+        
         fig_elek.update_layout(
             showlegend=False, 
             height=250,
             xaxis_title="", 
             yaxis_title="",
-            # Mengunci urutan sumbu X sesuai data yang sudah di-sort oleh Pandas
-            xaxis={'categoryorder': 'array', 'categoryarray': df_elek_rekap['kab_singkat']},
+            xaxis={'categoryorder': 'total descending'},
             paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(0,0,0,0)',
-            margin=dict(l=10, r=10, t=35, b=10)
+            margin=dict(l=10, r=10, t=35, b=10),
+            separators=',.', # Pemisah ribuan Indonesia
+            yaxis=dict(
+                gridcolor='#f2f2f2',
+                ticksuffix='%' # Menambahkan % pada sumbu-Y
+            )
         )
-        
-        # Tambahkan pembatas format % pada sumbu Y agar rapi
-        fig_elek.update_yaxes(ticksuffix="%")
-        
         st.plotly_chart(fig_elek, use_container_width=True)
 
 # -----------------------------------------------------------------------------
