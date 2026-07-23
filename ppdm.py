@@ -495,7 +495,7 @@ def render_psn_2026(df_filtered_psn):
         }
         fig_pbt = create_psn_chart(
             "1. Realisasi PBT", df_rekap, 'target_pbt', metrics_pbt, 
-            ['#a9a9a9', '#7b7b7b', '#656565'], unit="Ha", is_stacked=True
+            ['#dbdbdb', '#a9a9a9', '#656565'], unit="Ha", is_stacked=True
         )
         st.plotly_chart(fig_pbt, use_container_width=True)
         st.markdown(card_wrapper_end, unsafe_allow_html=True)
@@ -511,7 +511,7 @@ def render_psn_2026(df_filtered_psn):
         }
         fig_shat = create_psn_chart(
             "2. Realisasi SHAT", df_rekap, 'target_shat', metrics_shat, 
-            ['#b4ffb3', '#44bc43', '#1f9f1d', '#067b04'], unit="Bdg"
+            ['#b4ffb3', '#44bc43', '#1f9f1d', '#026b00'], unit="Bdg"
         )
         st.plotly_chart(fig_shat, use_container_width=True)
         st.markdown(card_wrapper_end, unsafe_allow_html=True)
@@ -526,7 +526,7 @@ def render_psn_2026(df_filtered_psn):
         }
         fig_redis = create_psn_chart(
             "3. Realisasi Redistribusi", df_rekap, 'target_redis', metrics_redis, 
-            ['#17BECF', '#FECB52', '#B6E880'], unit="Bdg"
+            ['#99eaf2', '#17BECF', '#0097a6'], unit="Bdg"
         )
         st.plotly_chart(fig_redis, use_container_width=True)
         st.markdown(card_wrapper_end, unsafe_allow_html=True)
@@ -542,7 +542,7 @@ def render_psn_2026(df_filtered_psn):
         }
         fig_lintor = create_psn_chart(
             "4. Realisasi Lintor", df_rekap, 'target_lintor', metrics_lintor, 
-            ['#FF97FF', '#2CA02C', '#D62728'], unit="Bdg"
+            ['#f0d9a0', '#FECB52', '#f0ae12'], unit="Bdg"
         )
         st.plotly_chart(fig_lintor, use_container_width=True)
         st.markdown(card_wrapper_end, unsafe_allow_html=True)
