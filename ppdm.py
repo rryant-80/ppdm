@@ -1581,6 +1581,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
             )
 
             # Format Tampilan Grafik Full-Width & Legenda di Bawah
+            # Format Tampilan Grafik Full-Width & Legenda di Bawah
             fig_line.update_layout(
                 height=480,
                 xaxis_title="Tanggal Data",
@@ -1588,6 +1589,10 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
                 paper_bgcolor='rgba(0,0,0,0)',
                 plot_bgcolor='rgba(0,0,0,0)',
                 margin=dict(l=15, r=15, t=60, b=80),
+                
+                # POSISI SEPARATORS YANG BENAR DI SINI (LEVEL UTAMA LAYOUT):
+                separators=',.', 
+
                 title=dict(
                     text=chart_title,
                     x=0, y=0.98,
@@ -1602,8 +1607,8 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
                     font=dict(size=11)
                 ),
                 yaxis=dict(
-                    gridcolor='#f2f2f2',
-                    separators=',.', # Pemisah ribuan dengan titik
+                    gridcolor='#f2f2f2'
+                    # Properti separators DIHAPUS dari dalam yaxis
                 ),
                 xaxis=dict(
                     type='category'
