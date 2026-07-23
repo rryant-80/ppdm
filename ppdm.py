@@ -1704,7 +1704,7 @@ with st.sidebar:
         # Tambahkan kolom nama lengkap untuk hover
         df_sdm_rekap['kab_full'] = df_sdm_rekap['kab_singkat'].map(lambda x: REVERSE_KAB_MAP.get(x, x))
         
-        hover_text = "<b>Kab/Kota: %{customdata[0]}</b><br>Total ASN: %{customdata[1]} orang<br>"
+        hover_text = "<b>%{customdata[0]} %{customdata[1]} orang<br>"
         custom_data_cols = ['kab_full', 'total_all']
         for i, col in enumerate(df_sdm_pivot.columns):
             hover_text += f"{col}: %{{customdata[{i+2}]}} orang<br>"
@@ -1764,7 +1764,7 @@ with st.sidebar:
             custom_data=df_ang_rekap[['kab_full', 'target_fmt', 'realisasi_fmt', 'persen_fmt']]
         )
         fig_anggaran.update_traces(
-            hovertemplate="<b>%{customdata[0]}, %{customdata[3]}%</b><br>Target Rp %{customdata[1]}<br>Realisasi Rp %{customdata[2]}<br>",
+            hovertemplate="<b>%{customdata[0]} %{customdata[3]}%</b><br>Target Rp %{customdata[1]}<br>Realisasi Rp %{customdata[2]}<br>",
             marker_color='#17BECF'
         )
         fig_anggaran.update_layout(
@@ -1794,7 +1794,7 @@ with st.sidebar:
             df_layanan_pivot = df_layanan_pos.pivot(index='kab_singkat', columns='posisi_berkas', values='jml_pos').fillna(0).astype(int)
             df_layanan_total = df_layanan_total.merge(df_layanan_pivot, on='kab_singkat')
             
-            hover_layanan = "<b>%{customdata[0]}, %{y} berkas</b><br>--- Detail Posisi ---<br>"
+            hover_layanan = "<b>%{customdata[0]} %{y} berkas</b><br>--- Detail Posisi ---<br>"
             custom_data_layanan = ['kab_full', 'total_berkas']
             for i, col in enumerate(df_layanan_pivot.columns):
                 hover_layanan += f"{col}: %{{customdata[{i+2}]}}<br>"
