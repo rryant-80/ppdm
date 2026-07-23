@@ -20,8 +20,8 @@ SHEET_ID = st.secrets["gsheet_id"]
 @st.cache_data(ttl=3600)  # Cache data selama 1 jam agar loading cepat
 def load_data(gid):
     url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid={gid}"
-    try:
-        return pd.read_csv(url)
+    try:        
+        return pd.read_csv(url, dtype=str)
     except Exception as e:
         st.error(f"Gagal memuat data GID {gid}: {e}")
         return pd.DataFrame()
