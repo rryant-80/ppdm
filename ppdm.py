@@ -1551,11 +1551,11 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
             if is_kec_active and col_des in df_p_line.columns:
                 group_col = col_des
                 hover_area_label = "Desa/Kelurahan"
-                chart_title = f"📈 Tren Progress Prasertel Desa per Desa/Kelurahan ({selected_kec})"
+                chart_title = f"📈 Tren Progress Prasertel per Desa/Kelurahan ({selected_kec})"
             elif is_kab_active and col_kec in df_p_line.columns:
                 group_col = col_kec
                 hover_area_label = "Kecamatan"
-                chart_title = f"📈 Tren Progress Prasertel Desa per Kecamatan ({selected_kab})"
+                chart_title = f"📈 Tren Progress Prasertel per Kecamatan ({selected_kab})"
             else:
                 group_col = col_kab if col_kab in df_p_line.columns else None
                 hover_area_label = "Kab/Kota"
