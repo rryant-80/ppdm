@@ -1493,6 +1493,95 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
     st.plotly_chart(fig_combined, use_container_width=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
+    # ==========================================
+    # 6. GRAFIK TREN PROGRESS HARIAN (LINE CHART TIME SERIES)
+    # ==========================================
+    if df_progress is not None and not df_progress.empty:
+        df_p_line = df_progress.copy()
+        df_p_line.columns = [str(c).strip().lower() for c in df_p_line.columns]
+
+        col_tgl  = next((c for c in df_p_line.columns if 'tgl' in c), 'tgl_data')
+        col_kab  = next((c for c in df_p_line.columns if 'kab' in c), 'kabupaten_kota')
+        col_kec  = next((c for c in df_p_line.columns if 'kec' in c), 'kecamatan')
+        col_des  = next((c for c in df_p_line.columns if 'des' in c or 'kel' in c), 'desa_kelurahan')
+        col_pdes = next((c for c in df_p_line.columns if 'prasertel' in c), 'prasertel_desa')
+
+        if col_tgl in df_p_line.columns and col_pdes in df_p_line.columns:
+            # Filter baris dengan tanggal valid
+            df_p_line = df_p_line[df_p_line[col_tgl].notna() & (df_p_line[col_tgl].astype(str).str.strip() != '')].copy()
+
+            # Bersihkan nilai prasertel_desa
+            df_p_line['val_pdes'] = df_p_line[col_pdes].apply(parse_bilangan_cacah)
+
+            # Konversi Tanggal & Urutkan Kronologis
+            df_p_line['tgl_dt'] = pd.to_datetime(df_p_line[col_tgl], format='%d/%m/%Y', errors='coerce')
+            if df_p_line['tgl_dt'].isna().all():
+                df_p_line['tgl_dt'] = pd.to_datetime(df_p_line[col_tgl], dayfirst=True, errors='coerce')
+
+            # Urutkan berdasarkan tanggal
+            df_p_line = df_p_line.sort_values(by='tgl_dt', ascending=True)
+            df_p_line['tgl_str'] = df_p_line[col_tgl].astype(str).str.strip()
+
+            # Tentukan Pengelompokan & Garis Kategori Berdasarkan Filter
+            is_kec_active = selected_kec and str(selected_kec).strip() not in ['', 'Semua', 'Semua Kecamatan']
+            is_kab_active = selected_kab and str(selected_kab).strip() not in ['', 'Semua', 'Semua Kabupaten/Kota']
+
+            if is_kec_active and col_des in df_p_line.columns:
+                group_col = col_des
+                chart_title = f"📈 Tren Progress Prasertel Desa per Desa/Kelurahan ({selected_kec})"
+            elif is_kab_active and col_kec in df_p_line.columns:
+                group_col = col_kec
+                chart_title = f"📈 Tren Progress Prasertel Desa per Kecamatan ({selected_kab})"
+            else:
+                if col_kab in df_p_line.columns:
+                    group_col = col_kab
+                else:
+                    group_col = None
+                chart_title = "📈 Tren Progress Prasertel Desa Se-Sulawesi Tengah dari Waktu ke Waktu"
+
+            # Agregasi Total Prasertel Desa
+            if group_col and group_col in df_p_line.columns:
+                df_trend = df_p_line.groupby(['tgl_str', 'tgl_dt', group_col])['val_pdes'].sum().reset_index()
+                df_trend = df_trend.sort_values('tgl_dt')
+
+                fig_line = px.line(
+                    df_trend, x='tgl_str', y='val_pdes', color=group_col,
+                    markers=True,
+                    title=chart_title,
+                    labels={'tgl_str': 'Tanggal Data', 'val_pdes': 'Jumlah Prasertel Desa', group_col: 'Wilayah'}
+                )
+            else:
+                df_trend = df_p_line.groupby(['tgl_str', 'tgl_dt'])['val_pdes'].sum().reset_index()
+                df_trend = df_trend.sort_values('tgl_dt')
+
+                fig_line = px.line(
+                    df_trend, x='tgl_str', y='val_pdes',
+                    markers=True,
+                    title=chart_title,
+                    labels={'tgl_str': 'Tanggal Data', 'val_pdes': 'Jumlah Prasertel Desa'}
+                )
+                fig_line.update_traces(line_color='#0451C9', line_width=3)
+
+            fig_line.update_traces(
+                hovertemplate="<b>Tanggal: %{x}</b><br>Jumlah Prasertel: <b>%{y:,.0f}</b><extra></extra>",
+                marker=dict(size=7, line=dict(width=1, color='#000000')) # Titik dengan outline hitam
+            )
+
+            fig_line.update_layout(
+                height=340,
+                xaxis_title="Tanggal Data",
+                yaxis_title="Total Prasertel",
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                margin=dict(l=10, r=10, t=40, b=10),
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, title_text=''),
+                yaxis=dict(gridcolor='#f2f2f2')
+            )
+
+            st.markdown('<div class="chart-container-orange">', unsafe_allow_html=True)
+            st.plotly_chart(fig_line, use_container_width=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+
 # -----------------------------------------------------------------------------
 # 3. SIDEBAR: FILTER & NAVIGATION
 # -----------------------------------------------------------------------------
