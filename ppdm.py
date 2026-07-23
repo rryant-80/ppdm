@@ -1280,7 +1280,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
         render_orange_card(
             "Luas APL", 
             f"{fmt_dec2(pct_apl)}%", 
-            f"Luas: {fmt_dec2(tot_apl_ha)} Ha dari Luas Wilayah ({fmt_dec2(tot_adm_ha)} Ha)"
+            f"{fmt_dec2(tot_apl_ha)} Ha dari Luas Wilayah ({fmt_dec2(tot_adm_ha)} Ha)"
         )
 
     with r1_c2:
@@ -1288,7 +1288,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
         render_orange_card(
             "Luas Persil", 
             f"{fmt_dec2(pct_persil)}%", 
-            f"Luas: {fmt_dec2(tot_persil_ha)} Ha | {fmt_idr(tot_jml_persil)} Persil"
+            f"{fmt_dec2(tot_persil_ha)} Ha | {fmt_idr(tot_jml_persil)} Persil"
         )
 
     with r1_c3:
@@ -1296,14 +1296,14 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
         render_orange_card(
             "Luas Persil Valid", 
             f"{fmt_dec2(pct_persil_valid)}%", 
-            f"Luas: {fmt_dec2(tot_persil_valid_ha)} Ha"
+            f"{fmt_dec2(tot_persil_valid_ha)} Ha"
         )
 
     with r1_c4:
         render_orange_card(
             "Jumlah KW456", 
             f"{fmt_idr(tot_kw456)} Bidang", 
-            f"Luas: {fmt_dec2(tot_luas_kw456_ha)} Ha | Total: {fmt_idr(tot_bt)} BT"
+            f"{fmt_dec2(tot_luas_kw456_ha)} Ha | Total: {fmt_idr(tot_bt)} BT"
         )
 
     with r1_c5:
@@ -1311,7 +1311,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
         render_orange_card(
             "Jumlah BT Valid", 
             f"{fmt_idr(tot_bt_valid)} BT", 
-            f"Total: {fmt_dec2(pct_bt_valid)}% | {fmt_idr(tot_bt)} BT"
+            f"{fmt_dec2(pct_bt_valid)} % | {fmt_idr(tot_bt)} BT"
         )
 
     # BARIS 2 (CARD 6 - 10)
@@ -1322,7 +1322,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
         render_orange_card(
             "% PRA-SUEL", 
             f"{fmt_dec2(pct_pra_suel)}%", 
-            f"{fmt_idr(tot_pra_suel)} dari {fmt_idr(tot_su)} SU"
+            f"{fmt_idr(tot_pra_suel)} SU dari {fmt_idr(tot_su)} SU"
         )
 
     with r2_c2:
@@ -1330,7 +1330,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
         render_orange_card(
             "% PRA-BTEL", 
             f"{fmt_dec2(pct_pra_btel)}%", 
-            f"{fmt_idr(tot_pra_btel)} dari {fmt_idr(tot_bt_valid)} BT Valid"
+            f"{fmt_idr(tot_pra_btel)} BT dari {fmt_idr(tot_bt_valid)} BT Valid"
         )
 
     with r2_c3:
@@ -1338,14 +1338,14 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
         render_orange_card(
             "% PRA-SERTEL", 
             f"{fmt_dec2(pct_pra_sertel)}%", 
-            f"{fmt_idr(tot_pra_sertel)} dari {fmt_idr(tot_bt)} BT"
+            f"{fmt_idr(tot_pra_sertel)} BT dari {fmt_idr(tot_bt)} BT"
         )
 
     with r2_c4:
         # CARD 9 MENGGUNAKAN BINGKAI & TEKS BIRU #0451c9
         render_blue_card(
-            "Progress Harian", 
-            f"+{fmt_idr(val_prog_harian)} Sertel", 
+            "Progress Terbaru", 
+            f"+{fmt_idr(val_prog_harian)} Pra Sertel", 
             sub_card9
         )
 
