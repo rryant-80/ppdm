@@ -1790,7 +1790,7 @@ with st.sidebar:
 
         fig_layanan = px.bar(
             df_layanan_total, x='kab_singkat', y='total_berkas',
-            title="Berkas Lewat SOP",
+            title="Berkas Tunggakan PDDM",
             custom_data=df_layanan_total[custom_data_layanan] if custom_data_layanan else None
         )
         fig_layanan.update_traces(hovertemplate=hover_layanan + "<extra></extra>", marker_color='#EF553B')
@@ -1846,7 +1846,7 @@ with st.sidebar:
         # Render Bar Chart Plotly Sidebar
         fig_elek = px.bar(
             df_elek_grp, x='kab_singkat', y='Persentase',
-            title="Persentase Prasertel",
+            title="% Prasertel",
             custom_data=df_elek_grp[['pra_sertel_fmt', 'bt_valid_fmt']]
         )
         
