@@ -1494,7 +1494,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
     st.markdown('</div>', unsafe_allow_html=True)
 
     # ==========================================
-    # 6. GRAFIK TREN PROGRESS HARIAN (NAMA KOLOM: prasertel_desa)
+    # 6. GRAFIK TREN PROGRESS HARIAN (PRESISI GOOGLESHEET & SATUAN BT)
     # ==========================================
     if df_progress is not None and not df_progress.empty:
         df_p_line = df_progress.copy()
@@ -1502,31 +1502,41 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
         # Bersihkan nama kolom dari spasi & ubah ke huruf kecil
         df_p_line.columns = [str(c).strip().lower() for c in df_p_line.columns]
 
-        # Pencarian nama kolom presisi
         col_tgl  = next((c for c in df_p_line.columns if 'tgl' in c), 'tgl_data')
         col_kab  = next((c for c in df_p_line.columns if 'kab' in c), 'kabupaten_kota')
         col_kec  = next((c for c in df_p_line.columns if 'kec' in c), 'kecamatan')
         col_des  = next((c for c in df_p_line.columns if 'des' in c or 'kel' in c), 'desa_kelurahan')
-        
-        # Patok eksplisit ke 'prasertel_desa'
         col_pdes = 'prasertel_desa' if 'prasertel_desa' in df_p_line.columns else next((c for c in df_p_line.columns if 'prasertel' in c), 'prasertel_desa')
 
         if col_tgl in df_p_line.columns and col_pdes in df_p_line.columns:
             # Filter baris dengan tanggal valid
             df_p_line = df_p_line[df_p_line[col_tgl].notna() & (df_p_line[col_tgl].astype(str).str.strip() != '')].copy()
 
-            # Fungsi konversi murni angka integer dari Google Sheet
-            def clean_to_int_pure(val):
+            # PARSER PRESISI: Mencegah perkalian 10x dari float ke string
+            def parse_prasertel_exact(val):
                 if pd.isna(val) or val is None:
                     return 0
-                # Hapus titik ribuan, koma, atau karakter non-numerik
-                s = str(val).strip().replace('.', '').replace(',', '').replace('Rp', '').replace('%', '')
+                if isinstance(val, (int, float)):
+                    return int(round(val))
+                
+                s = str(val).strip()
+                if not s or s.lower() in ['nan', 'none', 'null', '']:
+                    return 0
+                
+                # Jika format Google Sheet menggunakan titik sebagai pemisah ribuan (misal "1.663")
+                if '.' in s and ',' not in s:
+                    parts = s.split('.')
+                    # Jika bagian setelah titik persis 3 digit (pemisah ribuan murni)
+                    if len(parts) > 1 and all(len(p) == 3 for p in parts[1:]):
+                        s = ''.join(parts)
+                
+                s = s.replace(',', '').replace('Rp', '').replace('%', '').strip()
                 try:
                     return int(round(float(s)))
                 except ValueError:
                     return 0
 
-            df_p_line['val_pdes'] = df_p_line[col_pdes].apply(clean_to_int_pure)
+            df_p_line['val_pdes'] = df_p_line[col_pdes].apply(parse_prasertel_exact)
 
             # Format Tanggal
             df_p_line['tgl_dt'] = pd.to_datetime(df_p_line[col_tgl], format='%d/%m/%Y', errors='coerce')
@@ -1574,25 +1584,21 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
                 )
                 fig_line.update_traces(line_color='#0451C9', line_width=3)
 
-            # Format Hover: Label Wilayah & Angka Murni dengan Pemisah Ribuan Indonesia
+            # Format Hover: Menampilkan Label Wilayah & Angka Murni + SATUAN BT
             fig_line.update_traces(
-                hovertemplate=f"<b>{hover_area_label}: %{{fullData.name}}</b><br>Tanggal: %{{x}}<br>Jml Prasertel: <b>%{{y:,.0f}}</b><extra></extra>",
+                hovertemplate=f"<b>{hover_area_label}: %{{fullData.name}}</b><br>Tanggal: %{{x}}<br>Jml Prasertel: <b>%{{y:,.0f}} BT</b><extra></extra>",
                 marker=dict(size=8, line=dict(width=1.5, color='#000000'))
             )
 
-            # Format Tampilan Grafik Full-Width & Legenda di Bawah
-            # Format Tampilan Grafik Full-Width & Legenda di Bawah
+            # Format Tampilan Layout Grafik
             fig_line.update_layout(
                 height=480,
                 xaxis_title="Tanggal Data",
-                yaxis_title="Jml Prasertel",
+                yaxis_title="Jml Prasertel (BT)",
                 paper_bgcolor='rgba(0,0,0,0)',
                 plot_bgcolor='rgba(0,0,0,0)',
                 margin=dict(l=15, r=15, t=60, b=80),
-                
-                # POSISI SEPARATORS YANG BENAR DI SINI (LEVEL UTAMA LAYOUT):
-                separators=',.', 
-
+                separators=',.', # Pemisah ribuan Indonesia
                 title=dict(
                     text=chart_title,
                     x=0, y=0.98,
@@ -1608,7 +1614,6 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
                 ),
                 yaxis=dict(
                     gridcolor='#f2f2f2'
-                    # Properti separators DIHAPUS dari dalam yaxis
                 ),
                 xaxis=dict(
                     type='category'
