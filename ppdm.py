@@ -1353,7 +1353,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
         # CARD 10 MENGGUNAKAN BINGKAI & TEKS BIRU #0451c9
         render_blue_card(
             "Peringkat Nasional", 
-            f"Sulteng#{rank_num_val}", 
+            f"Sulteng #{rank_num_val}", 
             sub_card10
         )
 
@@ -1461,7 +1461,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
     fig_combined = px.bar(
         df_merged, x=x_col, y='Persentase', color='Indikator',
         barmode='group',
-        title=f"📊 Rekapitulasi Capaian (Diurutkan dari % Pra-SERTEL Tertinggi)",
+        title=f"📊 Grafik Capaian Pra-SERTEL",
         color_discrete_map=pastel_color_map,
         category_orders={
             x_col: x_order,  # Mengunci urutan Sumbu-X sesuai % Pra-Sertel
@@ -1559,7 +1559,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
             else:
                 group_col = col_kab if col_kab in df_p_line.columns else None
                 hover_area_label = "Kab/Kota"
-                chart_title = "📈 Tren Progress Prasertel Desa Se-Sulawesi Tengah dari Waktu ke Waktu"
+                chart_title = "📈 Tren Progres Prasertel"
 
             # 3. PENJUMLAHAN TOTAL SELURUH BARIS BERDASARKAN TANGGAL & WILAYAH
             if group_col and group_col in df_p_line.columns:
