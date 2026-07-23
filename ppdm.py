@@ -1457,7 +1457,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
     }
 
     # Render 1 Grafik Gabungan Terurut
-    st.markdown('<div class="chart-container-orange">', unsafe_allow_html=True)
+    
     fig_combined = px.bar(
         df_merged, x=x_col, y='Persentase', color='Indikator',
         barmode='group',
