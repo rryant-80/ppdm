@@ -548,7 +548,7 @@ def render_psn_2026(df_filtered_psn):
         st.markdown(card_wrapper_end, unsafe_allow_html=True)
 
 def render_layanan_pertanahan(df_filtered_layanan):
-    st.markdown("### 🚨 Berkas Melebihi Durasi SOP")
+    st.markdown("### 🚨 Berkas Tunggakan PDDM")
     st.markdown("<small style='color:gray;'>💡 Tips: Arahkan kursor ke kotak merah strobo untuk melihat detail nama prosedur dan nomor berkas.</small>", unsafe_allow_html=True)
 
     if df_filtered_layanan.empty:
@@ -797,7 +797,7 @@ def render_layanan_pertanahan(df_filtered_layanan):
             margin=dict(l=10, r=10, t=80, b=10),
             
             title=dict(
-                text="Rekapitulasi Berkas Melebihi SOP per Posisi Berkas",
+                text="Grafik Posisi Berkas Tunggakan PDDM",
                 font=dict(size=13, color="#2c3e50"),
                 x=0.0,
                 y=0.98,
@@ -844,7 +844,7 @@ def render_layanan_pertanahan(df_filtered_layanan):
         # 8. TABEL HTML MODERN DENGAN WRAP TEXT FULL
         # ==========================================
         st.markdown("<br>", unsafe_allow_html=True)
-        st.subheader("📋 Rincian Berkas Melebihi Durasi SOP")
+        st.subheader("📋 Detail Berkas Tunggakan PDDM")
 
         df_table = df_overdue.copy()
 
