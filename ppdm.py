@@ -1763,10 +1763,11 @@ with st.sidebar:
             showlegend=False, height=250,
             xaxis_title="", yaxis_title="",
             xaxis={'categoryorder':'total descending'},
-            margin=dict(l=10, r=10, t=35, b=10)
+            margin=dict(l=10, r=10, t=35, b=10),
             yaxis=dict(
                 gridcolor='#f2f2f2',
                 ticksuffix='%' # Menambahkan % pada sumbu-Y
+            )
         )
         st.plotly_chart(fig_anggaran, use_container_width=True)
 
