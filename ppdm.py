@@ -1494,7 +1494,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
     st.markdown('</div>', unsafe_allow_html=True)
 
     # ==========================================
-    # 6. GRAFIK TREN PROGRESS HARIAN (TOTAL PERSISI ALL ROWS & BT)
+    # 6. GRAFIK TREN PROGRESS HARIAN (TOTAL MURNI ALL ROWS & ABSOLUTE INTEGER)
     # ==========================================
     if df_progress is not None and not df_progress.empty:
         df_p_line = df_progress.copy()
@@ -1509,41 +1509,39 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
         col_pdes = 'prasertel_desa' if 'prasertel_desa' in df_p_line.columns else next((c for c in df_p_line.columns if 'prasertel' in c), 'prasertel_desa')
 
         if col_tgl in df_p_line.columns and col_pdes in df_p_line.columns:
-            # 1. Pastikan kolom tanggal berupa string bersih (tidak dibuang oleh parser datetime)
+            # 1. Bersihkan Kolom Tanggal (Menjaga semua baris tanggal)
             df_p_line['tgl_str'] = df_p_line[col_tgl].astype(str).str.strip()
             df_p_line = df_p_line[df_p_line['tgl_str'].notna() & (df_p_line['tgl_str'] != '') & (df_p_line['tgl_str'].str.lower() != 'nan')].copy()
 
-            # 2. PARSER KETAT & PRESISI UNTUK NILAI PRASERTEL DESA
-            def parse_prasertel_all_rows(val):
+            # 2. PARSER ULTIMATE: Mengonversi "1.007" menjadi 1007 secara mutlak
+            def parse_prasertel_absolute(val):
                 if pd.isna(val) or val is None:
                     return 0
                 
-                # Jika sudah berupa integer/float
-                if isinstance(val, (int, float)):
-                    return int(round(val))
-                
+                # Ubah ke string murni
                 s = str(val).strip()
                 if not s or s.lower() in ['nan', 'none', 'null', '']:
                     return 0
                 
-                # Menangani format ribuan dengan titik (contoh: "1.663" -> "1663")
-                # Jika ada titik dan tidak ada koma, serta 3 angka di belakang titik -> pemisah ribuan
-                if '.' in s and ',' not in s:
-                    parts = s.split('.')
-                    if len(parts) > 1 and all(len(p) == 3 for p in parts[1:]):
-                        s = ''.join(parts)
+                # Jika tipe data awal sudah float dari pandas (misal 1.007)
+                # Kita ubah formatnya untuk menghilangkan koma desimal palsu akibat pemisah ribuan titik
+                if isinstance(val, float):
+                    # Jika float memiliki 3 digit desimal (seperti 1.007), itu adalah 1007 dari Google Sheet
+                    s_float = f"{val:.3f}"
+                    s = s_float.replace('.', '')
+                else:
+                    # Jika string, hapus semua titik, koma, dan karakter non-angka
+                    s = s.replace('.', '').replace(',', '').replace('Rp', '').replace('%', '').strip()
                 
-                # Bersihkan karakter non-numerik lain (seperti koma desimal atau spasi)
-                s = s.replace(',', '').replace('Rp', '').replace('%', '').strip()
                 try:
-                    return int(round(float(s)))
+                    return int(s)
                 except ValueError:
                     return 0
 
-            # Hitung nilai murni tiap baris (0 tetap 0)
-            df_p_line['val_pdes'] = df_p_line[col_pdes].apply(parse_prasertel_all_rows)
+            # Penerapan parser ke seluruh baris
+            df_p_line['val_pdes'] = df_p_line[col_pdes].apply(parse_prasertel_absolute)
 
-            # 3. Urutkan tanggal secara alami berdasarkan kemunculan unik di Google Sheet
+            # Ambil urutan tanggal unik murni dari Google Sheet
             unique_tgls = df_p_line['tgl_str'].unique().tolist()
 
             # Tentukan Hirarki Wilayah & Label Hover
@@ -1563,7 +1561,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
                 hover_area_label = "Kab/Kota"
                 chart_title = "📈 Tren Progress Prasertel Desa Se-Sulawesi Tengah dari Waktu ke Waktu"
 
-            # 4. AGREGAASI TOTAL SEMUA BARIS (Baris desa yang sama pada tgl yang sama dikumpulkan dan dijumlahkan)
+            # 3. PENJUMLAHAN TOTAL SELURUH BARIS BERDASARKAN TANGGAL & WILAYAH
             if group_col and group_col in df_p_line.columns:
                 df_trend = df_p_line.groupby(['tgl_str', group_col], as_index=False)['val_pdes'].sum()
 
@@ -1571,7 +1569,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
                     df_trend, x='tgl_str', y='val_pdes', color=group_col,
                     markers=True,
                     title=chart_title,
-                    category_orders={'tgl_str': unique_tgls} # Kunci urutan tanggal persis seperti Google Sheet
+                    category_orders={'tgl_str': unique_tgls}
                 )
             else:
                 df_trend = df_p_line.groupby('tgl_str', as_index=False)['val_pdes'].sum()
@@ -1584,13 +1582,13 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
                 )
                 fig_line.update_traces(line_color='#0451C9', line_width=3)
 
-            # Format Hover: Menampilkan Label Wilayah & Angka Murni + SATUAN BT
+            # Format Tooltip Hover: Wilayah, Tanggal, & Jumlah BT
             fig_line.update_traces(
                 hovertemplate=f"<b>{hover_area_label}: %{{fullData.name}}</b><br>Tanggal: %{{x}}<br>Jml Prasertel: <b>%{{y:,.0f}} BT</b><extra></extra>",
                 marker=dict(size=8, line=dict(width=1.5, color='#000000'))
             )
 
-            # Format Tampilan Layout Grafik
+            # Format Layout Grafik Full-Width
             fig_line.update_layout(
                 height=480,
                 xaxis_title="Tanggal Data",
@@ -1598,7 +1596,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
                 paper_bgcolor='rgba(0,0,0,0)',
                 plot_bgcolor='rgba(0,0,0,0)',
                 margin=dict(l=15, r=15, t=60, b=80),
-                separators=',.', # Pemisah ribuan Indonesia
+                separators=',.', # Pemisah ribuan dengan titik
                 title=dict(
                     text=chart_title,
                     x=0, y=0.98,
@@ -1616,7 +1614,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
                     gridcolor='#f2f2f2'
                 ),
                 xaxis=dict(
-                    type='category' # Menggunakan tipe kategori agar seluruh tanggal unik Google Sheet ditampilkan 100%
+                    type='category'
                 )
             )
 
