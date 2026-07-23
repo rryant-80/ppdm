@@ -1494,35 +1494,41 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
     st.markdown('</div>', unsafe_allow_html=True)
 
     # ==========================================
-    # 6. GRAFIK TREN PROGRESS HARIAN (FULL WIDTH - NO OVERLAP - NO DECIMAL)
+    # 6. GRAFIK TREN PROGRESS HARIAN (SESUAI GOOGLESHEET)
     # ==========================================
     if df_progress is not None and not df_progress.empty:
         df_p_line = df_progress.copy()
+        
+        # Bersihkan nama kolom dari spasi & ubah ke huruf kecil
         df_p_line.columns = [str(c).strip().lower() for c in df_p_line.columns]
 
+        # Pencarian nama kolom presisi sesuai Google Sheet Anda:
         col_tgl  = next((c for c in df_p_line.columns if 'tgl' in c), 'tgl_data')
         col_kab  = next((c for c in df_p_line.columns if 'kab' in c), 'kabupaten_kota')
         col_kec  = next((c for c in df_p_line.columns if 'kec' in c), 'kecamatan')
         col_des  = next((c for c in df_p_line.columns if 'des' in c or 'kel' in c), 'desa_kelurahan')
+        
+        # PENTING: Mendukung 'prasertel_desa' maupun 'prasertel_desa'
         col_pdes = next((c for c in df_p_line.columns if 'prasertel' in c), 'prasertel_desa')
 
         if col_tgl in df_p_line.columns and col_pdes in df_p_line.columns:
             # Filter baris dengan tanggal valid
             df_p_line = df_p_line[df_p_line[col_tgl].notna() & (df_p_line[col_tgl].astype(str).str.strip() != '')].copy()
 
-            # PARSER KETAT: Menghapus titik ribuan Google Sheet (misal "1.007" menjadi 1007)
-            def parse_prasertel_pure(val):
+            # Fungsi konversi murni angka integer dari Google Sheet
+            def clean_to_int_pure(val):
                 if pd.isna(val) or val is None:
                     return 0
-                s = str(val).strip().replace('.', '').replace(',', '')
+                # Hapus titik ribuan, koma, atau teks liar dari sheet
+                s = str(val).strip().replace('.', '').replace(',', '').replace('Rp', '').replace('%', '')
                 try:
                     return int(round(float(s)))
                 except ValueError:
                     return 0
 
-            df_p_line['val_pdes'] = df_p_line[col_pdes].apply(parse_prasertel_pure)
+            df_p_line['val_pdes'] = df_p_line[col_pdes].apply(clean_to_int_pure)
 
-            # Format Tanggal
+            # Format Tanggal tanpa mengubah urutan kronologis asli
             df_p_line['tgl_dt'] = pd.to_datetime(df_p_line[col_tgl], format='%d/%m/%Y', errors='coerce')
             if df_p_line['tgl_dt'].isna().all():
                 df_p_line['tgl_dt'] = pd.to_datetime(df_p_line[col_tgl], dayfirst=True, errors='coerce')
@@ -1547,15 +1553,12 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
                 hover_area_label = "Kab/Kota"
                 chart_title = "📈 Tren Progress Prasertel Desa Se-Sulawesi Tengah dari Waktu ke Waktu"
 
-            # Agregasi Total Prasertel
+            # Agregasi Total Prasertel Desa Murni
             if group_col and group_col in df_p_line.columns:
                 df_trend = df_p_line.groupby(['tgl_str', 'tgl_dt', group_col])['val_pdes'].sum().reset_index()
                 df_trend = df_trend.sort_values('tgl_dt')
 
-                fig_line = px.bar(  # atau px.line jika ingin bentuk garis murni
-                    df_trend, x='tgl_str', y='val_pdes', color=group_col,
-                    title=chart_title
-                ) if False else px.line(
+                fig_line = px.line(
                     df_trend, x='tgl_str', y='val_pdes', color=group_col,
                     markers=True,
                     title=chart_title
@@ -1571,20 +1574,20 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
                 )
                 fig_line.update_traces(line_color='#0451C9', line_width=3)
 
-            # Custom Hover sesuai instruksi: Kab/Kota & Jml Prasertel
+            # Format Hover: Menampilkan Label Wilayah & Angka Murni dengan Pemisah Ribuan Indonesia
             fig_line.update_traces(
                 hovertemplate=f"<b>{hover_area_label}: %{{fullData.name}}</b><br>Tanggal: %{{x}}<br>Jml Prasertel: <b>%{{y:,.0f}}</b><extra></extra>",
                 marker=dict(size=8, line=dict(width=1.5, color='#000000'))
             )
 
-            # Layout 1 Layar Full & Legenda Tidak Menumpuk Judul
+            # Format Tampilan Grafik Full-Width & Legenda Terpisah di Bawah
             fig_line.update_layout(
-                height=480, # Ukuran tinggi proporsional full screen
+                height=480,
                 xaxis_title="Tanggal Data",
                 yaxis_title="Jml Prasertel",
                 paper_bgcolor='rgba(0,0,0,0)',
                 plot_bgcolor='rgba(0,0,0,0)',
-                margin=dict(l=15, r=15, t=60, b=80), # Margin atas & bawah cukup untuk legenda
+                margin=dict(l=15, r=15, t=60, b=80),
                 title=dict(
                     text=chart_title,
                     x=0, y=0.98,
@@ -1592,91 +1595,24 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
                     font=dict(size=15, color='#1e293b')
                 ),
                 legend=dict(
-                    orientation="h",       # Legenda menyamping/horizontal
-                    yanchor="top", y=-0.2, # Pindahkan legenda ke bawah sumbu-X
+                    orientation="h",
+                    yanchor="top", y=-0.2,
                     xanchor="center", x=0.5,
                     title_text='',
                     font=dict(size=11)
                 ),
                 yaxis=dict(
                     gridcolor='#f2f2f2',
-                    tickformat=",d" # Integer murni dengan titik ribuan
+                    separators=',.', # Menyesuaikan format pemisah ribuan dengan titik (contoh: 1.007)
                 ),
                 xaxis=dict(
-                    type='category' # Menjaga urutan label string tanggal
+                    type='category'
                 )
             )
 
             st.markdown('<div class="chart-container-orange">', unsafe_allow_html=True)
             st.plotly_chart(fig_line, use_container_width=True)
             st.markdown('</div>', unsafe_allow_html=True)
-
-# -----------------------------------------------------------------------------
-# 3. SIDEBAR: FILTER & NAVIGATION
-# -----------------------------------------------------------------------------
-with st.sidebar:    
-    st.header("📍 Filter Wilayah")
-    
-    # Filter Kabupaten/Kota (diambil dari gabungan semua dataframe agar aman)
-    list_kabupaten = sorted(list(set(
-        df_layanan['kabupaten_kota'].dropna().unique().tolist() +
-        df_elektronik['kabupaten_kota'].dropna().unique().tolist() +
-        df_sdm['kabupaten_kota'].dropna().unique().tolist() +
-        df_psn['kabupaten_kota'].dropna().unique().tolist()
-    )))
-    list_kabupaten.insert(0, "Semua Kabupaten/Kota")
-    selected_kab = st.selectbox("Kabupaten / Kota", list_kabupaten)
-    
-    # Filter Kecamatan (Hanya muncul/relevan jika ada di df_elektronik yang memiliki kolom kecamatan)
-    if selected_kab != "Semua Kabupaten/Kota":
-        df_kec_pool = df_elektronik[df_elektronik['kabupaten_kota'] == selected_kab]
-        list_kecamatan = sorted(df_kec_pool['kecamatan'].dropna().unique().tolist())
-    else:
-        list_kecamatan = sorted(df_elektronik['kecamatan'].dropna().unique().tolist())
-        
-    list_kecamatan.insert(0, "Semua Kecamatan")
-    selected_kec = st.selectbox("Kecamatan", list_kecamatan)
-    
-    if st.button("🔄 Refresh Data", use_container_width=True):
-        st.cache_data.clear()  # Hapus cache Streamlit
-        st.rerun()
-    
-    st.header("🗂️ Menu Utama")
-    
-    # TAMBAHKAN key="menu_pilihan" AGAR PILIHAN TERSIMPAN DI SESSION STATE
-    menu_pilihan = st.radio(
-        "Pilih Halaman:",
-        [
-            "🏛️ Profil & Anggaran",
-            "🎯 PSN 2026",
-            "💼 Layanan Pertanahan",
-            "⚡ Data Elektronik"
-        ],
-        key="menu_pilihan"  # <--- Kunci utama agar menu tidak ter-reset
-    )
-    
-    st.markdown("---")
-    st.header("📊 Grafik Rekapitulasi (Sulteng)")
-
-    # Kamus untuk mempersingkat nama kabupaten
-    KAB_MAP = {
-        'Banggai': 'BG', 'Banggai Kepulauan': 'BK', 'Banggai Laut': 'BL',
-        'Buol': 'BU', 'Donggala': 'DG', 'Parigi Moutong': 'PM',
-        'Poso': 'PS', 'Tojo Una-una': 'TU', 'Toli-toli': 'TL',
-        'Morowali': 'MW', 'Morowali Utara': 'MU', 'Palu': 'PL',
-        'Sigi': 'SG', 'Sulawesi Tengah': 'ST'
-    }
-    
-    # Fungsi pembantu untuk menyingkat nama kabupaten di DataFrame
-    def singkat_kab(df):
-        if not df.empty and 'kabupaten_kota' in df.columns:
-            df['kab_singkat'] = df['kabupaten_kota'].map(lambda x: KAB_MAP.get(x, x))
-        return df
-
-    # Terapkan singkatan ke dataframe rekap
-    df_sdm_singkat = singkat_kab(df_sdm.copy())
-    df_layanan_singkat = singkat_kab(df_layanan.copy())
-    df_elek_singkat = singkat_kab(df_elektronik.copy())
 
     # ==========================================
     # 1. GRAFIK: Distribusi Pegawai (Stacked Bar - Terurut)
