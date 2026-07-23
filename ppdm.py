@@ -1113,9 +1113,9 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
                 jml_entity_progres = len(df_changed)
 
                 if jml_entity_progres > 0:
-                    sub_card9 = f"{jml_entity_progres} {entity_label} mengalami perubahan"
+                    sub_card9 = f"{jml_entity_progres} {entity_label} berprogres"
                 else:
-                    sub_card9 = "Tidak ada perubahan data"
+                    sub_card9 = "Tidak ada progres"
             elif len(list_tgl_dt) == 1:
                 sub_card9 = "Data H-1 belum tersedia"
 
@@ -1353,7 +1353,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
         # CARD 10 MENGGUNAKAN BINGKAI & TEKS BIRU #0451c9
         render_blue_card(
             "Peringkat Nasional", 
-            f"#{rank_num_val}", 
+            f"Sulteng#{rank_num_val}", 
             sub_card10
         )
 
