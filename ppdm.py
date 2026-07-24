@@ -1673,7 +1673,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
     # 7. TABEL TARGET HARIAN PRASERTEL MENUJU 70% (DESEMBER 2026) - CUSTOM HTML
     # ==========================================
     st.markdown("<br>", unsafe_allow_html=True)
-    st.subheader("🎯 Target Harian Prasertel Menuju 70% (Desember 2026)")
+    st.subheader("🎯 Target Harian Prasertel Menuju 70%")
 
     # 1. Hitung Sisa Hari Kerja (Senin - Jumat)
     today = datetime.now().date()
@@ -1685,6 +1685,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
         sisa_hari_kerja = 1
 
     st.info(f"📅 **Sisa Hari Kerja (Senin–Jumat):** `{sisa_hari_kerja} hari` (hitung mundur hingga 31 Desember 2026)")
+    st.info(f"📅 **`{sisa_hari_kerja} hari kerja` menuju Tgl. 31 Desember 2026")
 
     # 2. Persiapan Dataframe Utama (gid 1848496896)
     df_tabel_target = df_clean.copy()
