@@ -1,9 +1,9 @@
-import datetime
 import re
 import pandas as pd
 import plotly.express as px
 import streamlit as st
 import numpy as np
+import datetime as dt
 from datetime import datetime, date, timedelta
 
 # Konfigurasi Halaman
@@ -562,17 +562,26 @@ def render_layanan_pertanahan(df_filtered_layanan):
     # 1. PEMBERSIH FLEKSIBEL TANGGAL & DURASI
     # ==========================================
     def parse_date_flexible(val):
-        if pd.isna(val):
-            return pd.NaT
-        if isinstance(val, (pd.Timestamp, datetime.date, datetime.datetime)):
-            return pd.to_datetime(val)
-        s_val = str(val).strip()
-        if not s_val or s_val.lower() in ['nan', 'none', '-']:
-            return pd.NaT
-        dt = pd.to_datetime(s_val, dayfirst=True, errors='coerce')
-        if pd.isna(dt):
-            dt = pd.to_datetime(s_val, errors='coerce')
-        return dt
+    if pd.isna(val) or val is None or str(val).strip() == '':
+        return pd.NaT
+    
+    # Gunakan 'date' dan 'datetime' langsung dari import
+    if isinstance(val, (pd.Timestamp, date, datetime)):
+        return pd.to_datetime(val)
+        
+    val_str = str(val).strip()
+    
+    # Tangani angka serial tanggal dari Excel/Google Sheet
+    try:
+        if val_str.isdigit() or (val_str.replace('.', '', 1).isdigit() and float(val_str) > 30000):
+            return pd.to_datetime(float(val_str), unit='D', origin='1899-12-30')
+    except Exception:
+        pass
+
+    try:
+        return pd.to_datetime(val_str, dayfirst=True, errors='coerce')
+    except Exception:
+        return pd.NaT
 
     def clean_durasi(val):
         if pd.isna(val): return 0
