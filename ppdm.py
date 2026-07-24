@@ -562,26 +562,26 @@ def render_layanan_pertanahan(df_filtered_layanan):
     # 1. PEMBERSIH FLEKSIBEL TANGGAL & DURASI
     # ==========================================
     def parse_date_flexible(val):
-    if pd.isna(val) or val is None or str(val).strip() == '':
-        return pd.NaT
-    
-    # Gunakan 'date' dan 'datetime' langsung dari import
-    if isinstance(val, (pd.Timestamp, date, datetime)):
-        return pd.to_datetime(val)
+        if pd.isna(val) or val is None or str(val).strip() == '':
+            return pd.NaT
         
-    val_str = str(val).strip()
+        # Gunakan 'date' dan 'datetime' langsung dari import
+        if isinstance(val, (pd.Timestamp, date, datetime)):
+            return pd.to_datetime(val)
+            
+        val_str = str(val).strip()
+        
+        # Tangani angka serial tanggal dari Excel/Google Sheet
+        try:
+            if val_str.isdigit() or (val_str.replace('.', '', 1).isdigit() and float(val_str) > 30000):
+                return pd.to_datetime(float(val_str), unit='D', origin='1899-12-30')
+        except Exception:
+            pass
     
-    # Tangani angka serial tanggal dari Excel/Google Sheet
-    try:
-        if val_str.isdigit() or (val_str.replace('.', '', 1).isdigit() and float(val_str) > 30000):
-            return pd.to_datetime(float(val_str), unit='D', origin='1899-12-30')
-    except Exception:
-        pass
-
-    try:
-        return pd.to_datetime(val_str, dayfirst=True, errors='coerce')
-    except Exception:
-        return pd.NaT
+        try:
+            return pd.to_datetime(val_str, dayfirst=True, errors='coerce')
+        except Exception:
+            return pd.NaT
 
     def clean_durasi(val):
         if pd.isna(val): return 0
