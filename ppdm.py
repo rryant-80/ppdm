@@ -851,57 +851,94 @@ def render_layanan_pertanahan(df_filtered_layanan):
             render_green_card("Tahun 2026", f"{fmt_idr(b_26)} Berkas",)
 
         # ==========================================
-        # 8. TABEL HTML MODERN DENGAN WRAP TEXT FULL
+        # 8. TABEL HTML MODERN DENGAN WRAP TEXT FULL & FILTER
         # ==========================================
         st.markdown("<br>", unsafe_allow_html=True)
         st.subheader("📋 Detail Berkas Tunggakan PDDM")
 
         df_table = df_overdue.copy()
 
-        if 'kab_clean' in df_table.columns and 'thn_num' in df_table.columns:
-            df_table = df_table.sort_values(by=['kab_clean', 'thn_num', 'no_clean'], ascending=[True, True, True])
+        # ------------------------------------------
+        # TAMBAHAN FILTER TAHUN & POSISI BERKAS
+        # ------------------------------------------
+        col_f1, col_f2 = st.columns(2)
 
-        def clean_formula_text(df_source, col_name):
-            if col_name not in df_source.columns:
-                return pd.Series(['-'] * len(df_source))
-            invalid_patterns = {'#n/a', 'nan', 'none', '', '#ref!', '#value!', '#name?', '#null!'}
-            def transform_val(val):
-                if pd.isna(val) or val is None:
-                    return '-'
-                s_str = str(val).strip()
-                if not s_str or s_str.lower() in invalid_patterns:
-                    return '-'
-                # Escape karakter HTML agar aman
-                return s_str.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
-            return df_source[col_name].apply(transform_val)
+        # 1. Filter Tahun Berkas
+        col_thn_target = 'thn_berkas' if 'thn_berkas' in df_table.columns else ('thn_num' if 'thn_num' in df_table.columns else None)
+        if col_thn_target:
+            list_thn = df_table[col_thn_target].dropna().astype(str).str.strip().unique().tolist()
+            list_thn = sorted([t for t in list_thn if t and t.lower() not in ['nan', 'none', '']])
+            list_thn.insert(0, "Semua Tahun")
 
-        df_table['pemohon_clean'] = clean_formula_text(df_table, 'nama')
-        df_table['kendala_clean'] = clean_formula_text(df_table, 'kendala')
-        df_table['upaya_clean'] = clean_formula_text(df_table, 'upaya_penyelesaian')
-        df_table['prosedur_clean'] = clean_formula_text(df_table, 'nama_prosedur')
-        df_table['posisi_clean'] = clean_formula_text(df_table, 'posisi_berkas')
+            with col_f1:
+                selected_thn = st.selectbox("📅 Filter Tahun Berkas", list_thn, key="filter_tbl_thn_berkas")
 
-        # BENTUK BARIS TABEL DENGAN FORMATING TIGHT (TANPA INDENTASI SPASI DI AWAL BARIS)
-        rows_html_list = []
-        for idx, (_, row) in enumerate(df_table.iterrows(), start=1):
-            r_html = (
-                f"<tr>"
-                f"<td style='text-align: center; font-weight: bold; width: 40px;'>{idx}</td>"
-                f"<td style='width: 110px;'><b>{row['kab_clean']}</b></td>"
-                f"<td style='width: 110px;'>{row['berkas_thn']}</td>"
-                f"<td style='width: 140px;'>{row['pemohon_clean']}</td>"
-                f"<td style='width: 180px;'>{row['prosedur_clean']}</td>"
-                f"<td style='width: 120px;'>{row['posisi_clean']}</td>"
-                f"<td style='width: 280px; color: #c0392b;'>{row['kendala_clean']}</td>"
-                f"<td style='width: 280px; color: #27ae60;'>{row['upaya_clean']}</td>"
-                f"</tr>"
-            )
-            rows_html_list.append(r_html)
+            if selected_thn != "Semua Tahun":
+                df_table = df_table[df_table[col_thn_target].astype(str).str.strip() == selected_thn]
 
-        rows_html = "".join(rows_html_list)
+        # 2. Filter Posisi Berkas
+        if 'posisi_berkas' in df_table.columns:
+            list_pos = df_table['posisi_berkas'].dropna().astype(str).str.strip().unique().tolist()
+            list_pos = sorted([p for p in list_pos if p and p.lower() not in ['nan', 'none', '']])
+            list_pos.insert(0, "Semua Posisi")
 
-        # HTML DAN CSS TANPA SPASI INDENTASI DI AWAL BARIS
-        full_table_html = f"""<style>
+            with col_f2:
+                selected_pos = st.selectbox("📌 Filter Posisi Berkas", list_pos, key="filter_tbl_posisi_berkas")
+
+            if selected_pos != "Semua Posisi":
+                df_table = df_table[df_table['posisi_berkas'].astype(str).str.strip() == selected_pos]
+
+        # Tampilkan caption jumlah baris setelah filter
+        st.caption(f"Menampilkan **{len(df_table):,.0f}** berkas tunggakan".replace(',', '.'))
+
+        # ------------------------------------------
+        # PROSES PEMBENTUKAN TABEL HTML
+        # ------------------------------------------
+        if not df_table.empty:
+            if 'kab_clean' in df_table.columns and 'thn_num' in df_table.columns:
+                df_table = df_table.sort_values(by=['kab_clean', 'thn_num', 'no_clean'], ascending=[True, True, True])
+
+            def clean_formula_text(df_source, col_name):
+                if col_name not in df_source.columns:
+                    return pd.Series(['-'] * len(df_source))
+                invalid_patterns = {'#n/a', 'nan', 'none', '', '#ref!', '#value!', '#name?', '#null!'}
+                def transform_val(val):
+                    if pd.isna(val) or val is None:
+                        return '-'
+                    s_str = str(val).strip()
+                    if not s_str or s_str.lower() in invalid_patterns:
+                        return '-'
+                    # Escape karakter HTML agar aman
+                    return s_str.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+                return df_source[col_name].apply(transform_val)
+
+            df_table['pemohon_clean'] = clean_formula_text(df_table, 'nama')
+            df_table['kendala_clean'] = clean_formula_text(df_table, 'kendala')
+            df_table['upaya_clean'] = clean_formula_text(df_table, 'upaya_penyelesaian')
+            df_table['prosedur_clean'] = clean_formula_text(df_table, 'nama_prosedur')
+            df_table['posisi_clean'] = clean_formula_text(df_table, 'posisi_berkas')
+
+            # BENTUK BARIS TABEL DENGAN FORMATING TIGHT
+            rows_html_list = []
+            for idx, (_, row) in enumerate(df_table.iterrows(), start=1):
+                r_html = (
+                    f"<tr>"
+                    f"<td style='text-align: center; font-weight: bold; width: 40px;'>{idx}</td>"
+                    f"<td style='width: 110px;'><b>{row.get('kab_clean', '-')}</b></td>"
+                    f"<td style='width: 110px;'>{row.get('berkas_thn', '-')}</td>"
+                    f"<td style='width: 140px;'>{row['pemohon_clean']}</td>"
+                    f"<td style='width: 180px;'>{row['prosedur_clean']}</td>"
+                    f"<td style='width: 120px;'>{row['posisi_clean']}</td>"
+                    f"<td style='width: 280px; color: #c0392b;'>{row['kendala_clean']}</td>"
+                    f"<td style='width: 280px; color: #27ae60;'>{row['upaya_clean']}</td>"
+                    f"</tr>"
+                )
+                rows_html_list.append(r_html)
+
+            rows_html = "".join(rows_html_list)
+
+            # HTML DAN CSS TANPA SPASI INDENTASI DI AWAL BARIS
+            full_table_html = f"""<style>
 .custom-table-container {{
     max-height: 480px;
     overflow-y: auto;
@@ -957,10 +994,10 @@ def render_layanan_pertanahan(df_filtered_layanan):
 </table>
 </div>"""
 
-        st.markdown(full_table_html, unsafe_allow_html=True)
+            st.markdown(full_table_html, unsafe_allow_html=True)
 
-    else:
-        st.success("🎉 Seluruh berkas layanan pertanahan tepat waktu (SOP Tuntas).")
+        else:
+            st.info("ℹ️ Tidak ada berkas tunggakan yang sesuai dengan filter tahun/posisi berkas yang dipilih.")
 
 def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=None, selected_kab=None, selected_kec=None):
     st.title("💻 Data Elektronik")
