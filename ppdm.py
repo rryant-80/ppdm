@@ -1673,7 +1673,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
     # 7. TABEL TARGET HARIAN PRASERTEL MENUJU 70% (DESEMBER 2026) - CUSTOM HTML
     # ==========================================
     st.markdown("<br>", unsafe_allow_html=True)
-    st.subheader("🎯 Target Harian Prasertel Menuju 70%")
+    st.subheader("🎯 Target Harian Prasertel Menuju 70% (Desember 2026)")
 
     # 1. Hitung Sisa Hari Kerja (Senin - Jumat)
     today = datetime.now().date()
@@ -1684,9 +1684,9 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
     else:
         sisa_hari_kerja = 1
 
-    st.info(f"📅 **`{sisa_hari_kerja} hari kerja` menuju Tgl. 31 Desember 2026**")
+    st.info(f"📅 **{sisa_hari_kerja} hari kerja** menuju Tgl. 31 Desember 2026")
 
-    # 2. Persiapan Dataframe Utama (gid 1848496896)
+    # 2. Persiapan Dataframe Utama (Pengambilan dari jumlah_bt)
     df_tabel_target = df_clean.copy()
 
     is_kec_active = selected_kec and str(selected_kec).strip() not in ['', 'Semua', 'Semua Kecamatan']
@@ -1702,19 +1702,22 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
         col_wilayah = 'kabupaten_kota'
         label_wilayah = "Kabupaten / Kota"
 
-    # Clean angka pra_sertel & bt_valid
-    for c in ['pra_sertel', 'bt_valid']:
-        if c not in df_tabel_target.columns:
-            df_tabel_target[c] = 0
-        else:
-            def parse_num_table(val):
-                if pd.isna(val) or val is None: return 0
-                s = str(val).replace('.', '').replace(',', '').strip()
-                try: return int(s)
-                except: return 0
-            df_tabel_target[c] = df_tabel_target[c].apply(parse_num_table)
+    # PEMETAAN EKSPLISIT: Ambil 'jumlah_bt' untuk BT Valid & 'pra_sertel' untuk Prasertel
+    col_bt_source = 'jumlah_bt' if 'jumlah_bt' in df_tabel_target.columns else 'bt_valid'
+    
+    # Parser angka murni
+    def parse_num_table(val):
+        if pd.isna(val) or val is None: return 0
+        s = str(val).replace('.', '').replace(',', '').strip()
+        try: return int(s)
+        except: return 0
 
-    df_target_grp = df_tabel_target.groupby(col_wilayah, as_index=False)[['bt_valid', 'pra_sertel']].sum()
+    df_tabel_target['bt_valid_clean'] = df_tabel_target[col_bt_source].apply(parse_num_table) if col_bt_source in df_tabel_target.columns else 0
+    df_tabel_target['pra_sertel_clean'] = df_tabel_target['pra_sertel'].apply(parse_num_table) if 'pra_sertel' in df_tabel_target.columns else 0
+
+    # Agregasi per Wilayah
+    df_target_grp = df_tabel_target.groupby(col_wilayah, as_index=False)[['bt_valid_clean', 'pra_sertel_clean']].sum()
+    df_target_grp.rename(columns={'bt_valid_clean': 'bt_valid', 'pra_sertel_clean': 'pra_sertel'}, inplace=True)
 
     # 3. Hitung % Saat ini & Target Harian
     df_target_grp['pct_saat_ini'] = (df_target_grp['pra_sertel'] / df_target_grp['bt_valid'].replace(0, 1)) * 100.0
@@ -1762,7 +1765,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
                     val_prv = grp_prev.get(w_name, 0)
                     df_capaian_map[w_name] = val_lat - val_prv
 
-    # Kebijakan: Urutkan Berdasarkan % Prasertel Terkecil Ke Terbesar
+    # Urutkan Berdasarkan % Prasertel Terkecil Ke Terbesar
     df_target_grp = df_target_grp.sort_values(by='pct_saat_ini', ascending=True).reset_index(drop=True)
 
     # 5. Formating Baris HTML Modern
@@ -1808,7 +1811,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
 
     body_target_html = "".join(rows_target_html)
 
-    # 6. Render Tabel CSS & HTML Tanpa Scroll (Menampilkan Semua 13 Kabupaten Terlihat Penuh)
+    # 6. Render Tabel CSS & HTML
     html_target_table = f"""<style>
 .target-table-container {{
     width: 100%;
@@ -1892,6 +1895,8 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
 </div>"""
 
     st.markdown(html_target_table, unsafe_allow_html=True)
+
+    
 
 # -----------------------------------------------------------------------------
 # 3. SIDEBAR: FILTER & NAVIGATION
