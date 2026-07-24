@@ -633,7 +633,7 @@ def render_layanan_pertanahan(df_filtered_layanan):
     df['durasi_clean'] = df['durasi'].apply(clean_durasi)
     df['tgl_mulai_dt'] = df['tgl_mulai'].apply(parse_date_flexible)
     
-    today = pd.to_datetime(datetime.date.today())
+    today = pd.to_datetime(date.today())
     
     # Hitung tgl batas SOP
     df['tgl_batas_sop'] = df['tgl_mulai_dt'] + pd.to_timedelta(df['durasi_clean'], unit='D')
