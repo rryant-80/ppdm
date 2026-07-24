@@ -1684,7 +1684,6 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
     else:
         sisa_hari_kerja = 1
 
-    st.info(f"📅 **Sisa Hari Kerja (Senin–Jumat):** `{sisa_hari_kerja} hari` (hitung mundur hingga 31 Desember 2026)")
     st.info(f"📅 **`{sisa_hari_kerja} hari kerja` menuju Tgl. 31 Desember 2026**")
 
     # 2. Persiapan Dataframe Utama (gid 1848496896)
@@ -1883,7 +1882,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
 <th>Jumlah Prasertel</th>
 <th>Persentase Saat Ini</th>
 <th>Capaian Terbaru</th>
-<th>Target Harian (BT/Hari)</th>
+<th>Target Harian</th>
 </tr>
 </thead>
 <tbody>
