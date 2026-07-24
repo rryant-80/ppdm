@@ -1670,28 +1670,25 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
             st.markdown('</div>', unsafe_allow_html=True)
 
     # ==========================================
-    # 7. TABEL TARGET HARIAN PRASERTEL MENUJU 70% DESEMBER 2026
+    # 7. TABEL TARGET HARIAN PRASERTEL MENUJU 70% (DESEMBER 2026) - CUSTOM HTML
     # ==========================================
-    st.markdown("---")
+    st.markdown("<br>", unsafe_allow_html=True)
     st.subheader("🎯 Target Harian Prasertel Menuju 70% (Desember 2026)")
 
-    # 1. Hitung jumlah hari kerja (Senin - Jumat) dari hari ini hingga 31 Desember 2026
+    # 1. Hitung Sisa Hari Kerja (Senin - Jumat)
     today = datetime.now().date()
     end_date = date(2026, 12, 31)
 
     if today < end_date:
-        # np.busday_count menghitung hari kerja (excl. Sabtu & Minggu)
         sisa_hari_kerja = np.busday_count(today, end_date + timedelta(days=1))
     else:
-        sisa_hari_kerja = 1  # Mencegah pembagian dengan nol
+        sisa_hari_kerja = 1
 
-    # Tampilkan informasi sisa hari kerja
     st.info(f"📅 **Sisa Hari Kerja (Senin–Jumat):** `{sisa_hari_kerja} hari` (hitung mundur hingga 31 Desember 2026)")
 
-    # 2. Olah Dataframe dari df_clean (gid 1848496896)
+    # 2. Persiapan Dataframe Utama (gid 1848496896)
     df_tabel_target = df_clean.copy()
 
-    # Tentukan Sumbu/Hirarki Kolom Wilayah Berdasarkan Filter Aktif
     is_kec_active = selected_kec and str(selected_kec).strip() not in ['', 'Semua', 'Semua Kecamatan']
     is_kab_active = selected_kab and str(selected_kab).strip() not in ['', 'Semua', 'Semua Kabupaten/Kota']
 
@@ -1705,51 +1702,196 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
         col_wilayah = 'kabupaten_kota'
         label_wilayah = "Kabupaten / Kota"
 
-    # Pastikan kolom numerik ada dan dibersihkan dari karakter liar
+    # Clean angka pra_sertel & bt_valid
     for c in ['pra_sertel', 'bt_valid']:
         if c not in df_tabel_target.columns:
             df_tabel_target[c] = 0
         else:
-            df_tabel_target[c] = df_tabel_target[c].apply(lambda x: parse_bilangan_cacah(x) if 'parse_bilangan_cacah' in locals() else int(round(float(str(x).replace('.','').replace(',','')) if pd.notna(x) and str(x).strip()!='' else 0)))
+            def parse_num_table(val):
+                if pd.isna(val) or val is None: return 0
+                s = str(val).replace('.', '').replace(',', '').strip()
+                try: return int(s)
+                except: return 0
+            df_tabel_target[c] = df_tabel_target[c].apply(parse_num_table)
 
-    # 3. Agregasi Total Per Wilayah
     df_target_grp = df_tabel_target.groupby(col_wilayah, as_index=False)[['bt_valid', 'pra_sertel']].sum()
 
-    # 4. Kalkulasi Formula Persentase & Target Harian
-    # % Saat Ini = (pra_sertel / bt_valid) * 100
+    # 3. Hitung % Saat ini & Target Harian
     df_target_grp['pct_saat_ini'] = (df_target_grp['pra_sertel'] / df_target_grp['bt_valid'].replace(0, 1)) * 100.0
-
-    # Target BT 70% = 70% * bt_valid
     df_target_grp['target_bt_70'] = df_target_grp['bt_valid'] * 0.70
-
-    # Sisa BT yang Harus Dikejar
-    df_target_grp['sisa_bt_kejar'] = df_target_grp['target_bt_70'] - df_target_grp['pra_sertel']
-
-    # Jika sisa < 0 (artinya sudah 70% atau lebih), set ke 0
-    df_target_grp['sisa_bt_kejar'] = df_target_grp['sisa_bt_kejar'].apply(lambda x: max(0, x))
-
-    # Target Harian = Sisa BT Kejar / Sisa Hari Kerja
+    df_target_grp['sisa_bt_kejar'] = (df_target_grp['target_bt_70'] - df_target_grp['pra_sertel']).apply(lambda x: max(0, x))
     df_target_grp['target_harian'] = (df_target_grp['sisa_bt_kejar'] / sisa_hari_kerja).apply(np.ceil).astype(int)
 
-    # Urutkan dari Target Harian Tertinggi
-    df_target_grp = df_target_grp.sort_values(by='target_harian', ascending=False).reset_index(drop=True)
+    # 4. Hitung "Capaian Terbaru" dari GID 386436131 (df_progress)
+    df_capaian_map = {}
+    if df_progress is not None and not df_progress.empty:
+        df_p_cap = df_progress.copy()
+        df_p_cap.columns = [str(c).strip().lower() for c in df_p_cap.columns]
+        
+        c_tgl  = next((c for c in df_p_cap.columns if 'tgl' in c), 'tgl_data')
+        c_wil  = next((c for c in df_p_cap.columns if col_wilayah[:3] in c), col_wilayah)
+        c_pdes = 'prasertel_desa' if 'prasertel_desa' in df_p_cap.columns else next((c for c in df_p_cap.columns if 'prasertel' in c), 'prasertel_desa')
 
-    # 5. Format Tampilan Tabel
-    df_display = pd.DataFrame()
-    df_display['No'] = range(1, len(df_target_grp) + 1)
-    df_display[label_wilayah] = df_target_grp[col_wilayah]
-    df_display['Jumlah BT Valid'] = df_target_grp['bt_valid'].apply(lambda x: f"{x:,.0f}".replace(',', '.'))
-    df_display['Jumlah Prasertel'] = df_target_grp['pra_sertel'].apply(lambda x: f"{x:,.0f}".replace(',', '.'))
-    df_display['Persentase saat ini'] = df_target_grp['pct_saat_ini'].apply(lambda x: f"{x:.2f}%")
-    df_display['Target Harian (BT/Hari)'] = df_target_grp['target_harian'].apply(lambda x: f"{x:,.0f} BT".replace(',', '.'))
+        if c_tgl in df_p_cap.columns and c_pdes in df_p_cap.columns and c_wil in df_p_cap.columns:
+            # Parse Tanggal Kronologis
+            df_p_cap['tgl_dt'] = pd.to_datetime(df_p_cap[c_tgl], format='%d/%m/%Y', errors='coerce')
+            if df_p_cap['tgl_dt'].isna().all():
+                df_p_cap['tgl_dt'] = pd.to_datetime(df_p_cap[c_tgl], dayfirst=True, errors='coerce')
+            
+            # Ambil 2 Tanggal Terakhir
+            unique_dates = sorted(df_p_cap['tgl_dt'].dropna().unique())
+            if len(unique_dates) >= 2:
+                t_latest = unique_dates[-1]
+                t_prev   = unique_dates[-2]
 
-    # Render Tabel di Streamlit dengan Fitur Pencarian & Desain Modern
-    st.dataframe(
-        df_display,
-        use_container_width=True,
-        hide_index=True,
-        height=380
-    )
+                def parse_val_cap(val):
+                    if pd.isna(val) or val is None: return 0
+                    if isinstance(val, float): return int(round(val))
+                    s = str(val).replace('.', '').replace(',', '').strip()
+                    try: return int(s)
+                    except: return 0
+
+                df_p_cap['val_clean'] = df_p_cap[c_pdes].apply(parse_val_cap)
+
+                # Agregasi per tanggal & wilayah
+                grp_latest = df_p_cap[df_p_cap['tgl_dt'] == t_latest].groupby(c_wil)['val_clean'].sum()
+                grp_prev   = df_p_cap[df_p_cap['tgl_dt'] == t_prev].groupby(c_wil)['val_clean'].sum()
+
+                for w_name in df_target_grp[col_wilayah]:
+                    val_lat = grp_latest.get(w_name, 0)
+                    val_prv = grp_prev.get(w_name, 0)
+                    df_capaian_map[w_name] = val_lat - val_prv
+
+    # Kebijakan: Urutkan Berdasarkan % Prasertel Terkecil Ke Terbesar
+    df_target_grp = df_target_grp.sort_values(by='pct_saat_ini', ascending=True).reset_index(drop=True)
+
+    # 5. Formating Baris HTML Modern
+    rows_target_html = []
+    for idx, row in df_target_grp.iterrows():
+        wil_name = row[col_wilayah]
+        bt_val   = f"{row['bt_valid']:,.0f}".replace(',', '.')
+        p_sertel = f"{row['pra_sertel']:,.0f}".replace(',', '.')
+        pct_val  = row['pct_saat_ini']
+        tgt_hr   = f"{row['target_harian']:,.0f} BT".replace(',', '.')
+
+        # Badge Warna Berdasarkan Persentase
+        if pct_val <= 50.0:
+            badge_class = "badge-red"
+        elif pct_val <= 70.0:
+            badge_class = "badge-yellow"
+        else:
+            badge_class = "badge-green"
+
+        pct_formatted = f"<span class='{badge_class}'>{pct_val:.2f}%</span>"
+
+        # Formating Capaian Terbaru
+        cap_val = df_capaian_map.get(wil_name, 0)
+        if cap_val > 0:
+            cap_formatted = f"<span style='color: #10B981; font-weight: bold;'>+{cap_val:,.0f} BT</span>".replace(',', '.')
+        elif cap_val < 0:
+            cap_formatted = f"<span style='color: #EF4444; font-weight: bold;'>{cap_val:,.0f} BT</span>".replace(',', '.')
+        else:
+            cap_formatted = "<span style='color: #6B7280;'>0 BT</span>"
+
+        r_html = (
+            f"<tr>"
+            f"<td style='text-align: center; font-weight: bold; width: 50px;'>{idx+1}</td>"
+            f"<td style='text-align: left; font-weight: 600;'>{wil_name}</td>"
+            f"<td style='text-align: center;'>{bt_val}</td>"
+            f"<td style='text-align: center;'>{p_sertel}</td>"
+            f"<td style='text-align: center;'>{pct_formatted}</td>"
+            f"<td style='text-align: center;'>{cap_formatted}</td>"
+            f"<td style='text-align: center; font-weight: bold; color: #1E3A8A;'>{tgt_hr}</td>"
+            f"</tr>"
+        )
+        rows_target_html.append(r_html)
+
+    body_target_html = "".join(rows_target_html)
+
+    # 6. Render Tabel CSS & HTML Tanpa Scroll (Menampilkan Semua 13 Kabupaten Terlihat Penuh)
+    html_target_table = f"""<style>
+.target-table-container {{
+    width: 100%;
+    border: 1px solid #E5E7EB;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    margin-top: 10px;
+    overflow: hidden;
+}}
+.target-table {{
+    width: 100%;
+    border-collapse: collapse;
+    font-family: system-ui, -apple-system, sans-serif;
+    font-size: 0.88rem;
+}}
+.target-table th {{
+    background-color: #1E293B;
+    color: #FFFFFF;
+    font-weight: 700;
+    padding: 12px 10px;
+    text-align: center;
+    border-bottom: 2px solid #0F172A;
+    letter-spacing: 0.3px;
+}}
+.target-table th.th-left {{
+    text-align: left !important;
+}}
+.target-table td {{
+    padding: 10px 12px;
+    border-bottom: 1px solid #F1F5F9;
+    vertical-align: middle;
+}}
+.target-table tr:nth-child(even) {{
+    background-color: #F8FAFC;
+}}
+.target-table tr:hover {{
+    background-color: #F1F5F9;
+}}
+.badge-red {{
+    background-color: #FEE2E2;
+    color: #991B1B;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-weight: 700;
+    display: inline-block;
+}}
+.badge-yellow {{
+    background-color: #FEF3C7;
+    color: #92400E;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-weight: 700;
+    display: inline-block;
+}}
+.badge-green {{
+    background-color: #D1FAE5;
+    color: #065F46;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-weight: 700;
+    display: inline-block;
+}}
+</style>
+<div class="target-table-container">
+<table class="target-table">
+<thead>
+<tr>
+<th>No</th>
+<th class="th-left">{label_wilayah}</th>
+<th>Jumlah BT Valid</th>
+<th>Jumlah Prasertel</th>
+<th>Persentase Saat Ini</th>
+<th>Capaian Terbaru</th>
+<th>Target Harian (BT/Hari)</th>
+</tr>
+</thead>
+<tbody>
+{body_target_html}
+</tbody>
+</table>
+</div>"""
+
+    st.markdown(html_target_table, unsafe_allow_html=True)
 
 # -----------------------------------------------------------------------------
 # 3. SIDEBAR: FILTER & NAVIGATION
