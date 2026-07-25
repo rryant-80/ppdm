@@ -2094,9 +2094,11 @@ with st.sidebar:
         st.plotly_chart(fig_layanan, use_container_width=True)
 
     # ==========================================
-    # 4. GRAFIK: Persentase Prasertel (Sidebar - Fix Parsing Integer Murni)
+    # 4. GRAFIK: Persentase Prasertel (Sidebar - Mengambil Sumber dari jumlah_bt)
     # ==========================================
-    if not df_elek_singkat.empty and 'pra_sertel' in df_elek_singkat.columns and 'bt_valid' in df_elek_singkat.columns:
+    col_bt = 'jumlah_bt' if 'jumlah_bt' in df_elek_singkat.columns else 'bt_valid'
+    
+    if not df_elek_singkat.empty and 'pra_sertel' in df_elek_singkat.columns and col_bt in df_elek_singkat.columns:
         df_elek_rekap = df_elek_singkat.copy()
         
         # PARSER ABSOLUT: Mengonversi format "30.822" menjadi 30822 secara bulat tanpa desimal
@@ -2119,20 +2121,20 @@ with st.sidebar:
             except ValueError:
                 return 0
 
-        # Terapkan konversi murni ke kolom pra_sertel dan bt_valid
+        # Terapkan konversi murni ke kolom pra_sertel dan jumlah_bt
         df_elek_rekap['pra_sertel_clean'] = df_elek_rekap['pra_sertel'].apply(parse_sidebar_int)
-        df_elek_rekap['bt_valid_clean']   = df_elek_rekap['bt_valid'].apply(parse_sidebar_int)
+        df_elek_rekap['bt_clean']         = df_elek_rekap[col_bt].apply(parse_sidebar_int)
 
         # Agregasi total per kabupaten/kota
-        df_elek_grp = df_elek_rekap.groupby('kab_singkat')[['pra_sertel_clean', 'bt_valid_clean']].sum().reset_index()
+        df_elek_grp = df_elek_rekap.groupby('kab_singkat')[['pra_sertel_clean', 'bt_clean']].sum().reset_index()
 
-        # Kalkulasi persentase (%): (Pra-SERTEL / BT Valid) * 100
-        df_elek_grp['Persentase'] = (df_elek_grp['pra_sertel_clean'] / df_elek_grp['bt_valid_clean'].replace(0, 1)) * 100.0
+        # Kalkulasi persentase (%): (Pra-SERTEL / Jumlah BT) * 100
+        df_elek_grp['Persentase'] = (df_elek_grp['pra_sertel_clean'] / df_elek_grp['bt_clean'].replace(0, 1)) * 100.0
         df_elek_grp = df_elek_grp.sort_values(by='Persentase', ascending=False)
 
         # Format string Indonesia dengan titik pemisah ribuan murni (tanpa desimal)
         df_elek_grp['pra_sertel_fmt'] = df_elek_grp['pra_sertel_clean'].apply(lambda x: f"{x:,.0f}".replace(',', '.'))
-        df_elek_grp['bt_valid_fmt']   = df_elek_grp['bt_valid_clean'].apply(lambda x: f"{x:,.0f}".replace(',', '.'))
+        df_elek_grp['bt_fmt']         = df_elek_grp['bt_clean'].apply(lambda x: f"{x:,.0f}".replace(',', '.'))
 
         # Tambahkan kolom nama lengkap untuk hover
         df_elek_grp['kab_full'] = df_elek_grp['kab_singkat'].map(lambda x: REVERSE_KAB_MAP.get(x, x))
@@ -2141,12 +2143,12 @@ with st.sidebar:
         fig_elek = px.bar(
             df_elek_grp, x='kab_singkat', y='Persentase',
             title="% Prasertel",
-            custom_data=df_elek_grp[['kab_full', 'pra_sertel_fmt', 'bt_valid_fmt']]
+            custom_data=df_elek_grp[['kab_full', 'pra_sertel_fmt', 'bt_fmt']]
         )
         
-        # Hover format khusus string murni Indonesia
+        # Hover format khusus string murni Indonesia dengan rujukan Jumlah BT
         fig_elek.update_traces(
-            hovertemplate="<b>%{customdata[0]} | %{y:.2f}%</b><br>Jumlah Prasertel: <b>%{customdata[1]}</b><br>Jumlah BT Valid: <b>%{customdata[2]}</b><extra></extra>",
+            hovertemplate="<b>%{customdata[0]} | %{y:.2f}%</b><br>Jumlah Prasertel: <b>%{customdata[1]}</b><br>Jumlah BT: <b>%{customdata[2]}</b><extra></extra>",
             marker_color='#00CC96'
         )
         
