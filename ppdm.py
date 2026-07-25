@@ -2320,21 +2320,39 @@ def render_isu_strategis(df_isu):
     if f_unit != "Semua Unit" and 'unit' in df_display.columns:
         df_display = df_display[df_display['unit'] == f_unit]
 
-    # Grouping berdasarkan Isu Strategis unik
+    # Grouping berdasarkan Isu Strategis
     grouped_isu = df_display.groupby('isu_strategis', sort=False)
 
     for isu_text, group in grouped_isu:
         if not isu_text or str(isu_text).strip() in ['-', 'nan', '']:
             continue
-            
-        # Ambil baris pertama sebagai Induk Isu
-        first_row = group.iloc[0]
-        kab_val = first_row.get('kabupaten_kota', '-')
-        unit_val = first_row.get('unit', '-')
-        tgl_val = first_row.get('tgl_jam', '-')
-        pembuat_isu = first_row.get('pembuat', 'Anonim')
+        
+        # -----------------------------------------------------------------
+        # 1. CARI BARIS INDUK (PEMBUAT ISU STRATEGIS PERTAMA / TANGGAL TERLAMA)
+        # -----------------------------------------------------------------
+        # Coba cari baris di mana pembahasan kosong / '-'
+        baris_induk = group[group['pembahasan'].astype(str).str.strip().isin(['-', '', 'nan'])]
+        
+        if not baris_induk.empty:
+            # Jika ada baris pembuatan isu murni, urutkan dan ambil yang paling awal/lama
+            if 'tgl_dt' in baris_induk.columns:
+                row_utama = baris_induk.sort_values(by='tgl_dt', ascending=True).iloc[0]
+            else:
+                row_utama = baris_induk.iloc[-1]  # Baris paling bawah/awal
+        else:
+            # Fallback: Ambil baris dengan tgl_dt paling awal di dalam grup ini
+            if 'tgl_dt' in group.columns:
+                row_utama = group.sort_values(by='tgl_dt', ascending=True).iloc[0]
+            else:
+                row_utama = group.iloc[0]
 
-        # Tampilan Box Kartu Isu Utama (Warna Biru / Indigo)
+        # Ekstraksi informasi induk (pasti menggunakan jam asli saat isu dibuat)
+        kab_val = row_utama.get('kabupaten_kota', '-')
+        unit_val = row_utama.get('unit', '-')
+        tgl_val = row_utama.get('tgl_jam', '-')
+        pembuat_isu = row_utama.get('pembuat', 'Anonim')
+
+        # Tampilan Box Kartu Isu Utama
         card_html = f"""
         <style>
         .isu-box {{
@@ -2351,11 +2369,11 @@ def render_isu_strategis(df_isu):
             margin-bottom: 8px;
         }}
         .pembuat-isu {{
-            color: #1E40AF; /* Warna Biru untuk Pembuat Isu */
+            color: #1E40AF;
             font-weight: bold;
         }}
         .pembuat-bahas {{
-            color: #D97706; /* Warna Oranye / Kuning untuk Pembuat Pembahasan */
+            color: #D97706;
             font-weight: bold;
         }}
         .isu-body {{
@@ -2375,12 +2393,19 @@ def render_isu_strategis(df_isu):
         """
         st.markdown(card_html, unsafe_allow_html=True)
 
-        # Render Diskusi / Pembahasan Balasan (jika ada)
-        for idx, row in group.iterrows():
+        # -----------------------------------------------------------------
+        # 2. RENDER BARIS TANGGAPAN / PEMBAHASAN (URUT DARI TANGGAL TERLAMA -> TERBARU)
+        # -----------------------------------------------------------------
+        group_tanggapan = group.copy()
+        if 'tgl_dt' in group_tanggapan.columns:
+            group_tanggapan = group_tanggapan.sort_values(by='tgl_dt', ascending=True)
+
+        for idx, row in group_tanggapan.iterrows():
             pembahasan_text = str(row.get('pembahasan', '')).strip()
             pembuat_bahas = row.get('pembuat', 'Anonim')
             tgl_bahas = row.get('tgl_jam', '-')
 
+            # Hanya tampilkan jika baris tersebut memiliki isi pembahasan murni
             if pembahasan_text and pembahasan_text not in ['-', 'nan', '']:
                 chat_html = f"""
                 <div style="margin-left: 30px; background-color: #FFFBEB; border-left: 3px solid #D97706; padding: 10px 14px; border-radius: 6px; margin-bottom: 8px;">
