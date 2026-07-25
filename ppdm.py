@@ -2283,6 +2283,7 @@ def render_isu_strategis(df_isu):
                     try:
                         # Kirim data ke Google Sheets via Apps Script Web App
                         resp = requests.post(GSHEET_WEBAPP_URL, json=payload)
+                        st.cache_data.clear()
                         st.success("✅ Isu Strategis berhasil ditambahkan!")
                         st.rerun() # Refresh tampilan Streamlit
                     except Exception as e:
