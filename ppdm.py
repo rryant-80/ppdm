@@ -2422,6 +2422,7 @@ def render_isu_strategis(df_isu):
                         }
                         try:
                             resp = requests.post(GSHEET_WEBAPP_URL, json=payload_reply)
+                            st.cache_data.clear()
                             st.success("✅ Tanggapan berhasil disimpan!")
                             st.rerun()
                         except Exception as e:
