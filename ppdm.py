@@ -19,6 +19,7 @@ st.set_page_config(
 # 1. KONEKSI DATA (GOOGLE SHEETS VIA SECRETS)
 # -----------------------------------------------------------------------------
 SHEET_ID = st.secrets["gsheet_id"]
+GSHEET_WEBAPP_URL = "https://script.google.com/macros/s/gsheet_webapp_url/exec"
 
 @st.cache_data(ttl=3600)  # Cache data selama 1 jam agar loading cepat
 def load_data(gid):
