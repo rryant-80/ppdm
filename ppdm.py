@@ -1920,7 +1920,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
 # 3. SIDEBAR: FILTER & NAVIGATION
 # -----------------------------------------------------------------------------
 with st.sidebar:    
-    st.header("📋 Data Tgl. 14/07/2026")
+    st.header("📋 Data Tgl. 24/07/2026")
     
     # Filter Kabupaten/Kota (diambil dari gabungan semua dataframe agar aman)
     list_kabupaten = sorted(list(set(
@@ -2244,7 +2244,7 @@ def render_isu_strategis(df_isu):
             list_unit = [
                 "Kepala Kantor", "Tata Usaha", "Survei dan Pemetaan",
                 "Penetapan Hak dan Pendaftaran", "Penataan dan Pemberdayaan",
-                "Pengadaan Tanah dan Pengembangan", "Pengendalian dan Penanganan Sengketa"
+                "Pengadaan Tanah dan Pengembangan", "Pengendalian dan Penanganan Sengketa", "Fungsional Ahli Madya"
             ]
 
             with col_f1:
