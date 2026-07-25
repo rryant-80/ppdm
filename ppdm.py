@@ -5,6 +5,8 @@ import streamlit as st
 import numpy as np
 import datetime as dt
 from datetime import datetime, date, timedelta
+import requests
+from datetime import datetime
 
 # Konfigurasi Halaman
 st.set_page_config(
@@ -34,6 +36,7 @@ df_sdm = load_data("1168898330")
 df_psn = load_data("193371600")
 df_progress_raw  = load_data("386436131")  # Data Progress Harian (Card 9)
 df_peringkat_raw = load_data("880542789")
+df_isu_raw = load_data("1699480367")
 
 # -----------------------------------------------------------------------------
 # 2. MODUL HALAMAN UTAMA (Dipisah per fungsi agar mudah diubah)
@@ -1952,6 +1955,7 @@ with st.sidebar:
             "🎯 PSN 2026",
             "💼 Layanan Pertanahan",
             "⚡ Data Elektronik"
+            "📌 Isu Strategis"
         ],
         key="🏛️ Profil & Anggaran"  # <--- Kunci utama agar menu tidak ter-reset
     )
@@ -2220,6 +2224,208 @@ if selected_kec != "Semua Kecamatan":
     if not df_f_progress.empty and 'kecamatan' in df_f_progress.columns:
         df_f_progress = df_f_progress[df_f_progress['kecamatan'] == selected_kec]
 
+def render_isu_strategis(df_isu):
+    st.title("📌 Isu Strategis & Perkembangan Terakhir")
+    st.caption("Wadah diskusi & pemantauan isu strategis pertanahan se-Sulawesi Tengah.")
+
+    # ==========================================
+    # 1. FORM INPUT ISU STRATEGIS BARU
+    # ==========================================
+    with st.expander("➕ **Tambah Isu Strategis Baru**", expanded=False):
+        with st.form("form_isu_baru", clear_on_submit=True):
+            col_f1, col_f2 = st.columns(2)
+            
+            list_kab_st = [
+                "Sulawesi Tengah (Provinsi)", "Banggai", "Banggai Kepulauan", "Banggai Laut",
+                "Buol", "Donggala", "Kota Palu", "Morowali", "Morowali Utara",
+                "Parigi Moutong", "Poso", "Sigi", "Tojo Una-Una", "Toli-Toli"
+            ]
+            list_unit = [
+                "Kepala Kantor", "Tata Usaha", "Survei dan Pemetaan",
+                "Penetapan Hak dan Pendaftaran", "Penataan dan Pemberdayaan",
+                "Pengadaan Tanah dan Pengembangan", "Pengendalian dan Penanganan Sengketa"
+            ]
+
+            with col_f1:
+                input_kab = st.selectbox("Kabupaten / Kota / Wilayah", list_kab_st)
+                input_pembuat = st.text_input("Nama & Jabatan Pembuat Isu", placeholder="Contoh: Ahmad, S.Si.T. (Kasi PHPT)")
+
+            with col_f2:
+                input_unit = st.selectbox("Unit Working Group / Seksi", list_unit)
+
+            input_isu = st.text_area("Deskripsi Isu Strategis (Maks. 500 kata)", height=120)
+            
+            submit_isu = st.form_submit_button("🚀 Kirim Isu Strategis")
+
+            if submit_isu:
+                # Validasi jumlah kata (Maksimal 500 kata)
+                word_count = len(input_isu.strip().split())
+                if not input_pembuat.strip():
+                    st.error("⚠️ Nama & Jabatan Pembuat wajib diisi!")
+                elif not input_isu.strip():
+                    st.error("⚠️ Teks Isu Strategis tidak boleh kosong!")
+                elif word_count > 500:
+                    st.error(f"⚠️ Isu Strategis melebihi batas 500 kata! (Saat ini: {word_count} kata)")
+                else:
+                    # Persiapan Data Kirim
+                    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    payload = {
+                        "gid": "1699480367",
+                        "kabupaten_kota": input_kab,
+                        "unit": input_unit,
+                        "tgl_jam": now_str,
+                        "isu_strategis": input_isu.strip(),
+                        "pembahasan": "-", # Pembahasan awal kosong
+                        "pembuat": input_pembuat.strip()
+                    }
+                    
+                    try:
+                        # Kirim data ke Google Sheets via Apps Script Web App
+                        resp = requests.post(GSHEET_WEBAPP_URL, json=payload)
+                        st.success("✅ Isu Strategis berhasil ditambahkan!")
+                        st.rerun() # Refresh tampilan Streamlit
+                    except Exception as e:
+                        st.error(f"❌ Gagal mengirim data ke Google Sheet: {e}")
+
+    st.markdown("---")
+
+    # ==========================================
+    # 2. TAMPILAN THREAD DISKUSI ISU STRATEGIS
+    # ==========================================
+    if df_isu is None or df_isu.empty:
+        st.info("ℹ️ Belum ada isu strategis yang tercatat.")
+        return
+
+    df_display = df_isu.copy()
+    
+    # Bersihkan nama kolom
+    df_display.columns = [str(c).strip().lower() for c in df_display.columns]
+
+    # Konversi tanggal & urutkan dari tgl_jam TERBARU ke TERLAMA
+    if 'tgl_jam' in df_display.columns:
+        df_display['tgl_dt'] = pd.to_datetime(df_display['tgl_jam'], errors='coerce')
+        df_display = df_display.sort_values(by='tgl_dt', ascending=False)
+
+    # Filter Wilayah & Unit
+    col_f1, col_f2 = st.columns(2)
+    with col_f1:
+        f_kab = st.selectbox("🔍 Filter Wilayah", ["Semua Wilayah"] + list_kab_st)
+    with col_f2:
+        f_unit = st.selectbox("🔍 Filter Unit", ["Semua Unit"] + list_unit)
+
+    if f_kab != "Semua Wilayah" and 'kabupaten_kota' in df_display.columns:
+        df_display = df_display[df_display['kabupaten_kota'] == f_kab]
+    if f_unit != "Semua Unit" and 'unit' in df_display.columns:
+        df_display = df_display[df_display['unit'] == f_unit]
+
+    # Grouping berdasarkan Isu Strategis unik
+    grouped_isu = df_display.groupby('isu_strategis', sort=False)
+
+    for isu_text, group in grouped_isu:
+        if not isu_text or str(isu_text).strip() in ['-', 'nan', '']:
+            continue
+            
+        # Ambil baris pertama sebagai Induk Isu
+        first_row = group.iloc[0]
+        kab_val = first_row.get('kabupaten_kota', '-')
+        unit_val = first_row.get('unit', '-')
+        tgl_val = first_row.get('tgl_jam', '-')
+        pembuat_isu = first_row.get('pembuat', 'Anonim')
+
+        # Tampilan Box Kartu Isu Utama (Warna Biru / Indigo)
+        card_html = f"""
+        <style>
+        .isu-box {{
+            background-color: #F8FAFC;
+            border-left: 5px solid #1E40AF;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }}
+        .isu-header {{
+            font-size: 0.82rem;
+            color: #64748B;
+            margin-bottom: 8px;
+        }}
+        .pembuat-isu {{
+            color: #1E40AF; /* Warna Biru untuk Pembuat Isu */
+            font-weight: bold;
+        }}
+        .pembuat-bahas {{
+            color: #D97706; /* Warna Oranye / Kuning untuk Pembuat Pembahasan */
+            font-weight: bold;
+        }}
+        .isu-body {{
+            font-size: 0.95rem;
+            color: #1E293B;
+            line-height: 1.5;
+            white-space: pre-wrap;
+        }}
+        </style>
+        <div class="isu-box">
+            <div class="isu-header">
+                📍 <b>{kab_val}</b> | 🏢 {unit_val} | 🕒 {tgl_val} <br>
+                Oleh: <span class="pembuat-isu">{pembuat_isu}</span>
+            </div>
+            <div class="isu-body"><b>ISU STRATEGIS:</b><br>{isu_text}</div>
+        </div>
+        """
+        st.markdown(card_html, unsafe_allow_html=True)
+
+        # Render Diskusi / Pembahasan Balasan (jika ada)
+        for idx, row in group.iterrows():
+            pembahasan_text = str(row.get('pembahasan', '')).strip()
+            pembuat_bahas = row.get('pembuat', 'Anonim')
+            tgl_bahas = row.get('tgl_jam', '-')
+
+            if pembahasan_text and pembahasan_text not in ['-', 'nan', '']:
+                chat_html = f"""
+                <div style="margin-left: 30px; background-color: #FFFBEB; border-left: 3px solid #D97706; padding: 10px 14px; border-radius: 6px; margin-bottom: 8px;">
+                    <div style="font-size: 0.8rem; color: #78350F;">
+                        💬 Ditanggapi oleh: <span class="pembuat-bahas">{pembuat_bahas}</span> ({tgl_bahas})
+                    </div>
+                    <div style="font-size: 0.9rem; color: #451A03; margin-top: 4px;">
+                        {pembahasan_text}
+                    </div>
+                </div>
+                """
+                st.markdown(chat_html, unsafe_allow_html=True)
+
+        # Form Tambah Pembahasan / Tanggapan Baru
+        with st.expander(f"💬 Tambah Tanggapan / Pembahasan Isu Ini", expanded=False):
+            with st.form(f"form_reply_{hash(isu_text)}", clear_on_submit=True):
+                reply_pembuat = st.text_input("Nama & Jabatan Penanggap", key=f"p_{hash(isu_text)}")
+                reply_text = st.text_area("Tanggapan / Perkembangan Terakhir (Maks. 300 kata)", height=80, key=f"t_{hash(isu_text)}")
+                submit_reply = st.form_submit_button("💬 Kirim Tanggapan")
+
+                if submit_reply:
+                    word_cnt_reply = len(reply_text.strip().split())
+                    if not reply_pembuat.strip():
+                        st.error("⚠️ Nama & Jabatan Penanggap wajib diisi!")
+                    elif not reply_text.strip():
+                        st.error("⚠️ Teks tanggapan tidak boleh kosong!")
+                    elif word_cnt_reply > 300:
+                        st.error(f"⚠️ Tanggapan melebihi batas 300 kata! ({word_cnt_reply} kata)")
+                    else:
+                        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        payload_reply = {
+                            "gid": "1699480367",
+                            "kabupaten_kota": kab_val,
+                            "unit": unit_val,
+                            "tgl_jam": now_str,
+                            "isu_strategis": isu_text, # Menautkan ke isu yang sama
+                            "pembahasan": reply_text.strip(),
+                            "pembuat": reply_pembuat.strip()
+                        }
+                        try:
+                            resp = requests.post(GSHEET_WEBAPP_URL, json=payload_reply)
+                            st.success("✅ Tanggapan berhasil disimpan!")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"❌ Gagal mengirim tanggapan: {e}")
+        st.markdown("<br>", unsafe_allow_html=True)
+
 # -----------------------------------------------------------------------------
 # 5. ROUTING HALAMAN UTAMA
 # -----------------------------------------------------------------------------
@@ -2244,3 +2450,13 @@ elif menu_pilihan == "⚡ Data Elektronik":
         selected_kab=selected_kab, 
         selected_kec=selected_kec
     )
+elif menu_pilihan == "📌 Isu Strategis":
+    # Menyiapkan dataframe isu dengan aman
+    df_isu_data = pd.DataFrame()
+    if 'df_isu' in locals() and df_isu is not None:
+        df_isu_data = df_isu
+    elif 'df_isu_raw' in locals() and df_isu_raw is not None:
+        df_isu_data = df_isu_raw
+
+    # Panggil fungsi render isu strategis
+    render_isu_strategis(df_isu_data)
