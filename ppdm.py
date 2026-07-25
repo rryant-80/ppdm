@@ -1442,6 +1442,13 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
     for c in req_cols:
         if c not in df_chart.columns:
             df_chart[c] = 0
+        else:
+            def parse_chart_num(val):
+                if pd.isna(val) or val is None: return 0
+                s = str(val).replace('.', '').replace(',', '').strip()
+                try: return int(s)
+                except: return 0
+            df_chart[c] = df_chart[c].apply(parse_chart_num)
 
     df_grouped = df_chart.groupby(x_col)[req_cols].sum().reset_index()
 
@@ -1452,7 +1459,9 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
     df_grouped['pct_pra_suel']   = (df_grouped['pra_suel'] / df_grouped['jumlah_su'].replace(0, 1)) * 100.0
     df_grouped['pct_bt_valid']   = (df_grouped['bt_valid'] / df_grouped['jumlah_bt'].replace(0, 1)) * 100.0
     df_grouped['pct_pra_btel']   = (df_grouped['pra_btel'] / df_grouped['bt_valid'].replace(0, 1)) * 100.0
-    df_grouped['pct_pra_sertel'] = (df_grouped['pra_sertel'] / df_grouped['bt_valid'].replace(0, 1)) * 100.0
+    
+    # PERUBAHAN UTAMA: % Pra-SERTEL kini dihitung dari (pra_sertel / jumlah_bt)
+    df_grouped['pct_pra_sertel'] = (df_grouped['pra_sertel'] / df_grouped['jumlah_bt'].replace(0, 1)) * 100.0
 
     # ------------------------------------------
     # URUTKAN SUMBU-X BERDASARKAN % PRA-SERTEL TERTINGGI -> TERENDAH
@@ -1477,7 +1486,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
     }
     df_merged['Indikator'] = df_merged['Indikator_Code'].map(map_indikator)
 
-    # Ekstraksi nilai realisasi & target untuk Tooltip Hover
+    # Ekstraksi nilai realisasi & pembagi untuk Tooltip Hover
     def get_hover_values(row):
         code = row['Indikator_Code']
         if code == 'pct_su_valid':
@@ -1489,10 +1498,15 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
         elif code == 'pct_pra_btel':
             return [row['pra_btel'], row['bt_valid']]
         else: # pct_pra_sertel
-            return [row['pra_sertel'], row['bt_valid']]
+            # PERUBAHAN UTAMA: Pembagi % Pra-SERTEL mengambil jumlah_bt
+            return [row['pra_sertel'], row['jumlah_bt']]
 
     df_merged['val_realisasi'] = df_merged.apply(lambda r: get_hover_values(r)[0], axis=1)
     df_merged['val_pembagi']   = df_merged.apply(lambda r: get_hover_values(r)[1], axis=1)
+
+    # Format Teks Angka Indonesia untuk Hover (titik pemisah ribuan)
+    df_merged['realisasi_fmt'] = df_merged['val_realisasi'].apply(lambda x: f"{x:,.0f}".replace(',', '.'))
+    df_merged['pembagi_fmt']   = df_merged['val_pembagi'].apply(lambda x: f"{x:,.0f}".replace(',', '.'))
 
     # Palet Warna Pastel Soft Modern
     pastel_color_map = {
@@ -1514,11 +1528,11 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
             x_col: x_order,  # Mengunci urutan Sumbu-X sesuai % Pra-Sertel
             'Indikator': ['% SU Valid', '% Pra-SUEL', '% BT Valid', '% Pra-BTEL', '% Pra-SERTEL']
         },
-        custom_data=df_merged[['val_realisasi', 'val_pembagi']]
+        custom_data=df_merged[['realisasi_fmt', 'pembagi_fmt']]
     )
 
     fig_combined.update_traces(
-        hovertemplate=f"<b>{x_label}: %{{x}}</b><br>%{{fullData.name}}: <b>%{{y:.2f}}%</b><br>Jumlah Capaian: %{{customdata[0]:,.0f}}<br>Total Pembagi: %{{customdata[1]:,.0f}}<extra></extra>",
+        hovertemplate=f"<b>{x_label}: %{{x}}</b><br>%{{fullData.name}}: <b>%{{y:.2f}}%</b><br>Jumlah Capaian: <b>%{{customdata[0]}}</b><br>Total Pembagi: <b>%{{customdata[1]}}</b><extra></extra>",
         marker=dict(line=dict(width=1, color='#000000')) # Outline Hitam
     )
 
@@ -1529,6 +1543,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(0,0,0,0)',
         margin=dict(l=10, r=10, t=35, b=10),
+        separators=',.', # Pemisah ribuan Indonesia
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, title_text=''),
         yaxis=dict(
             gridcolor='#f2f2f2',
@@ -1538,7 +1553,6 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
         )
     )
     st.plotly_chart(fig_combined, use_container_width=True)
-    st.markdown('</div>', unsafe_allow_html=True)
 
     # ==========================================
     # 6. GRAFIK TREN PROGRESS HARIAN (TOTAL MURNI ALL ROWS & ABSOLUTE INTEGER)
