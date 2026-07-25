@@ -1957,7 +1957,7 @@ with st.sidebar:
             "🎯 PSN 2026",
             "💼 Layanan Pertanahan",
             "⚡ Data Elektronik",
-            "⚡ Isu Strategis"
+            "📌 Isu Strategis"
         ],
         key="🏛️ Profil & Anggaran"  # <--- Kunci utama agar menu tidak ter-reset
     )
@@ -2227,7 +2227,7 @@ if selected_kec != "Semua Kecamatan":
         df_f_progress = df_f_progress[df_f_progress['kecamatan'] == selected_kec]
 
 def render_isu_strategis(df_isu):
-    st.title("Diskusi Isu Strategis")
+    st.title("📌 Diskusi Isu Strategis")
     st.caption("Wadah diskusi & pemantauan isu strategis pertanahan se-Sulawesi Tengah.")
 
     # ==========================================
