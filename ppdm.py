@@ -1957,7 +1957,7 @@ with st.sidebar:
             "🎯 PSN 2026",
             "💼 Layanan Pertanahan",
             "⚡ Data Elektronik",
-            "✍️ Isu Strategis"
+            "⚡ Isu Strategis"
         ],
         key="🏛️ Profil & Anggaran"  # <--- Kunci utama agar menu tidak ter-reset
     )
