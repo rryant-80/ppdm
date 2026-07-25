@@ -2228,8 +2228,7 @@ if selected_kec != "Semua Kecamatan":
 
 def render_isu_strategis(df_isu):
     st.title("📌 Diskusi Isu Strategis")
-    st.caption("Wadah diskusi & pemantauan isu strategis pertanahan se-Sulawesi Tengah.")
-
+    
     # ==========================================
     # 1. FORM INPUT ISU STRATEGIS BARU
     # ==========================================
