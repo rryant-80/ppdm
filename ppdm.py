@@ -2227,9 +2227,8 @@ if selected_kec != "Semua Kecamatan":
         df_f_progress = df_f_progress[df_f_progress['kecamatan'] == selected_kec]
 
 def render_isu_strategis(df_isu):
-    st.title("📌 Isu Strategis & Perkembangan Terakhir")
-    st.caption("Wadah diskusi & pemantauan isu strategis pertanahan se-Sulawesi Tengah.")
-
+    st.title("✍️ Diskusi Isu Strategis")
+    
     # ==========================================
     # 1. FORM INPUT ISU STRATEGIS BARU
     # ==========================================
@@ -2480,7 +2479,7 @@ elif menu_pilihan == "⚡ Data Elektronik":
         selected_kab=selected_kab, 
         selected_kec=selected_kec
     )
-elif menu_pilihan == "📌 Isu Strategis":
+elif menu_pilihan == "✍️ Isu Strategis":
     # Menyiapkan dataframe isu dengan aman
     df_isu_data = pd.DataFrame()
     if 'df_isu' in locals() and df_isu is not None:
