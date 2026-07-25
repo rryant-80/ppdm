@@ -1954,7 +1954,7 @@ with st.sidebar:
             "🏛️ Profil & Anggaran",
             "🎯 PSN 2026",
             "💼 Layanan Pertanahan",
-            "⚡ Data Elektronik"
+            "⚡ Data Elektronik",
             "📌 Isu Strategis"
         ],
         key="🏛️ Profil & Anggaran"  # <--- Kunci utama agar menu tidak ter-reset
