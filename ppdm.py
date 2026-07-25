@@ -7,6 +7,7 @@ import datetime as dt
 from datetime import datetime, date, timedelta
 import requests
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 # Konfigurasi Halaman
 st.set_page_config(
@@ -2269,7 +2270,8 @@ def render_isu_strategis(df_isu):
                     st.error(f"⚠️ Isu Strategis melebihi batas 500 kata! (Saat ini: {word_count} kata)")
                 else:
                     # Persiapan Data Kirim
-                    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    # Mengunci waktu ke WITA (Asia/Makassar - GMT+8)
+                    now_str = datetime.now(ZoneInfo("Asia/Makassar")).strftime("%Y-%m-%d %H:%M:%S")
                     payload = {
                         "gid": "1699480367",
                         "kabupaten_kota": input_kab,
@@ -2435,7 +2437,7 @@ def render_isu_strategis(df_isu):
                     elif word_cnt_reply > 300:
                         st.error(f"⚠️ Tanggapan melebihi batas 300 kata! ({word_cnt_reply} kata)")
                     else:
-                        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        now_str = datetime.now(ZoneInfo("Asia/Makassar")).strftime("%Y-%m-%d %H:%M:%S")
                         payload_reply = {
                             "gid": "1699480367",
                             "kabupaten_kota": kab_val,
