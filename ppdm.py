@@ -12,6 +12,7 @@ from zoneinfo import ZoneInfo
 # Konfigurasi Halaman
 st.set_page_config(
     page_title="Dashboard Pertanahan Sulteng 2026",
+    page_icon="🏛️",
     layout="wide",
     initial_sidebar_state="expanded"
 )
