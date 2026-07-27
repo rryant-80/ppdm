@@ -447,9 +447,6 @@ def render_layanan_pertanahan(df_filtered_layanan):
                         "<div class='tuntas-green-compact' style='margin-bottom: 8px;'>✔ Tuntas</div>", 
                         unsafe_allow_html=True
                     )
-        
-        # 4. (Opsional) Pengatur pemisah antar baris
-        st.markdown("<div style='margin-bottom: 4px;'></div>", unsafe_allow_html=True)
 
     if not df_overdue.empty:
         df_g1 = df_overdue.groupby(['kab_clean', 'posisi_berkas']).agg(
