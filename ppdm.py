@@ -1053,15 +1053,26 @@ def logout():
     st.rerun()
 
 # -----------------------------------------------------------------------------
-# 5. SIDEBAR NAVIGATION & ROUTING UTAMA (EKSEKUSI DI AKHIR)
+# 5. SIDEBAR NAVIGATION & ROUTING UTAMA
 # -----------------------------------------------------------------------------
 if not st.session_state.logged_in:
     login()
 else:
     user = st.session_state.user_info
-    menu_diizinkan = user.get("akses_menu", [])
+    
+    # 💡 KUNCI AMAN: Deklarasikan nama menu dalam konstanta
+    MENU_ISU = "✍️ Isu Strategis"
 
-    # SIDEBAR ATAS: PROFIL USER & MENU DAHULU
+    # Normalisasi daftar menu_diizinkan dari secrets agar selalu cocok
+    raw_menu = user.get("akses_menu", [])
+    menu_diizinkan = []
+    for m in raw_menu:
+        if "Isu Strategis" in m:
+            menu_diizinkan.append(MENU_ISU)
+        else:
+            menu_diizinkan.append(m)
+
+    # SIDEBAR ATAS: PROFIL USER & NAVIGASI
     st.sidebar.title("📌 Navigation")
     st.sidebar.markdown(f"**Pengguna:** {user['nama']}")
     st.sidebar.caption(f"**Role:** {user['role']}")
@@ -1107,7 +1118,7 @@ else:
 
         st.sidebar.markdown("---")
 
-        # FILTERING DATASET SESUAI KAB/KEC
+        # FILTERING DATASET
         df_f_sdm = df_sdm.copy()
         df_f_psn = df_psn.copy()
         df_f_layanan = df_layanan.copy()
@@ -1143,8 +1154,11 @@ else:
                 selected_kec=selected_kec
             )
 
-        elif menu_pilihan == "✍️ Isu Strategis":
+        elif menu_pilihan == MENU_ISU:  # 👈 Menggunakan variabel MENU_ISU agar pasti match!
             render_isu_strategis(df_isu_raw)
+
+        # SIDEBAR BAWAH: GRAFIK REKAPITULASI
+        # ... (sisa kode grafik sidebar Anda di bawah) ...
 
         # SIDEBAR BAWAH: RENDER GRAFIK REKAPITULASI (AKHIR SIDEBAR)
         st.sidebar.markdown("---")
