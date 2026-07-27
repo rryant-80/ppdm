@@ -2479,7 +2479,7 @@ elif menu_pilihan == "⚡ Data Elektronik":
         selected_kab=selected_kab, 
         selected_kec=selected_kec
     )
-elif menu_pilihan == "✍️ Isu Strategis":
+elif menu_pilihan == "📌 Isu Strategis":
     # Menyiapkan dataframe isu dengan aman
     df_isu_data = pd.DataFrame()
     if 'df_isu' in locals() and df_isu is not None:
