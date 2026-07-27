@@ -176,7 +176,7 @@ def render_profil_anggaran(df_filtered_sdm):
 
     row1_cols = st.columns(3)
     row2_cols = st.columns(3)
-    all_f_cols = row1_cols + row2_cols
+    all_f_cols = list(st.columns(3)) + list(st.columns(3))
 
     for idx, jab in enumerate(jabatan_list):
         p_info = get_pejabat_info(df_filtered_sdm, jab)
