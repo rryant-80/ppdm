@@ -788,7 +788,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
     )
 
     fig_combined.update_traces(
-        hovertemplate=f"<b>%{{x}}</b><br>%{{fullData.name}}: <b>%{{y:.2f}}%</b><br>Jumlah: <b>%{{customdata[0]}}</b><br>Dari: <b>%{{customdata[1]}} bidang</b><extra></extra>",
+        hovertemplate=f"<b>%{{x}}</b><br>%{{fullData.name}}: <b>%{{y:.2f}}%</b><br>Jumlah: <b>%{{customdata[0]}}</b><br>Dari: <b>%{{customdata[1]}} <br>bidang</b><extra></extra>",
         marker=dict(line=dict(width=1, color='#000000')) # Outline Hitam
     )
 
