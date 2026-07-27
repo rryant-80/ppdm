@@ -1948,64 +1948,6 @@ with st.sidebar:
     if st.button("🔄 Refresh Data", use_container_width=True):
         st.cache_data.clear()  # Hapus cache Streamlit
         st.rerun()
-
-# -----------------------------------------------------------------------------
-# 5. ROUTING HALAMAN UTAMA
-# -----------------------------------------------------------------------------
-if not st.session_state.logged_in:
-    login()
-else:
-    user = st.session_state.user_info
-    menu_diizinkan = user.get("akses_menu", [])
-
-    # Sidebar
-    st.sidebar.title("📌 Navigation")
-    st.sidebar.markdown(f"**Pengguna:** {user['nama']}")
-    st.sidebar.caption(f"**Role:** {user['role']}")
-    
-    if st.sidebar.button("🚪 Keluar (Logout)", use_container_width=True):
-        logout()
-        
-    st.sidebar.markdown("---")
-
-    if not menu_diizinkan:
-        st.warning("⚠️ Akun Anda belum diberikan akses ke menu mana pun. Hubungi Admin.")
-    else:
-        menu_pilihan = st.sidebar.radio(
-            "Pilih Menu Dashboard:",
-            menu_diizinkan
-        )
-        if menu_pilihan == "🏛️ Profil & Anggaran":    
-            render_profil_anggaran(df_f_sdm)
-        elif menu_pilihan == "🎯 PSN 2026":
-            render_psn_2026(df_f_psn)
-        elif menu_pilihan == "💼 Layanan Pertanahan":
-            render_layanan_pertanahan(df_f_layanan)
-        elif menu_pilihan == "⚡ Data Elektronik":
-            # Ambil dataframe peringkat (GID 880542789) dengan aman
-            df_peringkat_data = pd.DataFrame()
-            if 'df_peringkat' in locals() and df_peringkat is not None:
-                df_peringkat_data = df_peringkat
-            elif 'df_peringkat_raw' in locals() and df_peringkat_raw is not None:
-                df_peringkat_data = df_peringkat_raw
-        
-            render_pertanahan_elektronik(
-                df_f_elektronik, 
-                df_f_progress, 
-                df_peringkat_data,
-                selected_kab=selected_kab, 
-                selected_kec=selected_kec
-            )
-        elif menu_pilihan == "📌 Isu Strategis":
-            # Menyiapkan dataframe isu dengan aman
-            df_isu_data = pd.DataFrame()
-            if 'df_isu' in locals() and df_isu is not None:
-                df_isu_data = df_isu
-            elif 'df_isu_raw' in locals() and df_isu_raw is not None:
-                df_isu_data = df_isu_raw
-        
-            # Panggil fungsi render isu strategis
-            render_isu_strategis(df_isu_data)
     
     # Kamus untuk mempersingkat nama kabupaten
     KAB_MAP = {
@@ -2529,3 +2471,61 @@ def logout():
     st.session_state.logged_in = False
     st.session_state.user_info = None
     st.rerun()
+
+# -----------------------------------------------------------------------------
+# 5. ROUTING HALAMAN UTAMA
+# -----------------------------------------------------------------------------
+if not st.session_state.logged_in:
+    login()
+else:
+    user = st.session_state.user_info
+    menu_diizinkan = user.get("akses_menu", [])
+
+    # Sidebar
+    st.sidebar.title("📌 Navigation")
+    st.sidebar.markdown(f"**Pengguna:** {user['nama']}")
+    st.sidebar.caption(f"**Role:** {user['role']}")
+    
+    if st.sidebar.button("🚪 Keluar (Logout)", use_container_width=True):
+        logout()
+        
+    st.sidebar.markdown("---")
+
+    if not menu_diizinkan:
+        st.warning("⚠️ Akun Anda belum diberikan akses ke menu mana pun. Hubungi Admin.")
+    else:
+        menu_pilihan = st.sidebar.radio(
+            "Pilih Menu Dashboard:",
+            menu_diizinkan
+        )
+        if menu_pilihan == "🏛️ Profil & Anggaran":    
+            render_profil_anggaran(df_f_sdm)
+        elif menu_pilihan == "🎯 PSN 2026":
+            render_psn_2026(df_f_psn)
+        elif menu_pilihan == "💼 Layanan Pertanahan":
+            render_layanan_pertanahan(df_f_layanan)
+        elif menu_pilihan == "⚡ Data Elektronik":
+            # Ambil dataframe peringkat (GID 880542789) dengan aman
+            df_peringkat_data = pd.DataFrame()
+            if 'df_peringkat' in locals() and df_peringkat is not None:
+                df_peringkat_data = df_peringkat
+            elif 'df_peringkat_raw' in locals() and df_peringkat_raw is not None:
+                df_peringkat_data = df_peringkat_raw
+        
+            render_pertanahan_elektronik(
+                df_f_elektronik, 
+                df_f_progress, 
+                df_peringkat_data,
+                selected_kab=selected_kab, 
+                selected_kec=selected_kec
+            )
+        elif menu_pilihan == "📌 Isu Strategis":
+            # Menyiapkan dataframe isu dengan aman
+            df_isu_data = pd.DataFrame()
+            if 'df_isu' in locals() and df_isu is not None:
+                df_isu_data = df_isu
+            elif 'df_isu_raw' in locals() and df_isu_raw is not None:
+                df_isu_data = df_isu_raw
+        
+            # Panggil fungsi render isu strategis
+            render_isu_strategis(df_isu_data)
