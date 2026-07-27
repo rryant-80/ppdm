@@ -41,6 +41,7 @@ df_psn = load_data("193371600")
 df_progress_raw = load_data("386436131")  # Data Progress Harian
 df_peringkat_raw = load_data("880542789")
 df_isu_raw = load_data("1699480367")
+df_kakanwil_raw = load_data("806976086")
 
 # -----------------------------------------------------------------------------
 # 3. MODUL HALAMAN UTAMA (DEKLARASI FUNGSI RENDER TAMPILAN)
@@ -1083,6 +1084,172 @@ def render_isu_strategis(df_isu):
                             st.error(f"❌ Gagal mengirim tanggapan: {e}")
         st.markdown("<br>", unsafe_allow_html=True)
 
+def render_monitoring_kakanwil(df_kakanwil):
+    st.title("🛡️ Monitoring Kakanwil")
+    st.caption("Pantauan tren perkembangan Prasertel dan Target Harian tingkat Kabupaten/Kota se-Sulawesi Tengah.")
+    st.markdown("---")
+
+    if df_kakanwil is None or df_kakanwil.empty:
+        st.warning("Data Monitoring Kakanwil (GID 806976086) tidak ditemukan atau kosong.")
+        return
+
+    df = df_kakanwil.copy()
+    df.columns = [str(c).strip().lower() for c in df.columns]
+
+    # Parser angka murni
+    def parse_num(val):
+        if pd.isna(val) or val is None:
+            return 0
+        s = str(val).strip()
+        if not s or s.lower() in ['nan', 'none', 'null', '']:
+            return 0
+        if isinstance(val, float):
+            s = f"{val:.3f}".replace('.', '')
+        else:
+            s = s.replace('.', '').replace(',', '').replace('Rp', '').replace('%', '').strip()
+        try:
+            return int(s)
+        except ValueError:
+            return 0
+
+    # Pastikan kolom-kolom utama ada dan dibersihkan
+    col_tgl = 'tgl_kab' if 'tgl_kab' in df.columns else next((c for c in df.columns if 'tgl' in c), 'tgl_kab')
+    col_kab = 'kabupaten_kota' if 'kabupaten_kota' in df.columns else next((c for c in df.columns if 'kab' in c), 'kabupaten_kota')
+    col_sertel = 'sertel_kab' if 'sertel_kab' in df.columns else next((c for c in df.columns if 'sertel' in c), 'sertel_kab')
+    col_btvalid = 'btvalid_kab' if 'btvalid_kab' in df.columns else next((c for c in df.columns if 'btvalid' in c or 'bt' in c), 'btvalid_kab')
+
+    df['sertel_clean'] = df[col_sertel].apply(parse_num)
+    df['btvalid_clean'] = df[col_btvalid].apply(parse_num)
+    df['kab_clean'] = df[col_kab].astype(str).str.strip()
+
+    # Filter baris non-kabupaten (jika ada total)
+    df_clean = df[~df['kab_clean'].str.contains('Total|Jumlah|Sulawesi Tengah', case=False, na=False)].copy()
+
+    # ==========================================
+    # DASHBOARD 1: GRAFIK TREN PROGRESS PRASERTEL
+    # ==========================================
+    df_line = df_clean.copy()
+    df_line['tgl_str'] = df_line[col_tgl].astype(str).str.strip()
+    df_line = df_line[df_line['tgl_str'].notna() & (df_line['tgl_str'] != '') & (df_line['tgl_str'].str.lower() != 'nan')].copy()
+
+    unique_tgls = df_line['tgl_str'].unique().tolist()
+    df_trend = df_line.groupby(['tgl_str', 'kab_clean'], as_index=False)['sertel_clean'].sum()
+
+    fig_line = px.line(
+        df_trend, 
+        x='tgl_str', 
+        y='sertel_clean', 
+        color='kab_clean',
+        markers=True,
+        title="📈 Tren Progress Prasertel (Tingkat Kabupaten/Kota)",
+        category_orders={'tgl_str': unique_tgls}
+    )
+
+    fig_line.update_traces(
+        hovertemplate="<b>Kab/Kota: %{fullData.name}</b><br>Tanggal: %{x}<br>Jml Prasertel: <b>%{y:,.0f} BT</b><extra></extra>",
+        marker=dict(size=8, line=dict(width=1.5, color='#000000'))
+    )
+
+    fig_line.update_layout(
+        height=480,
+        xaxis_title="",
+        yaxis_title="",
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        margin=dict(l=15, r=15, t=60, b=80),
+        separators=',.',
+        title=dict(text="📈 Tren Progress Prasertel (Tingkat Kabupaten/Kota)", x=0, y=0.98, xanchor='left', yanchor='top', font=dict(size=15, color='#1e293b')),
+        legend=dict(orientation="h", yanchor="top", y=-0.2, xanchor="center", x=0.5, title_text='', font=dict(size=11)),
+        yaxis=dict(gridcolor='#f2f2f2'),
+        xaxis=dict(type='category')
+    )
+
+    st.plotly_chart(fig_line, use_container_width=True)
+
+    # ==========================================
+    # DASHBOARD 2: TABEL TARGET HARIAN PRASERTEL MENUJU 70%
+    # ==========================================
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.subheader("🎯 Target Harian Prasertel Menuju 70% (Desember 2026)")
+
+    today = datetime.now().date()
+    end_date = date(2026, 12, 31)
+    sisa_hari_kerja = np.busday_count(today, end_date + timedelta(days=1)) if today < end_date else 1
+    st.info(f"📅 **{sisa_hari_kerja} hari kerja** menuju Tgl. 31 Desember 2026")
+
+    # Ambil data snapshot tanggal terbaru untuk tiap kabupaten
+    df_latest_by_kab = df_clean.sort_values(by=col_tgl).groupby('kab_clean', as_index=False).last()
+
+    df_latest_by_kab['pct_saat_ini'] = (df_latest_by_kab['sertel_clean'] / df_latest_by_kab['btvalid_clean'].replace(0, 1)) * 100.0
+    df_latest_by_kab['target_bt_70'] = df_latest_by_kab['btvalid_clean'] * 0.70
+    df_latest_by_kab['sisa_bt_kejar'] = (df_latest_by_kab['target_bt_70'] - df_latest_by_kab['sertel_clean']).apply(lambda x: max(0, x))
+    df_latest_by_kab['target_harian'] = (df_latest_by_kab['sisa_bt_kejar'] / sisa_hari_kerja).apply(np.ceil).astype(int)
+
+    # Hitung capaian terbaru dibanding snapshot tanggal sebelumnya
+    df_capaian_map = {}
+    if len(unique_tgls) >= 2:
+        t_latest = unique_tgls[-1]
+        t_prev = unique_tgls[-2]
+
+        grp_latest = df_line[df_line['tgl_str'] == t_latest].groupby('kab_clean')['sertel_clean'].sum()
+        grp_prev = df_line[df_line['tgl_str'] == t_prev].groupby('kab_clean')['sertel_clean'].sum()
+
+        for k_name in df_latest_by_kab['kab_clean']:
+            df_capaian_map[k_name] = grp_latest.get(k_name, 0) - grp_prev.get(k_name, 0)
+
+    # Urutkan dari % Prasertel terkecil ke terbesar
+    df_target_grp = df_latest_by_kab.sort_values(by='pct_saat_ini', ascending=True).reset_index(drop=True)
+
+    rows_target_html = []
+    for idx, row in df_target_grp.iterrows():
+        wil_name = row['kab_clean']
+        bt_val = f"{row['btvalid_clean']:,.0f}".replace(',', '.')
+        p_sertel = f"{row['sertel_clean']:,.0f}".replace(',', '.')
+        pct_val = row['pct_saat_ini']
+        tgt_hr = f"{row['target_harian']:,.0f} BT".replace(',', '.')
+
+        badge_class = "badge-red" if pct_val <= 50.0 else ("badge-yellow" if pct_val <= 70.0 else "badge-green")
+        pct_formatted = f"<span class='{badge_class}'>{pct_val:.2f}%</span>"
+
+        cap_val = df_capaian_map.get(wil_name, 0)
+        if cap_val > 0:
+            cap_formatted = f"<span style='color: #10B981; font-weight: bold;'>+{cap_val:,.0f} BT</span>".replace(',', '.')
+        elif cap_val < 0:
+            cap_formatted = f"<span style='color: #EF4444; font-weight: bold;'>{cap_val:,.0f} BT</span>".replace(',', '.')
+        else:
+            cap_formatted = "<span style='color: #6B7280;'>0 BT</span>"
+
+        rows_target_html.append(
+            f"<tr>"
+            f"<td style='text-align: center; font-weight: bold; width: 50px;'>{idx+1}</td>"
+            f"<td style='text-align: left; font-weight: 600;'>{wil_name}</td>"
+            f"<td style='text-align: center;'>{bt_val}</td>"
+            f"<td style='text-align: center;'>{p_sertel}</td>"
+            f"<td style='text-align: center;'>{pct_formatted}</td>"
+            f"<td style='text-align: center;'>{cap_formatted}</td>"
+            f"<td style='text-align: center; font-weight: bold; color: #1E3A8A;'>{tgt_hr}</td>"
+            f"</tr>"
+        )
+
+    html_target_table = f"""<style>
+.target-table-container {{ width: 100%; border: 1px solid #E5E7EB; border-radius: 10px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); margin-top: 10px; overflow: hidden; }}
+.target-table {{ width: 100%; border-collapse: collapse; font-family: system-ui, -apple-system, sans-serif; font-size: 0.88rem; }}
+.target-table th {{ background-color: #1E293B; color: #FFFFFF; font-weight: 700; padding: 12px 10px; text-align: center; border-bottom: 2px solid #0F172A; }}
+.target-table th.th-left {{ text-align: left !important; }}
+.target-table td {{ padding: 10px 12px; border-bottom: 1px solid #F1F5F9; vertical-align: middle; }}
+.target-table tr:nth-child(even) {{ background-color: #F8FAFC; }}
+.badge-red {{ background-color: #FEE2E2; color: #991B1B; padding: 4px 10px; border-radius: 6px; font-weight: 700; display: inline-block; }}
+.badge-yellow {{ background-color: #FEF3C7; color: #92400E; padding: 4px 10px; border-radius: 6px; font-weight: 700; display: inline-block; }}
+.badge-green {{ background-color: #D1FAE5; color: #065F46; padding: 4px 10px; border-radius: 6px; font-weight: 700; display: inline-block; }}
+</style>
+<div class="target-table-container">
+<table class="target-table">
+<thead><tr><th>No</th><th class="th-left">Kabupaten / Kota</th><th>Jumlah BT Valid</th><th>Jumlah Prasertel</th><th>Persentase Saat Ini</th><th>Capaian Terbaru</th><th>Target Harian</th></tr></thead>
+<tbody>{"".join(rows_target_html)}</tbody>
+</table></div>"""
+
+    st.markdown(html_target_table, unsafe_allow_html=True)
+
 # -----------------------------------------------------------------------------
 # 4. FUNGSI AUTENTIKASI (LOGIN & LOGOUT)
 # -----------------------------------------------------------------------------
@@ -1215,6 +1382,9 @@ else:
 
         elif menu_pilihan == MENU_ISU:  # 👈 Menggunakan variabel MENU_ISU agar pasti match!
             render_isu_strategis(df_isu_raw)
+
+        elif menu_pilihan == "🛡️ Monitoring Kakanwil":  # 👈 MENU BARU
+            render_monitoring_kakanwil(df_kakanwil_raw)
 
         # SIDEBAR BAWAH: GRAFIK REKAPITULASI
         # ... (sisa kode grafik sidebar Anda di bawah) ...
