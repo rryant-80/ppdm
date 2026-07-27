@@ -961,12 +961,12 @@ def render_isu_strategis(df_isu):
                 "Pengadaan Tanah dan Pengembangan", "Pengendalian dan Penanganan Sengketa"
             ]
             with col_f1:
-                input_kab = st.selectbox("Kabupaten / Kota / Wilayah", list_kab_st)
-                input_pembuat = st.text_input("Nama & Jabatan Pembuat Isu", placeholder="Contoh: Ahmad, S.Si.T. (Kasi PHPT)")
+                input_kab = st.selectbox("Kabupaten / Kota / Provinsi", list_kab_st)
+                input_pembuat = st.text_input("Nama & Jabatan", placeholder="Contoh: Ahmad, S.Si.T. (Kasi PHPT)")
             with col_f2:
-                input_unit = st.selectbox("Unit Working Group / Seksi", list_unit)
+                input_unit = st.selectbox("Unit Kerja / Seksi", list_unit)
 
-            input_isu = st.text_area("Deskripsi Isu Strategis (Maks. 500 kata)", height=120)
+            input_isu = st.text_area("Deskripsi (Maks. 500 kata)", height=120)
             submit_isu = st.form_submit_button("🚀 Kirim Isu Strategis")
 
             if submit_isu:
