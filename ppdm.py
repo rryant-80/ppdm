@@ -287,7 +287,7 @@ def render_psn_2026(df_filtered_psn):
             color_discrete_sequence=color_sequence, custom_data=['Real_Fmt', 'Target_Fmt', 'Pct_Fmt']
         )
         fig.update_traces(
-            hovertemplate="<b>Kab/Kota: %{x}</b><br>%{fullData.name} | %{customdata[2]}%<extra></extra><br>Realisasi: %{customdata[0]}<br>Target: %{customdata[1]}<br>Persentase:",
+            hovertemplate="<b>Kab/Kota: %{x}</b><br>%{fullData.name} | %{customdata[2]}%<extra></extra><br>Target: %{customdata[1]}<br>Realisasi: %{customdata[0]}",
             marker=dict(line=dict(width=1.2, color='#111111'))
         )
         fig.update_layout(
