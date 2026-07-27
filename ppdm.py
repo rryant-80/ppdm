@@ -169,7 +169,8 @@ def render_profil_anggaran(df_filtered_sdm):
     
     jabatan_list = [
         "Tata Usaha", "Survei dan Pemetaan", "Penetapan Hak dan Pendaftaran", 
-        "Penataan dan Pemberdayaan", "Pengadaan Tanah dan Pengembangan", "Pengendalian dan Penanganan Sengketa"
+        "Penataan dan Pemberdayaan", "Pengadaan Tanah dan Pengembangan", "Pengendalian dan Penanganan Sengketa",
+        "Fungsional Ahli Madya"
     ]
 
     row1_cols = st.columns(3)
