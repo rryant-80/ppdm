@@ -242,6 +242,8 @@ def render_psn_2026(df_filtered_psn):
         return f"{parts[0].replace(',', '.')},{parts[1]}"
 
     df = df_filtered_psn.copy()
+    if 'kabupaten_kota' not in df.columns:
+        df['kabupaten_kota'] = '-'
     df['kab_singkat'] = df['kabupaten_kota'].map(lambda x: KAB_MAP.get(x, x)) if 'kabupaten_kota' in df.columns else '-'
 
     pbt_real_cols = ['realisasi_baru', 'realisasi_k4', 'realisasi_repo']
@@ -267,7 +269,8 @@ def render_psn_2026(df_filtered_psn):
 
         long_rows = []
         for _, row in df_valid.iterrows():
-            kab = row['kab_singkat']
+            # 💡 AMBIL NAMA NAMA LENGKAP KABUPATEN
+            kab = row['kabupaten_kota']
             target_val = row[target_col]
             for label, col_name in metrics_dict.items():
                 real_val = row[col_name]
@@ -291,10 +294,17 @@ def render_psn_2026(df_filtered_psn):
             marker=dict(line=dict(width=1.2, color='#111111'))
         )
         fig.update_layout(
-            height=310, xaxis_title="", yaxis_title="", legend_title_text="",
-            paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', margin=dict(l=5, r=5, t=32, b=5),
+            height=340,  # Sedikit ditambah agar nama kabupaten panjang muat rapi
+            xaxis_title="", yaxis_title="", legend_title_text="",
+            paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', margin=dict(l=5, r=5, t=32, b=40),
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(size=10)),
-            title=dict(font=dict(size=14)), yaxis=dict(gridcolor='#c4c4c4', tickfont=dict(size=9)), xaxis=dict(showgrid=False, tickfont=dict(size=9))
+            title=dict(font=dict(size=14)), 
+            yaxis=dict(gridcolor='#c4c4c4', tickfont=dict(size=9)), 
+            xaxis=dict(
+                showgrid=False, 
+                tickfont=dict(size=8.5),
+                tickangle=-30  # 💡 Kemiringan label sumbu X agar nama lengkap terbaca rapi
+            )
         )
         return fig
 
