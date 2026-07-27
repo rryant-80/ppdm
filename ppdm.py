@@ -1112,7 +1112,7 @@ else:
             st.cache_data.clear()
             st.rerun()
 
-        st.sidebar.markdown("---")
+        
 
         # FILTERING DATASET
         df_f_sdm = df_sdm.copy()
