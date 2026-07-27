@@ -1303,11 +1303,56 @@ else:
             st.sidebar.plotly_chart(fig_anggaran, use_container_width=True)
 
         # 3. GRAFIK Berkas Tunggakan PDDM
+        # ==========================================
+        # 3. GRAFIK: Berkas Tunggakan PDDM (Sidebar - Custom Hover & Detail Posisi)
+        # ==========================================
         if not df_layanan_singkat.empty and 'nmr_berkas' in df_layanan_singkat.columns:
-            df_layanan_total = df_layanan_singkat.groupby('kab_singkat')['nmr_berkas'].count().reset_index(name='total_berkas').sort_values(by='total_berkas', ascending=False)
-            fig_layanan = px.bar(df_layanan_total, x='kab_singkat', y='total_berkas', title="Berkas Tunggakan PDDM")
-            fig_layanan.update_traces(marker_color='#EF553B')
-            fig_layanan.update_layout(showlegend=False, height=250, xaxis_title="", yaxis_title="", margin=dict(l=10, r=10, t=35, b=10))
+            df_layanan_total = df_layanan_singkat.groupby('kab_singkat')['nmr_berkas'].count().reset_index(name='total_berkas')
+            df_layanan_total = df_layanan_total.sort_values(by='total_berkas', ascending=False)
+            
+            # Tambahkan kolom nama lengkap untuk hover
+            df_layanan_total['kab_full'] = df_layanan_total['kab_singkat'].map(lambda x: REVERSE_KAB_MAP.get(x, x))
+            
+            # Cek ketersediaan kolom posisi_berkas untuk breakdown detail posisi di hover
+            if 'posisi_berkas' in df_layanan_singkat.columns:
+                df_layanan_pos = df_layanan_singkat.groupby(['kab_singkat', 'posisi_berkas']).size().reset_index(name='jml_pos')
+                df_layanan_pivot = df_layanan_pos.pivot(index='kab_singkat', columns='posisi_berkas', values='jml_pos').fillna(0).astype(int)
+                df_layanan_total = df_layanan_total.merge(df_layanan_pivot, on='kab_singkat')
+                
+                hover_layanan = "<b>%{customdata[0]} | %{y} berkas</b><br>--- Detail Posisi ---<br>"
+                custom_data_layanan = ['kab_full', 'total_berkas']
+                for i, col in enumerate(df_layanan_pivot.columns):
+                    hover_layanan += f"{col}: %{{customdata[{i+2}]}}<br>"
+                    custom_data_layanan.append(col)
+            else:
+                hover_layanan = "<b>%{customdata[0]}</b><br>Total Berkas: %{y} berkas<br>"
+                custom_data_layanan = ['kab_full', 'total_berkas']
+
+            # Render Bar Chart Plotly Sidebar
+            fig_layanan = px.bar(
+                df_layanan_total, 
+                x='kab_singkat', 
+                y='total_berkas',
+                title="Berkas Tunggakan PDDM",
+                custom_data=df_layanan_total[custom_data_layanan] if custom_data_layanan else None
+            )
+            
+            fig_layanan.update_traces(
+                hovertemplate=hover_layanan + "<extra></extra>", 
+                marker_color='#EF553B'
+            )
+            
+            fig_layanan.update_layout(
+                showlegend=False, 
+                height=250,
+                xaxis_title="", 
+                yaxis_title="",
+                xaxis={'categoryorder': 'total descending'},
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                margin=dict(l=10, r=10, t=35, b=10)
+            )
+            
             st.sidebar.plotly_chart(fig_layanan, use_container_width=True)
 
         # 4. GRAFIK % Prasertel (Dari jumlah_bt)
