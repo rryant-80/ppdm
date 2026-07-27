@@ -170,13 +170,12 @@ def render_profil_anggaran(df_filtered_sdm):
     
     jabatan_list = [
         "Tata Usaha", "Survei dan Pemetaan", "Penetapan Hak dan Pendaftaran", 
-        "Penataan dan Pemberdayaan", "Pengadaan Tanah dan Pengembangan", "Pengendalian dan Penanganan Sengketa",
-        "Fungsional Ahli Madya"
+        "Penataan dan Pemberdayaan", "Pengadaan Tanah dan Pengembangan", "Pengendalian dan Penanganan Sengketa"
     ]
 
     row1_cols = st.columns(3)
     row2_cols = st.columns(3)
-    all_f_cols = list(st.columns(3)) + list(st.columns(3))
+    all_f_cols = row1_cols + row2_cols
 
     for idx, jab in enumerate(jabatan_list):
         p_info = get_pejabat_info(df_filtered_sdm, jab)
