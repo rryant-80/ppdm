@@ -299,7 +299,7 @@ def render_psn_2026(df_filtered_psn):
             color_discrete_sequence=color_sequence, custom_data=['Real_Fmt', 'Target_Fmt', 'Pct_Fmt']
         )
         fig.update_traces(
-            hovertemplate="<b>Kab/Kota: %{x}</b><br>%{fullData.name} | %{customdata[2]}%<extra></extra><br>Target: %{customdata[1]}<br>Realisasi: %{customdata[0]}",
+            hovertemplate="<b>%{x}</b><br>%{fullData.name} | %{customdata[2]}%<extra></extra><br>Target: %{customdata[1]}<br>Realisasi: %{customdata[0]}",
             marker=dict(line=dict(width=1.2, color='#111111'))
         )
         fig.update_layout(
@@ -474,7 +474,7 @@ def render_layanan_pertanahan(df_filtered_layanan):
         ).reset_index()
 
         fig_pos = px.bar(df_g1, x='kab_clean', y='jml_berkas', color='posisi_berkas', custom_data=df_g1[['posisi_berkas', 'list_berkas']], barmode='group')
-        fig_pos.update_traces(hovertemplate="<b>Kab/Kota: %{x}</b><br>Posisi: %{customdata[0]}<br>Jumlah: %{y} Berkas<br>Sampel No Berkas: %{customdata[1]}<extra></extra>", marker=dict(line=dict(width=1, color='#222222')))
+        fig_pos.update_traces(hovertemplate="<b>%{x}</b><br>Posisi: %{customdata[0]}<br>Jumlah: %{y} Berkas<br>Sampel No Berkas: %{customdata[1]}<extra></extra>", marker=dict(line=dict(width=1, color='#222222')))
         fig_pos.update_layout(height=450, xaxis_title="", yaxis_title="", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', margin=dict(l=10, r=10, t=80, b=10))
         st.plotly_chart(fig_pos, use_container_width=True)
 
@@ -788,7 +788,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
     )
 
     fig_combined.update_traces(
-        hovertemplate=f"<b>{x_label}: %{{x}}</b><br>%{{fullData.name}}: <b>%{{y:.2f}}%</b><br>Jumlah Capaian: <b>%{{customdata[0]}}</b><br>Total Pembagi: <b>%{{customdata[1]}}</b><extra></extra>",
+        hovertemplate=f"<b>%{{x}}</b><br>%{{fullData.name}}: <b>%{{y:.2f}}%</b><br>Jumlah Capaian: <b>%{{customdata[0]}}</b><br>Total Pembagi: <b>%{{customdata[1]}}</b><extra></extra>",
         marker=dict(line=dict(width=1, color='#000000')) # Outline Hitam
     )
 
