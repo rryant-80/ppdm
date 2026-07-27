@@ -945,9 +945,8 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
 
 def render_isu_strategis(df_isu):
     st.title("✍️ Diskusi Isu Strategis")
-    st.caption("Wadah diskusi & pemantauan isu strategis pertanahan se-Sulawesi Tengah.")
-
-    with st.expander("➕ **Tambah Isu Strategis Baru**", expanded=False):
+    
+    with st.expander("➕ **Tambah topik diskusi**", expanded=False):
         with st.form("form_isu_baru", clear_on_submit=True):
             col_f1, col_f2 = st.columns(2)
             list_kab_st = [
@@ -993,7 +992,7 @@ def render_isu_strategis(df_isu):
     st.markdown("---")
 
     if df_isu is None or df_isu.empty:
-        st.info("ℹ️ Belum ada isu strategis yang tercatat.")
+        st.info("ℹ️ Belum ada yang didiskusikan.")
         return
 
     df_display = df_isu.copy()
