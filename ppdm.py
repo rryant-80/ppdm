@@ -1232,18 +1232,74 @@ else:
             st.sidebar.plotly_chart(fig_sdm, use_container_width=True)
             
         # 2. GRAFIK Anggaran
+        # ==========================================
+        # 2. GRAFIK: % Realisasi Anggaran (Sidebar - Custom Hover & Format Indonesia)
+        # ==========================================
         if not df_sdm_singkat.empty and 'target_dipa' in df_sdm_singkat.columns and 'realisasi_dipa' in df_sdm_singkat.columns:
             df_anggaran = df_sdm_singkat.copy()
-            df_anggaran['target_clean'] = df_anggaran['target_dipa'].apply(lambda v: float(str(v).replace('.', '').replace(',', '').replace('Rp', '').strip()) if pd.notna(v) and str(v).replace('.', '').replace(',', '').replace('Rp', '').strip().replace('.','').isdigit() else 0.0)
-            df_anggaran['realisasi_clean'] = df_anggaran['realisasi_dipa'].apply(lambda v: float(str(v).replace('.', '').replace(',', '').replace('Rp', '').strip()) if pd.notna(v) and str(v).replace('.', '').replace(',', '').replace('Rp', '').strip().replace('.','').isdigit() else 0.0)
             
+            # Fungsi pembersih angka numerik lokal
+            def clean_num_local(val):
+                if pd.isna(val) or val is None: 
+                    return 0.0
+                if isinstance(val, (int, float)): 
+                    return float(val)
+                clean_str = str(val).replace('.', '').replace(',', '').replace('Rp', '').strip()
+                try: 
+                    return float(clean_str)
+                except ValueError: 
+                    return 0.0
+
+            # Terjemahkan kolom target dan realisasi
+            df_anggaran['target_clean'] = df_anggaran['target_dipa'].apply(clean_num_local)
+            df_anggaran['realisasi_clean'] = df_anggaran['realisasi_dipa'].apply(clean_num_local)
+            
+            # Agregasi total per kabupaten/kota
             df_ang_rekap = df_anggaran.groupby('kab_singkat')[['target_clean', 'realisasi_clean']].sum().reset_index()
-            df_ang_rekap['persen_realisasi'] = (df_ang_rekap['realisasi_clean'] / df_ang_rekap['target_clean'].replace(0, 1)) * 100
-            df_ang_rekap = df_ang_rekap.sort_values(by='persen_realisasi', ascending=False)
+            df_ang_rekap['persen_realisasi'] = (df_ang_rekap['realisasi_clean'] / df_ang_rekap['target_clean'].replace(0, 1)) * 100.0
             
-            fig_anggaran = px.bar(df_ang_rekap, x='kab_singkat', y='persen_realisasi', title="% Realisasi Anggaran")
-            fig_anggaran.update_traces(marker_color='#17BECF')
-            fig_anggaran.update_layout(showlegend=False, height=250, xaxis_title="", yaxis_title="", margin=dict(l=10, r=10, t=35, b=10), yaxis=dict(gridcolor='#f2f2f2', ticksuffix='%'))
+            # Format teks Rupiah & Persen untuk Tooltip Hover (Pemisah ribuan titik)
+            df_ang_rekap['target_fmt'] = df_ang_rekap['target_clean'].apply(lambda x: f"{x:,.0f}".replace(',', '.'))
+            df_ang_rekap['realisasi_fmt'] = df_ang_rekap['realisasi_clean'].apply(lambda x: f"{x:,.0f}".replace(',', '.'))
+            df_ang_rekap['persen_fmt'] = df_ang_rekap['persen_realisasi'].apply(lambda x: f"{x:.2f}".replace('.', ','))
+            
+            # Tambahkan kolom nama lengkap untuk hover
+            df_ang_rekap['kab_full'] = df_ang_rekap['kab_singkat'].map(lambda x: REVERSE_KAB_MAP.get(x, x))
+            
+            # Urutkan dari persentase realisasi tertinggi ke terendah
+            df_ang_rekap = df_ang_rekap.sort_values(by='persen_realisasi', ascending=False)
+
+            # Render Bar Chart Plotly Sidebar
+            fig_anggaran = px.bar(
+                df_ang_rekap, 
+                x='kab_singkat', 
+                y='persen_realisasi',
+                title="% Realisasi Anggaran",
+                custom_data=df_ang_rekap[['kab_full', 'target_fmt', 'realisasi_fmt', 'persen_fmt']]
+            )
+            
+            # Hover format khusus Rupiah & Persen
+            fig_anggaran.update_traces(
+                hovertemplate="<b>%{customdata[0]} | %{customdata[3]}%</b><br>Target: <b>Rp %{customdata[1]}</b><br>Realisasi: <b>Rp %{customdata[2]}</b><extra></extra>",
+                marker_color='#17BECF'
+            )
+            
+            fig_anggaran.update_layout(
+                showlegend=False, 
+                height=250,
+                xaxis_title="", 
+                yaxis_title="",
+                xaxis={'categoryorder': 'total descending'},
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                margin=dict(l=10, r=10, t=35, b=10),
+                separators=',.',
+                yaxis=dict(
+                    gridcolor='#f2f2f2',
+                    ticksuffix='%' # Menambahkan % pada sumbu-Y
+                )
+            )
+            
             st.sidebar.plotly_chart(fig_anggaran, use_container_width=True)
 
         # 3. GRAFIK Berkas Tunggakan PDDM
