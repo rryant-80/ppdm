@@ -1947,95 +1947,22 @@ with st.sidebar:
         st.cache_data.clear()  # Hapus cache Streamlit
         st.rerun()
 
-    # ==========================================
-    # KONTROL SIDEBAR (MENU DI ATAS, GRAFIK DI BAWAH)
-    # ==========================================
+    st.header("🗂️ Menu Utama")
     
-    # 1. INFO USER & NAVIGASI PENGGUNA (PALING ATAS)
-    st.sidebar.title("📌 Navigation")
-    st.sidebar.markdown(f"**Pengguna:** {user['nama']}")
-    st.sidebar.caption(f"**Role:** {user['role']}")
+    # TAMBAHKAN key="menu_pilihan" AGAR PILIHAN TERSIMPAN DI SESSION STATE
+    menu_pilihan = st.radio(
+        "Pilih Halaman:",
+        [
+            "🏛️ Profil & Anggaran",
+            "🎯 PSN 2026",
+            "💼 Layanan Pertanahan",
+            "⚡ Data Elektronik",
+            "📌 Isu Strategis"
+        ],
+        key="🏛️ Profil & Anggaran"  # <--- Kunci utama agar menu tidak ter-reset
+    )
     
-    if st.sidebar.button("🚪 Keluar (Logout)", use_container_width=True):
-        logout()
-        
-    st.sidebar.markdown("---")
-
-    # 2. PILIHAN MENU DASHBOARD
-    if not menu_diizinkan:
-        st.sidebar.warning("⚠️ Akun Anda belum diberikan akses ke menu mana pun. Hubungi Admin.")
-    else:
-        menu_pilihan = st.sidebar.radio(
-            "Pilih Menu Dashboard:",
-            menu_diizinkan
-        )
-
-    st.sidebar.markdown("---")
-
-    # 3. GRAFIK % PRASERTEL (PINDAH KE PALING BAWAH SIDEBAR)
-    col_bt = 'jumlah_bt' if 'jumlah_bt' in df_elek_singkat.columns else 'bt_valid'
-    
-    if not df_elek_singkat.empty and 'pra_sertel' in df_elek_singkat.columns and col_bt in df_elek_singkat.columns:
-        df_elek_rekap = df_elek_singkat.copy()
-        
-        def parse_sidebar_int(val):
-            if pd.isna(val) or val is None:
-                return 0
-            s = str(val).strip()
-            if not s or s.lower() in ['nan', 'none', 'null', '']:
-                return 0
-            
-            if isinstance(val, float):
-                s_float = f"{val:.3f}"
-                s = s_float.replace('.', '')
-            else:
-                s = s.replace('.', '').replace(',', '').replace('Rp', '').replace('%', '').strip()
-            
-            try:
-                return int(s)
-            except ValueError:
-                return 0
-
-        df_elek_rekap['pra_sertel_clean'] = df_elek_rekap['pra_sertel'].apply(parse_sidebar_int)
-        df_elek_rekap['bt_clean']         = df_elek_rekap[col_bt].apply(parse_sidebar_int)
-
-        df_elek_grp = df_elek_rekap.groupby('kab_singkat')[['pra_sertel_clean', 'bt_clean']].sum().reset_index()
-
-        df_elek_grp['Persentase'] = (df_elek_grp['pra_sertel_clean'] / df_elek_grp['bt_clean'].replace(0, 1)) * 100.0
-        df_elek_grp = df_elek_grp.sort_values(by='Persentase', ascending=False)
-
-        df_elek_grp['pra_sertel_fmt'] = df_elek_grp['pra_sertel_clean'].apply(lambda x: f"{x:,.0f}".replace(',', '.'))
-        df_elek_grp['bt_fmt']         = df_elek_grp['bt_clean'].apply(lambda x: f"{x:,.0f}".replace(',', '.'))
-
-        df_elek_grp['kab_full'] = df_elek_grp['kab_singkat'].map(lambda x: REVERSE_KAB_MAP.get(x, x))
-
-        fig_elek = px.bar(
-            df_elek_grp, x='kab_singkat', y='Persentase',
-            title="% Prasertel",
-            custom_data=df_elek_grp[['kab_full', 'pra_sertel_fmt', 'bt_fmt']]
-        )
-        
-        fig_elek.update_traces(
-            hovertemplate="<b>%{customdata[0]} | %{y:.2f}%</b><br>Jumlah Prasertel: <b>%{customdata[1]}</b><br>Jumlah BT: <b>%{customdata[2]}</b><extra></extra>",
-            marker_color='#00CC96'
-        )
-        
-        fig_elek.update_layout(
-            showlegend=False, 
-            height=250,
-            xaxis_title="", 
-            yaxis_title="",
-            xaxis={'categoryorder': 'total descending'},
-            paper_bgcolor='rgba(0,0,0,0)',
-            plot_bgcolor='rgba(0,0,0,0)',
-            margin=dict(l=10, r=10, t=35, b=10),
-            separators=',.',
-            yaxis=dict(
-                gridcolor='#f2f2f2',
-                ticksuffix='%'
-            )
-        )
-        st.sidebar.plotly_chart(fig_elek, use_container_width=True)
+    st.markdown("---")
     
     # Kamus untuk mempersingkat nama kabupaten
     KAB_MAP = {
