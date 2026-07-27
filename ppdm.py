@@ -1949,23 +1949,6 @@ with st.sidebar:
         st.cache_data.clear()  # Hapus cache Streamlit
         st.rerun()
     
-    st.header("🗂️ Menu Utama")
-    
-    # TAMBAHKAN key="menu_pilihan" AGAR PILIHAN TERSIMPAN DI SESSION STATE
-    menu_pilihan = st.radio(
-        "Pilih Halaman:",
-        [
-            "🏛️ Profil & Anggaran",
-            "🎯 PSN 2026",
-            "💼 Layanan Pertanahan",
-            "⚡ Data Elektronik",
-            "📌 Isu Strategis"
-        ],
-        key="🏛️ Profil & Anggaran"  # <--- Kunci utama agar menu tidak ter-reset
-    )
-    
-    st.markdown("---")
-    
     # Kamus untuk mempersingkat nama kabupaten
     KAB_MAP = {
         'Banggai': 'BG', 'Banggai Kepulauan': 'BK', 'Banggai Laut': 'BL',
