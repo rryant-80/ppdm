@@ -881,7 +881,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
     st.markdown(html_target_table, unsafe_allow_html=True)
 
 def render_isu_strategis(df_isu):
-    st.title("✍️ Isu Strategis & Perkembangan Terakhir")
+    st.title("✍️ Diskusi Isu Strategis")
     st.caption("Wadah diskusi & pemantauan isu strategis pertanahan se-Sulawesi Tengah.")
 
     with st.expander("➕ **Tambah Isu Strategis Baru**", expanded=False):
@@ -1072,15 +1072,11 @@ else:
         else:
             menu_diizinkan.append(m)
 
-    # SIDEBAR ATAS: PROFIL USER & NAVIGASI
-    st.sidebar.title("📌 Navigation")
-    st.sidebar.markdown(f"**Pengguna:** {user['nama']}")
-    st.sidebar.caption(f"**Role:** {user['role']}")
+    # SIDEBAR ATAS: PROFIL USER & NAVIGASI    
+    st.sidebar.markdown(f"**Pengguna:** {user['nama']}")    
     
     if st.sidebar.button("🚪 Keluar (Logout)", use_container_width=True):
         logout()
-        
-    st.sidebar.markdown("---")
 
     if not menu_diizinkan:
         st.sidebar.warning("⚠️ Akun Anda belum diberikan akses ke menu mana pun. Hubungi Admin.")
