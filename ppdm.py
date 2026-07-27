@@ -413,18 +413,43 @@ def render_layanan_pertanahan(df_filtered_layanan):
 
     for kab in list_kab:
         c_kab, c_p1, c_p2, c_p3, c_p4 = st.columns([2.2, 1.8, 1.8, 1.8, 1.8])
-        with c_kab: st.markdown(f"<div style='font-size: 0.80rem; font-weight: 600; padding-top: 2px;'>📍 {kab}</div>", unsafe_allow_html=True)
+        
+        with c_kab:
+            # 1. Tambahkan margin-bottom: 8px agar teks nama kabupaten sejajar & berjarak
+            st.markdown(
+                f"<div style='font-size: 0.80rem; font-weight: 600; padding-top: 6px; margin-bottom: 8px;'>📍 {kab}</div>", 
+                unsafe_allow_html=True
+            )
+            
         cols_pos = [c_p1, c_p2, c_p3, c_p4]
+        
         for idx, pos in enumerate(POSISI_TARGET):
             with cols_pos[idx]:
-                sub_df = df_overdue[(df_overdue['kab_clean'] == kab) & (df_overdue['posisi_berkas'].astype(str).str.strip().str.contains(pos, case=False, na=False))]
+                sub_df = df_overdue[
+                    (df_overdue['kab_clean'] == kab) & 
+                    (df_overdue['posisi_berkas'].astype(str).str.strip().str.contains(pos, case=False, na=False))
+                ]
+                
                 jml_berkas = len(sub_df)
+                
                 if jml_berkas > 0:
                     tooltip_items = [f"• [{r.get('berkas_thn', '-')}] {r.get('nama_prosedur', '-')}" for _, r in sub_df.iterrows()]
                     tooltip_text = f"Kab: {kab}&#10;Posisi: {pos}&#10;Total: {jml_berkas} Berkas&#10;&#10;Rincian Prosedur:&#10;" + "&#10;".join(tooltip_items[:12])
-                    st.markdown(f"<div class='strobo-red-compact' title='{tooltip_text}'>🚨 {jml_berkas} Berkas</div>", unsafe_allow_html=True)
+                    
+                    # 2. Tambahkan margin-bottom: 8px pada kotak Strobo Merah
+                    st.markdown(
+                        f"<div class='strobo-red-compact' style='margin-bottom: 8px;' title='{tooltip_text}'>🚨 {jml_berkas} Berkas</div>", 
+                        unsafe_allow_html=True
+                    )
                 else:
-                    st.markdown("<div class='tuntas-green-compact'>✔ Tuntas</div>", unsafe_allow_html=True)
+                    # 3. Tambahkan margin-bottom: 8px pada kotak Tuntas Hijau
+                    st.markdown(
+                        "<div class='tuntas-green-compact' style='margin-bottom: 8px;'>✔ Tuntas</div>", 
+                        unsafe_allow_html=True
+                    )
+        
+        # 4. (Opsional) Pengatur pemisah antar baris
+        st.markdown("<div style='margin-bottom: 4px;'></div>", unsafe_allow_html=True)
 
     if not df_overdue.empty:
         df_g1 = df_overdue.groupby(['kab_clean', 'posisi_berkas']).agg(
