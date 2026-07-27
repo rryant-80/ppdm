@@ -241,10 +241,12 @@ def render_psn_2026(df_filtered_psn):
         parts = f"{val:,.2f}".split('.')
         return f"{parts[0].replace(',', '.')},{parts[1]}"
 
+    # -----------------------------------------------------------------------------
+    # 1. PERSIAPAN DATA (MENGGUNAKAN NAMA LENGKAP KABUPATEN)
+    # -----------------------------------------------------------------------------
     df = df_filtered_psn.copy()
     if 'kabupaten_kota' not in df.columns:
         df['kabupaten_kota'] = '-'
-    df['kab_singkat'] = df['kabupaten_kota'].map(lambda x: KAB_MAP.get(x, x)) if 'kabupaten_kota' in df.columns else '-'
 
     pbt_real_cols = ['realisasi_baru', 'realisasi_k4', 'realisasi_repo']
     integer_cols = [
@@ -254,12 +256,19 @@ def render_psn_2026(df_filtered_psn):
         'lintor_sertipikat', 'lintor_serah'
     ]
 
-    for col in integer_cols: df[col] = df[col].apply(clean_integer_field) if col in df.columns else 0.0
-    for col in pbt_real_cols: df[col] = df[col].apply(clean_pbt_decimal_field) if col in df.columns else 0.0
+    for col in integer_cols: 
+        df[col] = df[col].apply(clean_integer_field) if col in df.columns else 0.0
+    for col in pbt_real_cols: 
+        df[col] = df[col].apply(clean_pbt_decimal_field) if col in df.columns else 0.0
 
     cols_to_clean = integer_cols + pbt_real_cols
-    df_rekap = df.groupby('kab_singkat')[cols_to_clean].sum().reset_index()
+    
+    # 💡 DIUBAH: Groupby menggunakan 'kabupaten_kota' agar nama lengkap tersimpan
+    df_rekap = df.groupby('kabupaten_kota')[cols_to_clean].sum().reset_index()
 
+    # -----------------------------------------------------------------------------
+    # 2. FUNGSI RENDER GRAFIK PSN
+    # -----------------------------------------------------------------------------
     def create_psn_chart(title, df_data, target_col, metrics_dict, color_sequence, unit="Bdg", is_stacked=False):
         df_valid = df_data[df_data[target_col] > 0].copy()
         if df_valid.empty:
@@ -269,7 +278,7 @@ def render_psn_2026(df_filtered_psn):
 
         long_rows = []
         for _, row in df_valid.iterrows():
-            # 💡 AMBIL NAMA NAMA LENGKAP KABUPATEN
+            # 💡 AMBIL NAMA LENGKAP KABUPATEN (Aman karena sudah ada di df_rekap)
             kab = row['kabupaten_kota']
             target_val = row[target_col]
             for label, col_name in metrics_dict.items():
@@ -294,16 +303,16 @@ def render_psn_2026(df_filtered_psn):
             marker=dict(line=dict(width=1.2, color='#111111'))
         )
         fig.update_layout(
-            height=340,  # Sedikit ditambah agar nama kabupaten panjang muat rapi
+            height=360,  # Disesuaikan agar nama kabupaten panjang tidak terpotong
             xaxis_title="", yaxis_title="", legend_title_text="",
-            paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', margin=dict(l=5, r=5, t=32, b=40),
+            paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', margin=dict(l=5, r=5, t=32, b=50),
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(size=10)),
             title=dict(font=dict(size=14)), 
             yaxis=dict(gridcolor='#c4c4c4', tickfont=dict(size=9)), 
             xaxis=dict(
                 showgrid=False, 
                 tickfont=dict(size=8.5),
-                tickangle=-30  # 💡 Kemiringan label sumbu X agar nama lengkap terbaca rapi
+                tickangle=-30  # Kemiringan -30 derajat agar nama lengkap terbaca rapi
             )
         )
         return fig
