@@ -1,28 +1,30 @@
 import re
+import requests
 import pandas as pd
+import numpy as np
 import plotly.express as px
 import streamlit as st
-import numpy as np
-import datetime as dt
 from datetime import datetime, date, timedelta
-import requests
-from datetime import datetime
 from zoneinfo import ZoneInfo
 
-# Konfigurasi Halaman
+# -----------------------------------------------------------------------------
+# 1. KONFIGURASI HALAMAN
+# -----------------------------------------------------------------------------
 st.set_page_config(
     page_title="Dashboard Pertanahan Sulteng 2026",
+    page_icon="🏛️",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
 # -----------------------------------------------------------------------------
-# 1. KONEKSI DATA (GOOGLE SHEETS VIA SECRETS)
+# 2. KONEKSI DATA (MENGAMBIL DARI STREAMLIT SECRETS)
 # -----------------------------------------------------------------------------
-SHEET_ID = st.secrets["gsheet_id"]
-GSHEET_WEBAPP_URL = st.secrets["gsheet_webapp_url"]
+USERS_DB = st.secrets.get("users", {})
+SHEET_ID = st.secrets.get("gsheet_id", "")
+GSHEET_WEBAPP_URL = st.secrets.get("gsheet_webapp_url", "")
 
-@st.cache_data(ttl=3600)  # Cache data selama 1 jam agar loading cepat
+@st.cache_data(ttl=3600)  # Cache data selama 1 jam
 def load_data(gid):
     url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid={gid}"
     try:        
@@ -31,57 +33,42 @@ def load_data(gid):
         st.error(f"Gagal memuat data GID {gid}: {e}")
         return pd.DataFrame()
 
-# Memuat semua data di awal
+# Memuat data utama di awal
 df_layanan = load_data("1447858691")
 df_elektronik = load_data("1848496896")
 df_sdm = load_data("1168898330")
 df_psn = load_data("193371600")
-df_progress_raw  = load_data("386436131")  # Data Progress Harian (Card 9)
+df_progress_raw = load_data("386436131")  # Data Progress Harian
 df_peringkat_raw = load_data("880542789")
 df_isu_raw = load_data("1699480367")
 
 # -----------------------------------------------------------------------------
-# 2. MODUL HALAMAN UTAMA (Dipisah per fungsi agar mudah diubah)
+# 3. MODUL HALAMAN UTAMA (DEKLARASI FUNGSI RENDER TAMPILAN)
 # -----------------------------------------------------------------------------
+
 def render_profil_anggaran(df_filtered_sdm):
     st.title("🏛️ Profil & Anggaran")
     st.markdown("---")
     
-    # Kebutuhan data eksternal untuk card wilayah
     df_elek_ctx = globals().get('df_f_elektronik', pd.DataFrame())
 
-    # ==========================================
-    # FUNGSI PEMBANTU FORMAT ANGKA INDONESIA
-    # ==========================================
     def clean_number(val):
-        if pd.isna(val):
-            return 0.0
-        if isinstance(val, (int, float)):
-            return float(val)
+        if pd.isna(val): return 0.0
+        if isinstance(val, (int, float)): return float(val)
         clean_str = str(val).replace('.', '').replace(',', '').replace('Rp', '').strip()
-        try:
-            return float(clean_str)
-        except ValueError:
-            return 0.0
+        try: return float(clean_str)
+        except ValueError: return 0.0
 
     def fmt_idr(val):
-        """Format angka ke Rupiah standar Indonesia: ribuan titik (1.000.000)"""
         return f"{val:,.0f}".replace(',', '.')
 
     def fmt_pct(val):
-        """Format persentase desimal koma (59,76%)"""
         return f"{val:.2f}".replace('.', ',')
 
     def fmt_decimal(val):
-        """Format angka desimal lengkap dengan pemisah ribuan titik dan desimal koma (misal: 6.910.824,75)"""
         parts = f"{val:,.2f}".split('.')
-        integer_part = parts[0].replace(',', '.')
-        decimal_part = parts[1]
-        return f"{integer_part},{decimal_part}"
+        return f"{parts[0].replace(',', '.')},{parts[1]}"
 
-    # ==========================================
-    # FUNCTION PEMBANTU UNTUK PEJABAT / FOTO
-    # ==========================================
     def get_pejabat_info(df, jabatan_name):
         match = df[df['jabatan'].astype(str).str.contains(jabatan_name, case=False, na=False)]
         DEFAULT_IMG = "https://via.placeholder.com/150?text=No+Image"
@@ -110,14 +97,10 @@ def render_profil_anggaran(df_filtered_sdm):
             "url": DEFAULT_IMG, "target": 0, "realisasi": 0, "persen": 0.0
         }
 
-    # Ambil data pimpinan & foto gedung/kantor
-    pimpinan_0 = get_pejabat_info(df_filtered_sdm, "Juru Ukur")      # Foto 1 (Kiri Baru)
-    pimpinan_1 = get_pejabat_info(df_filtered_sdm, "Bendahara")   # Foto 2 (Tengah)
-    pimpinan_2 = get_pejabat_info(df_filtered_sdm, "Kepala Kantor")# Foto 3 (Kanan)
+    pimpinan_0 = get_pejabat_info(df_filtered_sdm, "Juru Ukur")
+    pimpinan_1 = get_pejabat_info(df_filtered_sdm, "Bendahara")
+    pimpinan_2 = get_pejabat_info(df_filtered_sdm, "Kepala Kantor")
 
-    # ==========================================
-    # FUNCTION PEMBANTU CARD MODERN AKSEN BIRU
-    # ==========================================
     def render_modern_card(title, value, sub_value=""):
         card_html = f"""
         <div style="
@@ -143,21 +126,13 @@ def render_profil_anggaran(df_filtered_sdm):
         """
         st.markdown(card_html, unsafe_allow_html=True)
 
-    # ==========================================
-    # BARIS 1: FOTO UTAMA (3 FOTO) & METRIK CARDS
-    # ==========================================
-    # Pembagian rasio: 2 bagian untuk 3 Foto, 3 bagian untuk 6 Cards
     col_layout_left, col_layout_right = st.columns([2, 3])
 
     with col_layout_left:
-        # 3 Foto Berdampingan Ukuran Sama
         col_pic1, col_pic2, col_pic3 = st.columns(3)
-        with col_pic1:
-            st.image(pimpinan_0["url"], use_column_width=True)
-        with col_pic2:
-            st.image(pimpinan_1["url"], use_column_width=True)
-        with col_pic3:
-            st.image(pimpinan_2["url"], use_column_width=True)
+        with col_pic1: st.image(pimpinan_0["url"], use_column_width=True)
+        with col_pic2: st.image(pimpinan_1["url"], use_column_width=True)
+        with col_pic3: st.image(pimpinan_2["url"], use_column_width=True)
 
     with col_layout_right:
         jml_pegawai = len(df_filtered_sdm)
@@ -166,15 +141,11 @@ def render_profil_anggaran(df_filtered_sdm):
             jml_kec = df_elek_ctx['kecamatan'].nunique() if 'kecamatan' in df_elek_ctx.columns else 0
             jml_desa = df_elek_ctx['desa_kelurahan'].nunique() if 'desa_kelurahan' in df_elek_ctx.columns else 0
             
-            # Ambil total nilai m2 dari Google Sheet
             luas_adm_m2 = df_elek_ctx['luas_adm'].apply(clean_number).sum() if 'luas_adm' in df_elek_ctx.columns else 0
             luas_apl_m2 = df_elek_ctx['luas_apl'].apply(clean_number).sum() if 'luas_apl' in df_elek_ctx.columns else 0
             
-            # Konversi dari m2 ke ha (dibagi 10.000)
             luas_adm_ha = luas_adm_m2 / 10_000.0
             luas_apl_ha = luas_apl_m2 / 10_000.0
-            
-            # Persentase APL terhadap ADM
             persen_apl_adm = (luas_apl_m2 / luas_adm_m2 * 100) if luas_adm_m2 > 0 else 0.0
         else:
             jml_kec, jml_desa, luas_adm_ha, luas_apl_ha, persen_apl_adm = 0, 0, 0.0, 0.0, 0.0
@@ -184,39 +155,21 @@ def render_profil_anggaran(df_filtered_sdm):
         total_persen_dipa = (total_realisasi / total_target * 100) if total_target > 0 else 0.0
 
         c1, c2, c3 = st.columns(3)
-        with c1:
-            render_modern_card("Jumlah Pegawai", f"{jml_pegawai} Orang")
-        with c2:
-            render_modern_card("Jumlah Kecamatan", f"{fmt_idr(jml_kec)}")
-        with c3:
-            render_modern_card("Jumlah Desa/Kelurahan", f"{fmt_idr(jml_desa)}")
+        with c1: render_modern_card("Jumlah Pegawai", f"{jml_pegawai} Orang")
+        with c2: render_modern_card("Jumlah Kecamatan", f"{fmt_idr(jml_kec)}")
+        with c3: render_modern_card("Jumlah Desa/Kelurahan", f"{fmt_idr(jml_desa)}")
 
         c4, c5, c6 = st.columns(3)
-        with c4:
-            render_modern_card("Realisasi Dipa", f"{fmt_pct(total_persen_dipa)}%", f"Rp {fmt_idr(total_realisasi)}")
-        with c5:
-            render_modern_card("Luas Wilayah", f"{fmt_decimal(luas_adm_ha)} <span style='font-size:0.8rem;'>Ha</span>")
-        with c6:
-            render_modern_card(
-                "Luas APL", 
-                f"{fmt_decimal(luas_apl_ha)} <span style='font-size:0.8rem;'>Ha</span>", 
-                f"{fmt_pct(persen_apl_adm)}% dari Luas Wilayah"
-            )
+        with c4: render_modern_card("Realisasi Dipa", f"{fmt_pct(total_persen_dipa)}%", f"Rp {fmt_idr(total_realisasi)}")
+        with c5: render_modern_card("Luas Wilayah", f"{fmt_decimal(luas_adm_ha)} <span style='font-size:0.8rem;'>Ha</span>")
+        with c6: render_modern_card("Luas APL", f"{fmt_decimal(luas_apl_ha)} <span style='font-size:0.8rem;'>Ha</span>", f"{fmt_pct(persen_apl_adm)}% dari Luas Wilayah")
 
     st.markdown("<br>", unsafe_allow_html=True)
-
-    # ==========================================
-    # BARIS 2: GRID PEJABAT STRUKTURAL
-    # ==========================================
     st.subheader("👥 Pejabat Struktural")
     
     jabatan_list = [
-        "Tata Usaha", 
-        "Survei dan Pemetaan", 
-        "Penetapan Hak dan Pendaftaran", 
-        "Penataan dan Pemberdayaan", 
-        "Pengadaan Tanah dan Pengembangan", 
-        "Pengendalian dan Penanganan Sengketa"
+        "Tata Usaha", "Survei dan Pemetaan", "Penetapan Hak dan Pendaftaran", 
+        "Penataan dan Pemberdayaan", "Pengadaan Tanah dan Pengembangan", "Pengendalian dan Penanganan Sengketa"
     ]
 
     row1_cols = st.columns(3)
@@ -225,35 +178,21 @@ def render_profil_anggaran(df_filtered_sdm):
 
     for idx, jab in enumerate(jabatan_list):
         p_info = get_pejabat_info(df_filtered_sdm, jab)
-        
         with all_f_cols[idx]:
             with st.container(border=True):
                 sub_c1, sub_c2 = st.columns([1, 2.2])
-                
                 with sub_c1:
                     st.image(p_info["url"], use_column_width=True)
-                    
                 with sub_c2:
                     html_content = f"""
                     <div style="line-height: 1.25; margin-bottom: 4px;">
-                        <div style="font-weight: 700; font-size: 0.88rem; color: #111111; word-break: break-word;">
-                            {p_info['nama']}
-                        </div>
-                        <div style="font-size: 0.75rem; color: #666666; margin-top: 2px; margin-bottom: 6px;">
-                            {p_info['jabatan']}
-                        </div>
-                        <div style="font-size: 0.75rem; color: #333333;">
-                            Target: <b>Rp {fmt_idr(p_info['target'])}</b>
-                        </div>
+                        <div style="font-weight: 700; font-size: 0.88rem; color: #111111; word-break: break-word;">{p_info['nama']}</div>
+                        <div style="font-size: 0.75rem; color: #666666; margin-top: 2px; margin-bottom: 6px;">{p_info['jabatan']}</div>
+                        <div style="font-size: 0.75rem; color: #333333;">Target: <b>Rp {fmt_idr(p_info['target'])}</b></div>
                     </div>
                     """
                     st.markdown(html_content, unsafe_allow_html=True)
-                    
-                    # Progress Bar Realisasi
-                    progress_val = min(max(p_info['persen'] / 100.0, 0.0), 1.0)
-                    st.progress(progress_val)
-                    
-                    # Realisasi ditulis menyambung (contoh: Realisasi: 59,76% (Rp 200.000.988))
+                    st.progress(min(max(p_info['persen'] / 100.0, 0.0), 1.0))
                     html_realisasi = f"""
                     <div style="text-align: right; line-height: 1.2; margin-top: 2px; font-size: 0.70rem; color: #555555;">
                         Realisasi: <b style="font-size: 0.72rem; color: #00CC96;">{fmt_pct(p_info['persen'])}%</b> (Rp {fmt_idr(p_info['realisasi'])})
@@ -263,14 +202,10 @@ def render_profil_anggaran(df_filtered_sdm):
 
 def render_psn_2026(df_filtered_psn):
     st.title("🎯 Proyek Strategis Nasional (PSN) 2026")
-    
     if df_filtered_psn.empty:
         st.warning("Data PSN tidak ditemukan atau kosong untuk filter yang dipilih.")
         return
 
-    # ==========================================
-    # 1. KAMUS SINGKATAN KABUPATEN
-    # ==========================================
     KAB_MAP = {
         'Banggai': 'BG', 'Banggai Kepulauan': 'BK', 'Banggai Laut': 'BL',
         'Buol': 'BU', 'Donggala': 'DG', 'Parigi Moutong': 'PM',
@@ -279,92 +214,37 @@ def render_psn_2026(df_filtered_psn):
         'Sigi': 'SG', 'Sulawesi Tengah': 'ST'
     }
 
-    # ==========================================
-    # 2. FUNGSI PEMBERSIH ANGKA TERPISAH PRESISI
-    # ==========================================
     def clean_integer_field(val):
-        """
-        Khusus SHAT, Redis, Lintor & Target PBT (SATUAN BIDANG / BULAT MURNI).
-        Memastikan 2.000 -> 2000, 1.050 -> 1050, 1.700 -> 1700, 600 -> 600.
-        """
-        if pd.isna(val): 
-            return 0.0
-            
-        # Jika terbaca sebagai float oleh Pandas (seperti 2.0 dari '2.000' atau 1.7 dari '1.700')
-        if isinstance(val, float):
-            if val == 0: 
-                return 0.0
-            # Jika angka pecahan/float di bawah 10 (contoh: 2.0 -> 2000, 1.7 -> 1700, 1.05 -> 1050, 1.264 -> 1264)
-            if 0 < val < 10:
-                return float(round(val * 1000))
-            return float(val)
-            
-        if isinstance(val, int):
-            return float(val)
-            
-        # Jika berupa string murni dari Google Sheets (misal "2.000" atau "1.050")
-        s_val = str(val).replace('Rp', '').strip()
-        if not s_val: 
-            return 0.0
-        
-        # Hapus seluruh titik pemisah ribuan
-        clean_str = s_val.replace('.', '').replace(',', '.')
-        try:
-            return float(clean_str)
-        except ValueError:
-            return 0.0
-        
-        # Hapus seluruh titik ribuan
-        clean_str = s_val.replace('.', '').replace(',', '.')
-        try:
-            return float(clean_str)
-        except ValueError:
-            return 0.0
-
-    def clean_pbt_decimal_field(val):
-        """
-        Khusus REALISASI PBT (SATUAN HEKTAR) yang memiliki angka desimal koma asli (misal: 510,75)
-        """
         if pd.isna(val): return 0.0
-        if isinstance(val, (int, float)): return float(val)
-        
+        if isinstance(val, float):
+            if val == 0: return 0.0
+            if 0 < val < 10: return float(round(val * 1000))
+            return float(val)
+        if isinstance(val, int): return float(val)
         s_val = str(val).replace('Rp', '').strip()
         if not s_val: return 0.0
-        
-        if ',' in s_val:
-            clean_str = s_val.replace('.', '').replace(',', '.')
-        else:
-            clean_str = s_val.replace('.', '')
-            
-        try:
-            return float(clean_str)
-        except ValueError:
-            return 0.0
+        clean_str = s_val.replace('.', '').replace(',', '.')
+        try: return float(clean_str)
+        except ValueError: return 0.0
 
-    def fmt_idr(val):
-        """Format ribuan titik untuk satuan Bidang (contoh: 1.050)"""
-        return f"{val:,.0f}".replace(',', '.')
+    def clean_pbt_decimal_field(val):
+        if pd.isna(val): return 0.0
+        if isinstance(val, (int, float)): return float(val)
+        s_val = str(val).replace('Rp', '').strip()
+        if not s_val: return 0.0
+        clean_str = s_val.replace('.', '').replace(',', '.') if ',' in s_val else s_val.replace('.', '')
+        try: return float(clean_str)
+        except ValueError: return 0.0
 
+    def fmt_idr(val): return f"{val:,.0f}".replace(',', '.')
     def fmt_decimal(val):
-        """Format desimal koma untuk satuan Hektar (contoh: 510,75)"""
         parts = f"{val:,.2f}".split('.')
-        integer_part = parts[0].replace(',', '.')
-        decimal_part = parts[1]
-        return f"{integer_part},{decimal_part}"
+        return f"{parts[0].replace(',', '.')},{parts[1]}"
 
-    # ==========================================
-    # 3. PERSIAPAN DATA & CLEANING
-    # ==========================================
     df = df_filtered_psn.copy()
-    if 'kabupaten_kota' in df.columns:
-        df['kab_singkat'] = df['kabupaten_kota'].map(lambda x: KAB_MAP.get(x, x))
-    else:
-        df['kab_singkat'] = '-'
+    df['kab_singkat'] = df['kabupaten_kota'].map(lambda x: KAB_MAP.get(x, x)) if 'kabupaten_kota' in df.columns else '-'
 
-    # Kolom realisasi PBT (Hektar desimal)
     pbt_real_cols = ['realisasi_baru', 'realisasi_k4', 'realisasi_repo']
-    
-    # Seluruh kolom SHAT, Redis, Lintor & Target PBT (Bidang / Bulat Murni)
     integer_cols = [
         'target_pbt', 'target_shat', 'puldadis', 'berkas', 'potensi', 'k1', 
         'siap_serah', 'diserahkan', 'target_redis', 'pos_redis', 'sk_redis', 
@@ -372,184 +252,80 @@ def render_psn_2026(df_filtered_psn):
         'lintor_sertipikat', 'lintor_serah'
     ]
 
-    for col in integer_cols:
-        if col in df.columns:
-            df[col] = df[col].apply(clean_integer_field)
-        else:
-            df[col] = 0.0
-
-    for col in pbt_real_cols:
-        if col in df.columns:
-            df[col] = df[col].apply(clean_pbt_decimal_field)
-        else:
-            df[col] = 0.0
+    for col in integer_cols: df[col] = df[col].apply(clean_integer_field) if col in df.columns else 0.0
+    for col in pbt_real_cols: df[col] = df[col].apply(clean_pbt_decimal_field) if col in df.columns else 0.0
 
     cols_to_clean = integer_cols + pbt_real_cols
     df_rekap = df.groupby('kab_singkat')[cols_to_clean].sum().reset_index()
 
-    # ==========================================
-    # 4. FUNGSI PEMBUAT GRAFIK PLOTLY
-    # ==========================================
     def create_psn_chart(title, df_data, target_col, metrics_dict, color_sequence, unit="Bdg", is_stacked=False):
         df_valid = df_data[df_data[target_col] > 0].copy()
-        
         if df_valid.empty:
             fig_empty = px.bar(title=f"{title} (Tidak ada target aktif)")
-            fig_empty.update_layout(
-                height=310, 
-                paper_bgcolor='rgba(0,0,0,0)', 
-                plot_bgcolor='rgba(0,0,0,0)',
-                margin=dict(l=10, r=10, t=30, b=10)
-            )
+            fig_empty.update_layout(height=310, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', margin=dict(l=10, r=10, t=30, b=10))
             return fig_empty
 
         long_rows = []
         for _, row in df_valid.iterrows():
             kab = row['kab_singkat']
             target_val = row[target_col]
-            
             for label, col_name in metrics_dict.items():
                 real_val = row[col_name]
                 pct = (real_val / target_val * 100) if target_val > 0 else 0.0
-                
-                # Format hover sesuai satuan (Ha = desimal koma, Bdg = bulat titik)
                 real_fmt_str = fmt_decimal(real_val) if unit == "Ha" else fmt_idr(real_val)
                 target_fmt_str = fmt_decimal(target_val) if unit == "Ha" else fmt_idr(target_val)
-
                 long_rows.append({
-                    'Kab/Kota': kab,
-                    'Indikator': label,
-                    'Persentase': pct,
-                    'Realisasi': real_val,
-                    'Target': target_val,
-                    'Pct_Fmt': fmt_decimal(pct),
-                    'Real_Fmt': f"{real_fmt_str} {unit}",
-                    'Target_Fmt': f"{target_fmt_str} {unit}"
+                    'Kab/Kota': kab, 'Indikator': label, 'Persentase': pct,
+                    'Realisasi': real_val, 'Target': target_val,
+                    'Pct_Fmt': fmt_decimal(pct), 'Real_Fmt': f"{real_fmt_str} {unit}", 'Target_Fmt': f"{target_fmt_str} {unit}"
                 })
                 
         df_long = pd.DataFrame(long_rows)
-        mode_bar = 'relative' if is_stacked else 'group'
-
         fig = px.bar(
-            df_long,
-            x='Kab/Kota',
-            y='Persentase',
-            color='Indikator',
-            barmode=mode_bar,
-            title=title,
-            color_discrete_sequence=color_sequence,
-            custom_data=['Real_Fmt', 'Target_Fmt', 'Pct_Fmt']
+            df_long, x='Kab/Kota', y='Persentase', color='Indikator',
+            barmode='relative' if is_stacked else 'group', title=title,
+            color_discrete_sequence=color_sequence, custom_data=['Real_Fmt', 'Target_Fmt', 'Pct_Fmt']
         )
-
         fig.update_traces(
-            hovertemplate=(
-                "<b>Kab/Kota: %{x}</b><br>"
-                "Indikator: %{fullData.name}<br>"
-                "Realisasi: %{customdata[0]}<br>"
-                "Target: %{customdata[1]}<br>"
-                "Persentase: %{customdata[2]}%<extra></extra>"
-            ),
+            hovertemplate="<b>Kab/Kota: %{x}</b><br>Indikator: %{fullData.name}<br>Realisasi: %{customdata[0]}<br>Target: %{customdata[1]}<br>Persentase: %{customdata[2]}%<extra></extra>",
             marker=dict(line=dict(width=1.2, color='#111111'))
         )
-
         fig.update_layout(
-            height=310,
-            xaxis_title="",
-            yaxis_title="",
-            legend_title_text="",
-            paper_bgcolor='rgba(0,0,0,0)',
-            plot_bgcolor='rgba(0,0,0,0)',
-            margin=dict(l=5, r=5, t=32, b=5),
-            legend=dict(
-                orientation="h", 
-                yanchor="bottom", 
-                y=1.02, 
-                xanchor="right", 
-                x=1,
-                font=dict(size=10)
-            ),
-            title=dict(font=dict(size=14)),
-            yaxis=dict(gridcolor='#c4c4c4', tickfont=dict(size=9)),
-            xaxis=dict(showgrid=False, tickfont=dict(size=9))
+            height=310, xaxis_title="", yaxis_title="", legend_title_text="",
+            paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', margin=dict(l=5, r=5, t=32, b=5),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(size=10)),
+            title=dict(font=dict(size=14)), yaxis=dict(gridcolor='#c4c4c4', tickfont=dict(size=9)), xaxis=dict(showgrid=False, tickfont=dict(size=9))
         )
         return fig
 
-    # ==========================================
-    # 5. LAYOUT GRID 2x2 DENGAN BINGKAI (#dbdbdb)
-    # ==========================================
-    card_wrapper_start = """
-    <div style="
-        background-color: #dbdbdb;
-        border-radius: 10px;
-        padding: 6px 10px 4px 10px;
-        margin-bottom: 8px;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
-    ">
-    """
+    card_wrapper_start = "<div style='background-color: #dbdbdb; border-radius: 10px; padding: 6px 10px 4px 10px; margin-bottom: 8px; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);'>"
     card_wrapper_end = "</div>"
 
     row1_col1, row1_col2 = st.columns(2)
     row2_col1, row2_col2 = st.columns(2)
 
-    # 1. GRAFIK 1: Realisasi PBT
     with row1_col1:
         st.markdown(card_wrapper_start, unsafe_allow_html=True)
-        metrics_pbt = {
-            'Bidang Baru': 'realisasi_baru',
-            'Pemetaan K4': 'realisasi_k4',
-            'Reposisi Bidang': 'realisasi_repo'
-        }
-        fig_pbt = create_psn_chart(
-            "1. Realisasi PBT", df_rekap, 'target_pbt', metrics_pbt, 
-            ['#dbdbdb', '#a9a9a9', '#656565'], unit="Ha", is_stacked=True
-        )
+        fig_pbt = create_psn_chart("1. Realisasi PBT", df_rekap, 'target_pbt', {'Bidang Baru': 'realisasi_baru', 'Pemetaan K4': 'realisasi_k4', 'Reposisi Bidang': 'realisasi_repo'}, ['#dbdbdb', '#a9a9a9', '#656565'], unit="Ha", is_stacked=True)
         st.plotly_chart(fig_pbt, use_container_width=True)
         st.markdown(card_wrapper_end, unsafe_allow_html=True)
 
-    # 2. GRAFIK 2: Realisasi SHAT
     with row1_col2:
         st.markdown(card_wrapper_start, unsafe_allow_html=True)
-        metrics_shat = {
-            'Puldadis': 'puldadis',
-            'Berkas': 'berkas',
-            'K1': 'k1',
-            'Diserahkan': 'diserahkan'
-        }
-        fig_shat = create_psn_chart(
-            "2. Realisasi SHAT", df_rekap, 'target_shat', metrics_shat, 
-            ['#b4ffb3', '#44bc43', '#1f9f1d', '#026b00'], unit="Bdg"
-        )
+        fig_shat = create_psn_chart("2. Realisasi SHAT", df_rekap, 'target_shat', {'Puldadis': 'puldadis', 'Berkas': 'berkas', 'K1': 'k1', 'Diserahkan': 'diserahkan'}, ['#b4ffb3', '#44bc43', '#1f9f1d', '#026b00'], unit="Bdg")
         st.plotly_chart(fig_shat, use_container_width=True)
         st.markdown(card_wrapper_end, unsafe_allow_html=True)
 
-    # 3. GRAFIK 3: Realisasi Redistribusi
     with row2_col1:
         st.markdown(card_wrapper_start, unsafe_allow_html=True)
-        metrics_redis = {
-            'Subyek Obyek': 'pos_redis',
-            'SK Redis': 'sk_redis',
-            'Sertipikat Redis': 'sertipikat_redis'
-        }
-        fig_redis = create_psn_chart(
-            "3. Realisasi Redistribusi", df_rekap, 'target_redis', metrics_redis, 
-            ['#99eaf2', '#17BECF', '#0097a6'], unit="Bdg"
-        )
+        fig_redis = create_psn_chart("3. Realisasi Redistribusi", df_rekap, 'target_redis', {'Subyek Obyek': 'pos_redis', 'SK Redis': 'sk_redis', 'Sertipikat Redis': 'sertipikat_redis'}, ['#99eaf2', '#17BECF', '#0097a6'], unit="Bdg")
         st.plotly_chart(fig_redis, use_container_width=True)
         st.markdown(card_wrapper_end, unsafe_allow_html=True)
 
-    # 4. GRAFIK 4: Realisasi Lintor
     with row2_col2:
         st.markdown(card_wrapper_start, unsafe_allow_html=True)
         lintor_serah_col = 'lintor_serah' if 'lintor_serah' in df_rekap.columns and df_rekap['lintor_serah'].sum() > 0 else 'lintor_sertipikat'
-        metrics_lintor = {
-            'Lintor SU': 'lintor_su',
-            'Lintor SK': 'lintor_sk',
-            'Lintor Sertipikat': lintor_serah_col
-        }
-        fig_lintor = create_psn_chart(
-            "4. Realisasi Lintor", df_rekap, 'target_lintor', metrics_lintor, 
-            ['#f0d9a0', '#FECB52', '#fcb100'], unit="Bdg"
-        )
+        fig_lintor = create_psn_chart("4. Realisasi Lintor", df_rekap, 'target_lintor', {'Lintor SU': 'lintor_su', 'Lintor SK': 'lintor_sk', 'Lintor Sertipikat': lintor_serah_col}, ['#f0d9a0', '#FECB52', '#fcb100'], unit="Bdg")
         st.plotly_chart(fig_lintor, use_container_width=True)
         st.markdown(card_wrapper_end, unsafe_allow_html=True)
 
@@ -563,90 +339,44 @@ def render_layanan_pertanahan(df_filtered_layanan):
 
     df = df_filtered_layanan.copy()
 
-    # ==========================================
-    # 1. PEMBERSIH FLEKSIBEL TANGGAL & DURASI
-    # ==========================================
     def parse_date_flexible(val):
-        if pd.isna(val) or val is None or str(val).strip() == '':
-            return pd.NaT
-        
-        # Gunakan 'date' dan 'datetime' langsung dari import
-        if isinstance(val, (pd.Timestamp, date, datetime)):
-            return pd.to_datetime(val)
-            
+        if pd.isna(val) or val is None or str(val).strip() == '': return pd.NaT
+        if isinstance(val, (pd.Timestamp, date, datetime)): return pd.to_datetime(val)
         val_str = str(val).strip()
-        
-        # Tangani angka serial tanggal dari Excel/Google Sheet
         try:
             if val_str.isdigit() or (val_str.replace('.', '', 1).isdigit() and float(val_str) > 30000):
                 return pd.to_datetime(float(val_str), unit='D', origin='1899-12-30')
-        except Exception:
-            pass
-    
-        try:
-            return pd.to_datetime(val_str, dayfirst=True, errors='coerce')
-        except Exception:
-            return pd.NaT
+        except Exception: pass
+        try: return pd.to_datetime(val_str, dayfirst=True, errors='coerce')
+        except Exception: return pd.NaT
 
     def clean_durasi(val):
         if pd.isna(val): return 0
-        s_val = str(val).strip()
-        match = re.search(r'\d+', s_val)
-        if match:
-            return int(match.group())
-        return 0
+        match = re.search(r'\d+', str(val).strip())
+        return int(match.group()) if match else 0
 
     def fmt_no_thn(val):
         if pd.isna(val): return "-"
         s_val = str(val).strip()
-        if s_val.endswith('.0'):
-            return s_val[:-2]
-        return s_val
+        return s_val[:-2] if s_val.endswith('.0') else s_val
 
-    def fmt_idr(val):
-        return f"{val:,.0f}".replace(',', '.')
+    def fmt_idr(val): return f"{val:,.0f}".replace(',', '.')
 
-    # ==========================================
-    # 2. NORMALISASI NAMA KABUPATEN
-    # ==========================================
     KAB_NAME_CLEAN = {
-        'Kota Palu': 'Palu',
-        'Kab. Morowali Utara': 'Morowali Utara',
-        'Kab. Banggai': 'Banggai',
-        'Kab. Banggai Kepulauan': 'Banggai Kepulauan',
-        'Kab. Banggai Laut': 'Banggai Laut',
-        'Kab. Buol': 'Buol',
-        'Kab. Donggala': 'Donggala',
-        'Kab. Morowali': 'Morowali',
-        'Kab. Parigi Moutong': 'Parigi Moutong',
-        'Kab. Poso': 'Poso',
-        'Kab. Sigi': 'Sigi',
-        'Kab. Tojo Una-una': 'Tojo Una-una',
-        'Kab. Toli-toli': 'Tolitoli',
-        'Toli-toli': 'Tolitoli',
-        'Toli Toli': 'Tolitoli'
+        'Kota Palu': 'Palu', 'Kab. Morowali Utara': 'Morowali Utara', 'Kab. Banggai': 'Banggai',
+        'Kab. Banggai Kepulauan': 'Banggai Kepulauan', 'Kab. Banggai Laut': 'Banggai Laut',
+        'Kab. Buol': 'Buol', 'Kab. Donggala': 'Donggala', 'Kab. Morowali': 'Morowali',
+        'Kab. Parigi Moutong': 'Parigi Moutong', 'Kab. Poso': 'Poso', 'Kab. Sigi': 'Sigi',
+        'Kab. Tojo Una-una': 'Tojo Una-una', 'Kab. Toli-toli': 'Tolitoli', 'Toli-toli': 'Tolitoli', 'Toli Toli': 'Tolitoli'
     }
 
-    if 'kabupaten_kota' in df.columns:
-        df['kab_clean'] = df['kabupaten_kota'].astype(str).str.strip().map(lambda x: KAB_NAME_CLEAN.get(x, x))
-    else:
-        df['kab_clean'] = '-'
-
-    # ==========================================
-    # 3. KALKULASI OVERDUE SOP & TAHUN
-    # ==========================================
+    df['kab_clean'] = df['kabupaten_kota'].astype(str).str.strip().map(lambda x: KAB_NAME_CLEAN.get(x, x)) if 'kabupaten_kota' in df.columns else '-'
     df['durasi_clean'] = df['durasi'].apply(clean_durasi)
     df['tgl_mulai_dt'] = df['tgl_mulai'].apply(parse_date_flexible)
-    
     today = pd.to_datetime(date.today())
-    
-    # Hitung tgl batas SOP
     df['tgl_batas_sop'] = df['tgl_mulai_dt'] + pd.to_timedelta(df['durasi_clean'], unit='D')
     
-    # Filter berkas terlambat
     df_overdue = df[(today > df['tgl_batas_sop']) & (df['tgl_mulai_dt'].notna())].copy()
-
-    # Format nomor/tahun bersih & buat kolom thn_num
     df_overdue['no_clean'] = df_overdue['nmr_berkas'].apply(fmt_no_thn)
     df_overdue['thn_clean'] = df_overdue['thn_berkas'].apply(fmt_no_thn)
     df_overdue['thn_num'] = df_overdue['thn_clean'].apply(clean_durasi)
@@ -654,80 +384,26 @@ def render_layanan_pertanahan(df_filtered_layanan):
 
     POSISI_TARGET = ["Kakan", "Kasi SP", "Kasi PHP", "Loket"]
 
-    # ==========================================
-    # 4. TAMPILAN CSS STROBO & CARD HIJAU
-    # ==========================================
     st.markdown("""
     <style>
-    .strobo-red-compact {
-        background: linear-gradient(135deg, #ff3333 0%, #cc0000 100%);
-        color: white;
-        font-weight: 700;
-        text-align: center;
-        padding: 4px 8px;
-        border-radius: 6px;
-        box-shadow: 0 0 8px rgba(255, 0, 0, 0.6);
-        animation: pulse-red 1.5s infinite;
-        cursor: pointer;
-        font-size: 0.78rem;
-        line-height: 1.2;
-    }
-    @keyframes pulse-red {
-        0% { box-shadow: 0 0 3px rgba(255, 0, 0, 0.4); }
-        50% { box-shadow: 0 0 12px rgba(255, 0, 0, 0.9); }
-        100% { box-shadow: 0 0 3px rgba(255, 0, 0, 0.4); }
-    }
-    .tuntas-green-compact {
-        background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
-        color: white;
-        font-weight: 600;
-        text-align: center;
-        padding: 4px 8px;
-        border-radius: 6px;
-        font-size: 0.78rem;
-        line-height: 1.2;
-    }
-    .table-hdr {
-        font-weight: 700;
-        text-align: center;
-        padding: 4px;
-        background-color: #e9ecef;
-        border-radius: 4px;
-        font-size: 0.80rem;
-    }
+    .strobo-red-compact { background: linear-gradient(135deg, #ff3333 0%, #cc0000 100%); color: white; font-weight: 700; text-align: center; padding: 4px 8px; border-radius: 6px; box-shadow: 0 0 8px rgba(255, 0, 0, 0.6); animation: pulse-red 1.5s infinite; cursor: pointer; font-size: 0.78rem; line-height: 1.2; }
+    @keyframes pulse-red { 0% { box-shadow: 0 0 3px rgba(255, 0, 0, 0.4); } 50% { box-shadow: 0 0 12px rgba(255, 0, 0, 0.9); } 100% { box-shadow: 0 0 3px rgba(255, 0, 0, 0.4); } }
+    .tuntas-green-compact { background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%); color: white; font-weight: 600; text-align: center; padding: 4px 8px; border-radius: 6px; font-size: 0.78rem; line-height: 1.2; }
+    .table-hdr { font-weight: 700; text-align: center; padding: 4px; background-color: #e9ecef; border-radius: 4px; font-size: 0.80rem; }
     </style>
     """, unsafe_allow_html=True)
 
     def render_green_card(title, value, sub_text=""):
         card_html = f"""
-        <div style="
-            background: linear-gradient(135deg, #ffffff 0%, #f0fff4 100%);
-            border-left: 5px solid #28a745;
-            border-radius: 8px;
-            padding: 8px 12px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
-            margin-top: 6px;
-            margin-bottom: 4px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        ">
-            <div style="color: #444444; font-size: 0.72rem; font-weight: 600; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                {title}
-            </div>
-            <div style="color: #1e7e34; font-size: 1.15rem; font-weight: 700; margin-top: 1px; word-break: break-word;">
-                {value}
-            </div>
+        <div style="background: linear-gradient(135deg, #ffffff 0%, #f0fff4 100%); border-left: 5px solid #28a745; border-radius: 8px; padding: 8px 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); margin-top: 6px; margin-bottom: 4px; display: flex; flex-direction: column; justify-content: center;">
+            <div style="color: #444444; font-size: 0.72rem; font-weight: 600; text-transform: uppercase;">{title}</div>
+            <div style="color: #1e7e34; font-size: 1.15rem; font-weight: 700; margin-top: 1px;">{value}</div>
             {f'<div style="color: #666666; font-size: 0.68rem; margin-top: 1px;">{sub_text}</div>' if sub_text else ''}
         </div>
         """
         st.markdown(card_html, unsafe_allow_html=True)
 
-    # ==========================================
-    # 5. RENDER MATRIKS STROBO UTAMA
-    # ==========================================
     list_kab = sorted(df['kab_clean'].dropna().unique().tolist())
-
     col_kab, col_p1, col_p2, col_p3, col_p4 = st.columns([2.2, 1.8, 1.8, 1.8, 1.8])
     with col_kab: st.markdown("<div class='table-hdr'>Kantor Pertanahan</div>", unsafe_allow_html=True)
     with col_p1: st.markdown("<div class='table-hdr'>Kakan</div>", unsafe_allow_html=True)
@@ -735,187 +411,71 @@ def render_layanan_pertanahan(df_filtered_layanan):
     with col_p3: st.markdown("<div class='table-hdr'>Kasi PHP</div>", unsafe_allow_html=True)
     with col_p4: st.markdown("<div class='table-hdr'>Loket Penyerahan</div>", unsafe_allow_html=True)
 
-    st.markdown("<div style='margin-bottom: 4px;'></div>", unsafe_allow_html=True)
-
     for kab in list_kab:
         c_kab, c_p1, c_p2, c_p3, c_p4 = st.columns([2.2, 1.8, 1.8, 1.8, 1.8])
-        
-        with c_kab:
-            st.markdown(f"<div style='font-size: 0.80rem; font-weight: 600; padding-top: 2px;'>📍 {kab}</div>", unsafe_allow_html=True)
-            
+        with c_kab: st.markdown(f"<div style='font-size: 0.80rem; font-weight: 600; padding-top: 2px;'>📍 {kab}</div>", unsafe_allow_html=True)
         cols_pos = [c_p1, c_p2, c_p3, c_p4]
-        
         for idx, pos in enumerate(POSISI_TARGET):
             with cols_pos[idx]:
-                sub_df = df_overdue[
-                    (df_overdue['kab_clean'] == kab) & 
-                    (df_overdue['posisi_berkas'].astype(str).str.strip().str.contains(pos, case=False, na=False))
-                ]
-                
+                sub_df = df_overdue[(df_overdue['kab_clean'] == kab) & (df_overdue['posisi_berkas'].astype(str).str.strip().str.contains(pos, case=False, na=False))]
                 jml_berkas = len(sub_df)
-                
                 if jml_berkas > 0:
-                    tooltip_items = []
-                    for _, r in sub_df.iterrows():
-                        no_thn = r.get('berkas_thn', '-')
-                        proc = str(r.get('nama_prosedur', '-'))
-                        tooltip_items.append(f"• [{no_thn}] {proc}")
-                        
+                    tooltip_items = [f"• [{r.get('berkas_thn', '-')}] {r.get('nama_prosedur', '-')}" for _, r in sub_df.iterrows()]
                     tooltip_text = f"Kab: {kab}&#10;Posisi: {pos}&#10;Total: {jml_berkas} Berkas&#10;&#10;Rincian Prosedur:&#10;" + "&#10;".join(tooltip_items[:12])
-                    if len(tooltip_items) > 12:
-                        tooltip_text += f"&#10;...dan {len(tooltip_items)-12} berkas lainnya"
-
-                    st.markdown(
-                        f"<div class='strobo-red-compact' title='{tooltip_text}'>🚨 {jml_berkas} Berkas</div>", 
-                        unsafe_allow_html=True
-                    )
+                    st.markdown(f"<div class='strobo-red-compact' title='{tooltip_text}'>🚨 {jml_berkas} Berkas</div>", unsafe_allow_html=True)
                 else:
                     st.markdown("<div class='tuntas-green-compact'>✔ Tuntas</div>", unsafe_allow_html=True)
-                    
-        st.markdown("<div style='margin-bottom: 2px;'></div>", unsafe_allow_html=True)
 
-    st.markdown("<div style='margin-bottom: 8px;'></div>", unsafe_allow_html=True)
-
-    # ==========================================
-    # 6. GRAFIK REKAPITULASI POSISI BERKAS
-    # ==========================================
     if not df_overdue.empty:
         df_g1 = df_overdue.groupby(['kab_clean', 'posisi_berkas']).agg(
             jml_berkas=('nmr_berkas', 'count'),
             list_berkas=('berkas_thn', lambda x: ", ".join(x.unique()[:6]))
         ).reset_index()
 
-        pastel_colors = [
-            '#779ECB', '#FFB347', '#C23B22', '#03C03C', '#B19CD9', 
-            '#FFD1DC', '#AEC6CF', '#F49AC2', '#CB99C9', '#E6E6FA'
-        ]
-
-        fig_pos = px.bar(
-            df_g1, x='kab_clean', y='jml_berkas', color='posisi_berkas',
-            custom_data=df_g1[['posisi_berkas', 'list_berkas']],
-            barmode='group',
-            color_discrete_sequence=pastel_colors
-        )
-        
-        fig_pos.update_traces(
-            hovertemplate="<b>Kab/Kota: %{x}</b><br>Posisi: %{customdata[0]}<br>Jumlah: %{y} Berkas<br>Sampel No Berkas: %{customdata[1]}<extra></extra>",
-            marker=dict(line=dict(width=1, color='#222222'))
-        )
-        
-        fig_pos.update_layout(
-            height=450,
-            xaxis_title="",
-            yaxis_title="",
-            legend_title_text="",
-            paper_bgcolor='rgba(0,0,0,0)',
-            plot_bgcolor='rgba(0,0,0,0)',
-            margin=dict(l=10, r=10, t=80, b=10),
-            
-            title=dict(
-                text="Grafik Posisi Berkas Tunggakan PDDM",
-                font=dict(size=13, color="#2c3e50"),
-                x=0.0,
-                y=0.98,
-                xanchor='left',
-                yanchor='top'
-            ),
-            
-            legend=dict(
-                orientation="h", 
-                yanchor="top", 
-                y=1.08, 
-                xanchor="left", 
-                x=0.0,
-                font=dict(size=8.5)
-            ),
-            yaxis=dict(gridcolor='#e0e0e0', tickfont=dict(size=9)),
-            xaxis=dict(showgrid=False, tickfont=dict(size=8.5))
-        )
+        fig_pos = px.bar(df_g1, x='kab_clean', y='jml_berkas', color='posisi_berkas', custom_data=df_g1[['posisi_berkas', 'list_berkas']], barmode='group')
+        fig_pos.update_traces(hovertemplate="<b>Kab/Kota: %{x}</b><br>Posisi: %{customdata[0]}<br>Jumlah: %{y} Berkas<br>Sampel No Berkas: %{customdata[1]}<extra></extra>", marker=dict(line=dict(width=1, color='#222222')))
+        fig_pos.update_layout(height=450, xaxis_title="", yaxis_title="", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', margin=dict(l=10, r=10, t=80, b=10))
         st.plotly_chart(fig_pos, use_container_width=True)
 
-        # ==========================================
-        # 7. CARD MODERN HIJAU BERKAS PER TAHUN
-        # ==========================================
         b_17_26 = len(df_overdue[(df_overdue['thn_num'] >= 2017) & (df_overdue['thn_num'] <= 2026)])
         b_17_24 = len(df_overdue[(df_overdue['thn_num'] >= 2017) & (df_overdue['thn_num'] <= 2024)])
         b_25    = len(df_overdue[df_overdue['thn_num'] == 2025])
         b_26    = len(df_overdue[df_overdue['thn_num'] == 2026])
 
         col_c1, col_c2, col_c3, col_c4 = st.columns(4)
+        with col_c1: render_green_card("Total Berkas (2017 - 2026)", f"{fmt_idr(b_17_26)} Berkas")
+        with col_c2: render_green_card("Tahun 2017 - 2024", f"{fmt_idr(b_17_24)} Berkas")
+        with col_c3: render_green_card("Tahun 2025", f"{fmt_idr(b_25)} Berkas")
+        with col_c4: render_green_card("Tahun 2026", f"{fmt_idr(b_26)} Berkas")
 
-        with col_c1:
-            render_green_card("Total Berkas (2017 - 2026)", f"{fmt_idr(b_17_26)} Berkas",)
-
-        with col_c2:
-            render_green_card("Tahun 2017 - 2024", f"{fmt_idr(b_17_24)} Berkas",)
-
-        with col_c3:
-            render_green_card("Tahun 2025", f"{fmt_idr(b_25)} Berkas",)
-
-        with col_c4:
-            render_green_card("Tahun 2026", f"{fmt_idr(b_26)} Berkas",)
-
-        # ==========================================
-        # 8. TABEL HTML MODERN DENGAN WRAP TEXT FULL & FILTER
-        # ==========================================
         st.markdown("<br>", unsafe_allow_html=True)
         st.subheader("📋 Detail Berkas Tunggakan PDDM")
 
         df_table = df_overdue.copy()
-
-        # ------------------------------------------
-        # TAMBAHAN FILTER TAHUN & POSISI BERKAS
-        # ------------------------------------------
         col_f1, col_f2 = st.columns(2)
-
-        # 1. Filter Tahun Berkas
         col_thn_target = 'thn_berkas' if 'thn_berkas' in df_table.columns else ('thn_num' if 'thn_num' in df_table.columns else None)
+        
         if col_thn_target:
-            list_thn = df_table[col_thn_target].dropna().astype(str).str.strip().unique().tolist()
-            list_thn = sorted([t for t in list_thn if t and t.lower() not in ['nan', 'none', '']])
+            list_thn = sorted([t for t in df_table[col_thn_target].dropna().astype(str).str.strip().unique().tolist() if t and t.lower() not in ['nan', 'none', '']])
             list_thn.insert(0, "Semua Tahun")
+            with col_f1: selected_thn = st.selectbox("📅 Filter Tahun Berkas", list_thn, key="filter_tbl_thn_berkas")
+            if selected_thn != "Semua Tahun": df_table = df_table[df_table[col_thn_target].astype(str).str.strip() == selected_thn]
 
-            with col_f1:
-                selected_thn = st.selectbox("📅 Filter Tahun Berkas", list_thn, key="filter_tbl_thn_berkas")
-
-            if selected_thn != "Semua Tahun":
-                df_table = df_table[df_table[col_thn_target].astype(str).str.strip() == selected_thn]
-
-        # 2. Filter Posisi Berkas
         if 'posisi_berkas' in df_table.columns:
-            list_pos = df_table['posisi_berkas'].dropna().astype(str).str.strip().unique().tolist()
-            list_pos = sorted([p for p in list_pos if p and p.lower() not in ['nan', 'none', '']])
+            list_pos = sorted([p for p in df_table['posisi_berkas'].dropna().astype(str).str.strip().unique().tolist() if p and p.lower() not in ['nan', 'none', '']])
             list_pos.insert(0, "Semua Posisi")
+            with col_f2: selected_pos = st.selectbox("📌 Filter Posisi Berkas", list_pos, key="filter_tbl_posisi_berkas")
+            if selected_pos != "Semua Posisi": df_table = df_table[df_table['posisi_berkas'].astype(str).str.strip() == selected_pos]
 
-            with col_f2:
-                selected_pos = st.selectbox("📌 Filter Posisi Berkas", list_pos, key="filter_tbl_posisi_berkas")
-
-            if selected_pos != "Semua Posisi":
-                df_table = df_table[df_table['posisi_berkas'].astype(str).str.strip() == selected_pos]
-
-        # Tampilkan caption jumlah baris setelah filter
         st.caption(f"Menampilkan **{len(df_table):,.0f}** berkas tunggakan".replace(',', '.'))
 
-        # ------------------------------------------
-        # PROSES PEMBENTUKAN TABEL HTML
-        # ------------------------------------------
         if not df_table.empty:
-            if 'kab_clean' in df_table.columns and 'thn_num' in df_table.columns:
-                df_table = df_table.sort_values(by=['kab_clean', 'thn_num', 'no_clean'], ascending=[True, True, True])
+            df_table = df_table.sort_values(by=['kab_clean', 'thn_num', 'no_clean'], ascending=[True, True, True])
 
             def clean_formula_text(df_source, col_name):
-                if col_name not in df_source.columns:
-                    return pd.Series(['-'] * len(df_source))
+                if col_name not in df_source.columns: return pd.Series(['-'] * len(df_source))
                 invalid_patterns = {'#n/a', 'nan', 'none', '', '#ref!', '#value!', '#name?', '#null!'}
-                def transform_val(val):
-                    if pd.isna(val) or val is None:
-                        return '-'
-                    s_str = str(val).strip()
-                    if not s_str or s_str.lower() in invalid_patterns:
-                        return '-'
-                    # Escape karakter HTML agar aman
-                    return s_str.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
-                return df_source[col_name].apply(transform_val)
+                return df_source[col_name].apply(lambda val: '-' if pd.isna(val) or str(val).strip().lower() in invalid_patterns else str(val).strip().replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;'))
 
             df_table['pemohon_clean'] = clean_formula_text(df_table, 'nama')
             df_table['kendala_clean'] = clean_formula_text(df_table, 'kendala')
@@ -923,7 +483,6 @@ def render_layanan_pertanahan(df_filtered_layanan):
             df_table['prosedur_clean'] = clean_formula_text(df_table, 'nama_prosedur')
             df_table['posisi_clean'] = clean_formula_text(df_table, 'posisi_berkas')
 
-            # BENTUK BARIS TABEL DENGAN FORMATING TIGHT
             rows_html_list = []
             for idx, (_, row) in enumerate(df_table.iterrows(), start=1):
                 r_html = (
@@ -940,69 +499,26 @@ def render_layanan_pertanahan(df_filtered_layanan):
                 )
                 rows_html_list.append(r_html)
 
-            rows_html = "".join(rows_html_list)
-
-            # HTML DAN CSS TANPA SPASI INDENTASI DI AWAL BARIS
             full_table_html = f"""<style>
-.custom-table-container {{
-    max-height: 480px;
-    overflow-y: auto;
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
-    margin-top: 10px;
-}}
-.custom-table {{
-    width: 100%;
-    border-collapse: collapse;
-    font-family: sans-serif;
-    font-size: 0.82rem;
-}}
-.custom-table th {{
-    position: sticky;
-    top: 0;
-    background-color: #f1f3f5;
-    color: #333;
-    font-weight: bold;
-    padding: 8px 10px;
-    text-align: left;
-    border-bottom: 2px solid #dee2e6;
-    z-index: 10;
-}}
-.custom-table td {{
-    padding: 8px 10px;
-    border-bottom: 1px solid #e9ecef;
-    vertical-align: top;
-    white-space: normal !important;
-    word-wrap: break-word !important;
-}}
-.custom-table tr:hover {{
-    background-color: #f8f9fa;
-}}
+.custom-table-container {{ max-height: 480px; overflow-y: auto; border: 1px solid #e0e0e0; border-radius: 8px; margin-top: 10px; }}
+.custom-table {{ width: 100%; border-collapse: collapse; font-family: sans-serif; font-size: 0.82rem; }}
+.custom-table th {{ position: sticky; top: 0; background-color: #f1f3f5; color: #333; font-weight: bold; padding: 8px 10px; text-align: left; border-bottom: 2px solid #dee2e6; z-index: 10; }}
+.custom-table td {{ padding: 8px 10px; border-bottom: 1px solid #e9ecef; vertical-align: top; white-space: normal !important; word-wrap: break-word !important; }}
+.custom-table tr:hover {{ background-color: #f8f9fa; }}
 </style>
 <div class="custom-table-container">
 <table class="custom-table">
 <thead>
 <tr>
-<th style="text-align: center;">No</th>
-<th>Satker</th>
-<th>Nomor Berkas</th>
-<th>Pemohon</th>
-<th>Prosedur</th>
-<th>Posisi Digital</th>
-<th>Kendala / Hambatan</th>
-<th>Upaya Penyelesaian</th>
+<th style="text-align: center;">No</th><th>Satker</th><th>Nomor Berkas</th><th>Pemohon</th><th>Prosedur</th><th>Posisi Digital</th><th>Kendala / Hambatan</th><th>Upaya Penyelesaian</th>
 </tr>
 </thead>
 <tbody>
-{rows_html}
+{"".join(rows_html_list)}
 </tbody>
 </table>
 </div>"""
-
             st.markdown(full_table_html, unsafe_allow_html=True)
-
-        else:
-            st.info("ℹ️ Tidak ada berkas tunggakan yang sesuai dengan filter tahun/posisi berkas yang dipilih.")
 
 def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=None, selected_kab=None, selected_kec=None):
     st.title("💻 Data Elektronik")
@@ -1014,68 +530,29 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
 
     df = df_elektronik.copy()
 
-    # ==========================================
-    # 1. PARSER KETAT: BILANGAN CACAH & ERROR #N/A -> 0
-    # ==========================================
     def parse_bilangan_cacah(val):
-        """
-        Mengonversi string/number dari Google Sheets menjadi Bilangan Cacah (Integer Murni).
-        Mengubah #N/A, NaN, None, atau string kosong menjadi 0.
-        """
-        if pd.isna(val) or val is None:
-            return 0
+        if pd.isna(val) or val is None: return 0
         s_val = str(val).strip()
         invalid_patterns = {'#n/a', 'nan', 'none', '', '#ref!', '#value!', '#name?', '#null!'}
-        if s_val.lower() in invalid_patterns:
-            return 0
-        
-        # Hapus simbol non-numerik dan titik pemisah ribuan Google Sheet
+        if s_val.lower() in invalid_patterns: return 0
         s_val = s_val.replace('Rp', '').replace('%', '').replace('.', '').replace(',', '').strip()
-        
-        try:
-            return int(round(float(s_val)))
-        except ValueError:
-            return 0
+        try: return int(round(float(s_val)))
+        except ValueError: return 0
 
-    def parse_luas_m2(val):
-        """Membaca angka Luas murni dari Google Sheets sebagai M2 (Bilangan Cacah)."""
-        return float(parse_bilangan_cacah(val))
-
-    def fmt_idr(val):
-        """Format bulat integer dengan titik ribuan (contoh: 1.362.086)"""
-        return f"{int(round(val)):,}".replace(',', '.')
-
+    def parse_luas_m2(val): return float(parse_bilangan_cacah(val))
+    def fmt_idr(val): return f"{int(round(val)):,}".replace(',', '.')
     def fmt_dec2(val):
-        """Format desimal 2 digit di belakang koma (contoh: 246,73 atau 37,28%)"""
         parts = f"{val:,.2f}".split('.')
         return f"{parts[0].replace(',', '.')},{parts[1]}"
 
-    # Salin & bersihkan kolom luas (M2) -> Bilangan Cacah M2
     luas_cols = ['luas_adm', 'luas_apl', 'luas_persil', 'luas_persil_valid', 'luas_persil_deliniasi', 'luas_kw456']
-    for col in luas_cols:
-        if col in df.columns:
-            df[col] = df[col].apply(parse_luas_m2)
-        else:
-            df[col] = 0.0
+    for col in luas_cols: df[col] = df[col].apply(parse_luas_m2) if col in df.columns else 0.0
 
-    # Salin & bersihkan kolom jumlah berkas/unit -> Bilangan Cacah Murni
-    int_cols = [
-        'jumlah_persil', 'jumlah_kw456', 'jumlah_bt', 'bt_valid', 
-        'jumlah_su', 'jumlah_suvalid', 'pra_suel', 'pra_btel', 'pra_sertel'
-    ]
-    for col in int_cols:
-        if col in df.columns:
-            df[col] = df[col].apply(parse_bilangan_cacah)
-        else:
-            df[col] = 0
+    int_cols = ['jumlah_persil', 'jumlah_kw456', 'jumlah_bt', 'bt_valid', 'jumlah_su', 'jumlah_suvalid', 'pra_suel', 'pra_btel', 'pra_sertel']
+    for col in int_cols: df[col] = df[col].apply(parse_bilangan_cacah) if col in df.columns else 0
 
-    # Filter baris agar tidak menghitung baris rekapitulasi/total ganda
-    if 'kabupaten_kota' in df.columns:
-        df_clean = df[~df['kabupaten_kota'].astype(str).str.contains('Total|Jumlah|Sulawesi Tengah', case=False, na=False)].copy()
-    else:
-        df_clean = df.copy()
+    df_clean = df[~df['kabupaten_kota'].astype(str).str.contains('Total|Jumlah|Sulawesi Tengah', case=False, na=False)].copy() if 'kabupaten_kota' in df.columns else df.copy()
 
-    # Total Akumulasi Murni M2 & Jumlah Berkas
     tot_adm_m2          = df_clean['luas_adm'].sum()
     tot_apl_m2          = df_clean['luas_apl'].sum()
     tot_persil_m2       = df_clean['luas_persil'].sum()
@@ -1090,29 +567,20 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
     tot_pra_btel        = df_clean['pra_btel'].sum()
     tot_pra_sertel      = df_clean['pra_sertel'].sum()
 
-    # KONVERSI SATUAN LUAS: M2 -> Ha (dibagi 10.000)
     tot_adm_ha          = tot_adm_m2 / 10000.0
     tot_apl_ha          = tot_apl_m2 / 10000.0
     tot_persil_ha       = tot_persil_m2 / 10000.0
     tot_persil_valid_ha = tot_persil_valid_m2 / 10000.0
     tot_luas_kw456_ha   = tot_luas_kw456_m2 / 10000.0
 
-    # ==========================================
-    # 2. KALKULASI CARD 9 (GID 386436131) & CARD 10 (GID 880542789)
-    # ==========================================
     val_prog_harian = 0
     sub_card9 = "Tidak ada perubahan data"
-
     rank_num_val = "-"
     sub_card10 = "0,00% dari 0 BT"
 
-    # ------------------------------------------
-    # CARD 9: PROGRESS HARIAN DESA (GID 386436131)
-    # ------------------------------------------
     if df_progress is not None and not df_progress.empty:
         df_p = df_progress.copy()
         df_p.columns = [str(c).strip().lower() for c in df_p.columns]
-
         col_tgl  = next((c for c in df_p.columns if 'tgl' in c), 'tgl_data')
         col_kab  = next((c for c in df_p.columns if 'kab' in c), 'kabupaten_kota')
         col_kec  = next((c for c in df_p.columns if 'kec' in c), 'kecamatan')
@@ -1120,39 +588,25 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
         col_pdes = next((c for c in df_p.columns if 'prasertel_des' in c or 'prasertel_desa' in c), 'prasertel_desa')
 
         if col_tgl in df_p.columns and col_pdes in df_p.columns:
-            # Ambil data yang memiliki tanggal
             df_p_valid = df_p[df_p[col_tgl].notna() & (df_p[col_tgl].astype(str).str.strip() != '')].copy()
-            
-            # Urutkan berdasarkan nilai tgl_data unik secara otomatis
             df_p_valid['tgl_dt'] = pd.to_datetime(df_p_valid[col_tgl], format='%d/%m/%Y', errors='coerce')
             if df_p_valid['tgl_dt'].isna().all():
                 df_p_valid['tgl_dt'] = pd.to_datetime(df_p_valid[col_tgl], dayfirst=True, errors='coerce')
 
             list_tgl_dt = sorted(df_p_valid['tgl_dt'].dropna().unique())
-
             if len(list_tgl_dt) >= 2:
-                tgl_new    = list_tgl_dt[-1]  # Tanggal Terbaru (misal 22/07/2026)
-                tgl_latest = list_tgl_dt[-2]  # Tanggal Sebelumnya (misal 14/07/2026)
-
-                df_new    = df_p_valid[df_p_valid['tgl_dt'] == tgl_new].copy()
-                df_latest = df_p_valid[df_p_valid['tgl_dt'] == tgl_latest].copy()
+                df_new    = df_p_valid[df_p_valid['tgl_dt'] == list_tgl_dt[-1]].copy()
+                df_latest = df_p_valid[df_p_valid['tgl_dt'] == list_tgl_dt[-2]].copy()
 
                 df_new['val_pdes']    = df_new[col_pdes].apply(parse_bilangan_cacah)
                 df_latest['val_pdes'] = df_latest[col_pdes].apply(parse_bilangan_cacah)
 
-                # Pengecekan Hirarki Filter Aktif
                 is_kec_active = selected_kec and str(selected_kec).strip() not in ['', 'Semua', 'All', 'None', 'Semua Kecamatan']
-                is_kab_active = selected_kab and str(selected_kab).strip() not in ['', 'Semua', 'All', 'None', 'Semua Kabupaten/Kota', 'Semua Kab/Kota']
+                is_kab_active = selected_kab and str(selected_kab).strip() not in ['', 'Semua', 'All', 'None', 'Semua Kabupaten/Kota']
 
-                if is_kec_active:
-                    group_keys = [k for k in [col_kab, col_kec, col_des] if k in df_p_valid.columns]
-                    entity_label = "Desa/Kelurahan"
-                elif is_kab_active:
-                    group_keys = [k for k in [col_kab, col_kec] if k in df_p_valid.columns]
-                    entity_label = "Kecamatan"
-                else:
-                    group_keys = [k for k in [col_kab] if k in df_p_valid.columns]
-                    entity_label = "Kabupaten/Kota"
+                if is_kec_active: group_keys, entity_label = [k for k in [col_kab, col_kec, col_des] if k in df_p_valid.columns], "Desa/Kelurahan"
+                elif is_kab_active: group_keys, entity_label = [k for k in [col_kab, col_kec] if k in df_p_valid.columns], "Kecamatan"
+                else: group_keys, entity_label = [k for k in [col_kab] if k in df_p_valid.columns], "Kabupaten/Kota"
 
                 grp_new    = df_new.groupby(group_keys)['val_pdes'].sum().reset_index()
                 grp_latest = df_latest.groupby(group_keys)['val_pdes'].sum().reset_index()
@@ -1162,258 +616,62 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
 
                 df_changed = m_grp[m_grp['diff'] > 0]
                 val_prog_harian = df_changed['diff'].sum()
-                jml_entity_progres = len(df_changed)
-
-                if jml_entity_progres > 0:
-                    sub_card9 = f"{jml_entity_progres} {entity_label} berprogres"
-                else:
-                    sub_card9 = "Tidak ada progres"
-            elif len(list_tgl_dt) == 1:
-                sub_card9 = "Data H-1 belum tersedia"
-
-    # ==========================================
-    # CARD 10: PERINGKAT NASIONAL (GID 880542789)
-    # ==========================================
-    rank_num_val = "-"
-    sub_card10 = "0,00% dari 0 BT"
+                sub_card9 = f"{len(df_changed)} {entity_label} berprogres" if len(df_changed) > 0 else "Tidak ada progres"
 
     if df_peringkat is not None and not df_peringkat.empty:
         df_rank = df_peringkat.copy()
-        # Bersihkan nama kolom dari spasi dan ubah ke huruf kecil
         df_rank.columns = [str(c).strip().lower() for c in df_rank.columns]
-
-        # Cari kolom secara fleksibel
         col_prov = next((c for c in df_rank.columns if 'prov' in c), 'provinsi')
         col_rank = next((c for c in df_rank.columns if 'ringkat' in c), 'peringkat')
         col_pnas = next((c for c in df_rank.columns if 'prasertel' in c), 'prasertel_nasional')
         col_bnas = next((c for c in df_rank.columns if 'btvalid' in c), 'btvalid_nasional')
 
         if col_prov in df_rank.columns:
-            # Cari baris yang mengandung Sulteng / Sulawesi Tengah
             sulteng_df = df_rank[df_rank[col_prov].astype(str).str.contains('sulteng|sulawesi tengah', case=False, na=False)]
-
             if not sulteng_df.empty:
                 row_s = sulteng_df.iloc[0]
-
-                # 1. Ambil Angka Peringkat secara dinamis dari sheet
                 if col_rank in sulteng_df.columns and pd.notna(row_s[col_rank]):
-                    raw_r = str(row_s[col_rank]).strip()
-                    if raw_r and raw_r.lower() != 'nan':
-                        rank_num_val = raw_r.replace('.0', '')
-
-                # 2. Ambil prasertel_nasional & btvalid_nasional dari sheet
+                    rank_num_val = str(row_s[col_rank]).strip().replace('.0', '')
                 p_nas_val = parse_bilangan_cacah(row_s.get(col_pnas, 0))
                 b_nas_val = parse_bilangan_cacah(row_s.get(col_bnas, 0))
-
-                # 3. Hitung persentase dinamis: (prasertel_nasional / btvalid_nasional) * 100
                 pct_nas = (p_nas_val / b_nas_val * 100.0) if b_nas_val > 0 else 0.0
-
-                # 4. Format tampilan Keterangan Bawah
                 sub_card10 = f"{fmt_dec2(pct_nas)}% dari {fmt_idr(b_nas_val)} BT"
 
-    # ==========================================
-    # 3. CSS COMPONENT CARD (ORANGE & BLUE)
-    # ==========================================
     st.markdown("""
     <style>
-    /* Style Card Standar (Orange) */
-    .orange-card-box {
-        background: linear-gradient(135deg, #ffffff 0%, #fff8f0 100%);
-        border: 2px solid #f39c12;
-        border-radius: 12px;
-        padding: 10px 12px;
-        box-shadow: 0 4px 10px rgba(243, 156, 18, 0.12);
-        height: 104px;
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        margin-bottom: 12px;
-    }
-    .orange-card-title {
-        color: #d35400;
-        font-size: 0.72rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-    .orange-card-value {
-        color: #e67e22;
-        font-size: 1.25rem;
-        font-weight: 800;
-        line-height: 1.1;
-    }
-    .orange-card-sub {
-        color: #7f8c8d;
-        font-size: 0.68rem;
-        font-weight: 500;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    /* Style Card Khusus Card 9 & Card 10 (Blue #0451c9) */
-    .blue-card-box {
-        background: linear-gradient(135deg, #ffffff 0%, #f0f5ff 100%);
-        border: 2px solid #0451c9;
-        border-radius: 12px;
-        padding: 10px 12px;
-        box-shadow: 0 4px 10px rgba(4, 81, 201, 0.12);
-        height: 104px;
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        margin-bottom: 12px;
-    }
-    .blue-card-title {
-        color: #0451c9;
-        font-size: 0.72rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-    .blue-card-value {
-        color: #0451c9;
-        font-size: 1.25rem;
-        font-weight: 800;
-        line-height: 1.1;
-    }
-    .blue-card-sub {
-        color: #5c7299;
-        font-size: 0.68rem;
-        font-weight: 500;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    .chart-container-orange {
-        background-color: #ffffff;
-        border: 2px solid #f39c12;
-        border-radius: 14px;
-        padding: 12px;
-        margin-bottom: 20px;
-        box-shadow: 0 4px 12px rgba(243, 156, 18, 0.1);
-    }
+    .orange-card-box { background: linear-gradient(135deg, #ffffff 0%, #fff8f0 100%); border: 2px solid #f39c12; border-radius: 12px; padding: 10px 12px; height: 104px; display: flex; flex-direction: column; justify-content: space-between; margin-bottom: 12px; }
+    .orange-card-title { color: #d35400; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; }
+    .orange-card-value { color: #e67e22; font-size: 1.25rem; font-weight: 800; line-height: 1.1; }
+    .orange-card-sub { color: #7f8c8d; font-size: 0.68rem; font-weight: 500; }
+    .blue-card-box { background: linear-gradient(135deg, #ffffff 0%, #f0f5ff 100%); border: 2px solid #0451c9; border-radius: 12px; padding: 10px 12px; height: 104px; display: flex; flex-direction: column; justify-content: space-between; margin-bottom: 12px; }
+    .blue-card-title { color: #0451c9; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; }
+    .blue-card-value { color: #0451c9; font-size: 1.25rem; font-weight: 800; line-height: 1.1; }
+    .blue-card-sub { color: #5c7299; font-size: 0.68rem; font-weight: 500; }
     </style>
     """, unsafe_allow_html=True)
 
     def render_orange_card(title, value_str, sub_text=""):
-        html = f"""
-        <div class="orange-card-box">
-            <div class="orange-card-title" title="{title}">{title}</div>
-            <div class="orange-card-value">{value_str}</div>
-            <div class="orange-card-sub" title="{sub_text}">{sub_text}</div>
-        </div>
-        """
-        st.markdown(html, unsafe_allow_html=True)
+        st.markdown(f'<div class="orange-card-box"><div class="orange-card-title">{title}</div><div class="orange-card-value">{value_str}</div><div class="orange-card-sub">{sub_text}</div></div>', unsafe_allow_html=True)
 
     def render_blue_card(title, value_str, sub_text=""):
-        html = f"""
-        <div class="blue-card-box">
-            <div class="blue-card-title" title="{title}">{title}</div>
-            <div class="blue-card-value">{value_str}</div>
-            <div class="blue-card-sub" title="{sub_text}">{sub_text}</div>
-        </div>
-        """
-        st.markdown(html, unsafe_allow_html=True)
+        st.markdown(f'<div class="blue-card-box"><div class="blue-card-title">{title}</div><div class="blue-card-value">{value_str}</div><div class="blue-card-sub">{sub_text}</div></div>', unsafe_allow_html=True)
 
-    # ==========================================
-    # 4. RENDER GRID 10 CARDS
-    # ==========================================
-    # BARIS 1 (CARD 1 - 5)
     r1_c1, r1_c2, r1_c3, r1_c4, r1_c5 = st.columns(5)
+    with r1_c1: render_orange_card("Luas APL", f"{fmt_dec2((tot_apl_m2 / tot_adm_m2 * 100.0) if tot_adm_m2 > 0 else 0.0)}%", f"{fmt_dec2(tot_apl_ha)} Ha dari Luas Wilayah ({fmt_dec2(tot_adm_ha)} Ha)")
+    with r1_c2: render_orange_card("Luas Persil", f"{fmt_dec2((tot_persil_m2 / tot_apl_m2 * 100.0) if tot_apl_m2 > 0 else 0.0)}%", f"{fmt_dec2(tot_persil_ha)} Ha | {fmt_idr(tot_jml_persil)} Persil")
+    with r1_c3: render_orange_card("Luas Persil Valid", f"{fmt_dec2((tot_persil_valid_m2 / tot_persil_m2 * 100.0) if tot_persil_m2 > 0 else 0.0)}%", f"{fmt_dec2(tot_persil_valid_ha)} Ha")
+    with r1_c4: render_orange_card("Jumlah KW456", f"{fmt_idr(tot_kw456)} Bidang", f"{fmt_dec2(tot_luas_kw456_ha)} Ha | Total: {fmt_idr(tot_bt)} BT")
+    with r1_c5: render_orange_card("Jumlah BT Valid", f"{fmt_idr(tot_bt_valid)} BT", f"{fmt_dec2((tot_bt_valid / tot_bt * 100.0) if tot_bt > 0 else 0.0)} % | {fmt_idr(tot_bt)} BT")
 
-    with r1_c1:
-        pct_apl = (tot_apl_m2 / tot_adm_m2 * 100.0) if tot_adm_m2 > 0 else 0.0
-        render_orange_card(
-            "Luas APL", 
-            f"{fmt_dec2(pct_apl)}%", 
-            f"{fmt_dec2(tot_apl_ha)} Ha dari Luas Wilayah ({fmt_dec2(tot_adm_ha)} Ha)"
-        )
-
-    with r1_c2:
-        pct_persil = (tot_persil_m2 / tot_apl_m2 * 100.0) if tot_apl_m2 > 0 else 0.0
-        render_orange_card(
-            "Luas Persil", 
-            f"{fmt_dec2(pct_persil)}%", 
-            f"{fmt_dec2(tot_persil_ha)} Ha | {fmt_idr(tot_jml_persil)} Persil"
-        )
-
-    with r1_c3:
-        pct_persil_valid = (tot_persil_valid_m2 / tot_persil_m2 * 100.0) if tot_persil_m2 > 0 else 0.0
-        render_orange_card(
-            "Luas Persil Valid", 
-            f"{fmt_dec2(pct_persil_valid)}%", 
-            f"{fmt_dec2(tot_persil_valid_ha)} Ha"
-        )
-
-    with r1_c4:
-        render_orange_card(
-            "Jumlah KW456", 
-            f"{fmt_idr(tot_kw456)} Bidang", 
-            f"{fmt_dec2(tot_luas_kw456_ha)} Ha | Total: {fmt_idr(tot_bt)} BT"
-        )
-
-    with r1_c5:
-        pct_bt_valid = (tot_bt_valid / tot_bt * 100.0) if tot_bt > 0 else 0.0
-        render_orange_card(
-            "Jumlah BT Valid", 
-            f"{fmt_idr(tot_bt_valid)} BT", 
-            f"{fmt_dec2(pct_bt_valid)} % | {fmt_idr(tot_bt)} BT"
-        )
-
-    # BARIS 2 (CARD 6 - 10)
     r2_c1, r2_c2, r2_c3, r2_c4, r2_c5 = st.columns(5)
-
-    with r2_c1:
-        pct_pra_suel = (tot_pra_suel / tot_su * 100.0) if tot_su > 0 else 0.0
-        render_orange_card(
-            "% PRA-SUEL", 
-            f"{fmt_dec2(pct_pra_suel)}%", 
-            f"{fmt_idr(tot_pra_suel)} SU dari {fmt_idr(tot_su)} SU"
-        )
-
-    with r2_c2:
-        pct_pra_btel = (tot_pra_btel / tot_bt_valid * 100.0) if tot_bt_valid > 0 else 0.0
-        render_orange_card(
-            "% PRA-BTEL", 
-            f"{fmt_dec2(pct_pra_btel)}%", 
-            f"{fmt_idr(tot_pra_btel)} BT dari {fmt_idr(tot_bt_valid)} BT Valid"
-        )
-
-    with r2_c3:
-        pct_pra_sertel = (tot_pra_sertel / tot_bt * 100.0) if tot_bt > 0 else 0.0
-        render_orange_card(
-            "% PRA-SERTEL", 
-            f"{fmt_dec2(pct_pra_sertel)}%", 
-            f"{fmt_idr(tot_pra_sertel)} BT dari {fmt_idr(tot_bt)} BT"
-        )
-
-    with r2_c4:
-        # CARD 9 MENGGUNAKAN BINGKAI & TEKS BIRU #0451c9
-        render_blue_card(
-            "Progress Terbaru", 
-            f"+{fmt_idr(val_prog_harian)} Pra Sertel", 
-            sub_card9
-        )
-
-    with r2_c5:
-        # CARD 10 MENGGUNAKAN BINGKAI & TEKS BIRU #0451c9
-        render_blue_card(
-            "Peringkat Nasional", 
-            f"Sulteng #{rank_num_val}", 
-            sub_card10
-        )
+    with r2_c1: render_orange_card("% PRA-SUEL", f"{fmt_dec2((tot_pra_suel / tot_su * 100.0) if tot_su > 0 else 0.0)}%", f"{fmt_idr(tot_pra_suel)} SU dari {fmt_idr(tot_su)} SU")
+    with r2_c2: render_orange_card("% PRA-BTEL", f"{fmt_dec2((tot_pra_btel / tot_bt_valid * 100.0) if tot_bt_valid > 0 else 0.0)}%", f"{fmt_idr(tot_pra_btel)} BT dari {fmt_idr(tot_bt_valid)} BT Valid")
+    with r2_c3: render_orange_card("% PRA-SERTEL", f"{fmt_dec2((tot_pra_sertel / tot_bt * 100.0) if tot_bt > 0 else 0.0)}%", f"{fmt_idr(tot_pra_sertel)} BT dari {fmt_idr(tot_bt)} BT")
+    with r2_c4: render_blue_card("Progress Terbaru", f"+{fmt_idr(val_prog_harian)} Pra Sertel", sub_card9)
+    with r2_c5: render_blue_card("Peringkat Nasional", f"Sulteng #{rank_num_val}", sub_card10)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # ==========================================
-    # 5. GRAFIK KONTEN TUNGGAL (TERURUT % PRA-SERTEL TERTINGGI)
-    # ==========================================
     KAB_MAP = {
         'Banggai': 'BG', 'Banggai Kepulauan': 'BK', 'Banggai Laut': 'BL',
         'Buol': 'BU', 'Donggala': 'DG', 'Parigi Moutong': 'PM',
@@ -1423,149 +681,78 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
     }
 
     df_chart = df_clean.copy()
-
-    # Sumbu-X Dinamis Berdasarkan Filter yang Aktif
     is_kec_active = selected_kec and str(selected_kec).strip() not in ['', 'Semua', 'Semua Kecamatan']
     is_kab_active = selected_kab and str(selected_kab).strip() not in ['', 'Semua', 'Semua Kabupaten/Kota']
 
-    if is_kec_active and 'desa_kelurahan' in df_chart.columns:
-        x_col = 'desa_kelurahan'
-        x_label = "Desa / Kelurahan"
-    elif is_kab_active and 'kecamatan' in df_chart.columns:
-        x_col = 'kecamatan'
-        x_label = "Kecamatan"
+    if is_kec_active and 'desa_kelurahan' in df_chart.columns: x_col, x_label = 'desa_kelurahan', "Desa / Kelurahan"
+    elif is_kab_active and 'kecamatan' in df_chart.columns: x_col, x_label = 'kecamatan', "Kecamatan"
     else:
-        if 'kabupaten_kota' in df_chart.columns:
-            df_chart['x_group'] = df_chart['kabupaten_kota'].map(lambda x: KAB_MAP.get(x, x))
-            x_col = 'x_group'
-        else:
-            x_col = 'kabupaten_kota'
-        x_label = "Kabupaten / Kota"
+        df_chart['x_group'] = df_chart['kabupaten_kota'].map(lambda x: KAB_MAP.get(x, x)) if 'kabupaten_kota' in df_chart.columns else '-'
+        x_col, x_label = 'x_group', "Kabupaten / Kota"
 
-    # Kolom dasar yang diperlukan
     req_cols = ['jumlah_su', 'jumlah_suvalid', 'jumlah_bt', 'bt_valid', 'pra_suel', 'pra_btel', 'pra_sertel']
     for c in req_cols:
-        if c not in df_chart.columns:
-            df_chart[c] = 0
-        else:
-            def parse_chart_num(val):
-                if pd.isna(val) or val is None: return 0
-                s = str(val).replace('.', '').replace(',', '').strip()
-                try: return int(s)
-                except: return 0
-            df_chart[c] = df_chart[c].apply(parse_chart_num)
+        if c not in df_chart.columns: df_chart[c] = 0
+        else: df_chart[c] = df_chart[c].apply(lambda v: int(str(v).replace('.', '').replace(',', '').strip()) if pd.notna(v) and str(v).replace('.', '').replace(',', '').strip().isdigit() else 0)
 
     df_grouped = df_chart.groupby(x_col)[req_cols].sum().reset_index()
 
-    # ------------------------------------------
-    # FORMULA KALKULASI PERSENTASE (5 INDIKATOR)
-    # ------------------------------------------
     df_grouped['pct_su_valid']   = (df_grouped['jumlah_suvalid'] / df_grouped['jumlah_su'].replace(0, 1)) * 100.0
     df_grouped['pct_pra_suel']   = (df_grouped['pra_suel'] / df_grouped['jumlah_su'].replace(0, 1)) * 100.0
     df_grouped['pct_bt_valid']   = (df_grouped['bt_valid'] / df_grouped['jumlah_bt'].replace(0, 1)) * 100.0
     df_grouped['pct_pra_btel']   = (df_grouped['pra_btel'] / df_grouped['bt_valid'].replace(0, 1)) * 100.0
-    
-    # PERUBAHAN UTAMA: % Pra-SERTEL kini dihitung dari (pra_sertel / jumlah_bt)
     df_grouped['pct_pra_sertel'] = (df_grouped['pra_sertel'] / df_grouped['jumlah_bt'].replace(0, 1)) * 100.0
 
-    # ------------------------------------------
-    # URUTKAN SUMBU-X BERDASARKAN % PRA-SERTEL TERTINGGI -> TERENDAH
-    # ------------------------------------------
     df_grouped = df_grouped.sort_values(by='pct_pra_sertel', ascending=False)
-    x_order = df_grouped[x_col].tolist()  # Urutan lokasi dari % Pra-Sertel tertinggi
+    x_order = df_grouped[x_col].tolist()
 
-    # Melt Dataframe sesuai urutan indikator
     df_merged = df_grouped.melt(
         id_vars=[x_col, 'jumlah_suvalid', 'jumlah_su', 'pra_suel', 'bt_valid', 'jumlah_bt', 'pra_btel', 'pra_sertel'],
         value_vars=['pct_su_valid', 'pct_pra_suel', 'pct_bt_valid', 'pct_pra_btel', 'pct_pra_sertel'],
         var_name='Indikator_Code', value_name='Persentase'
     )
 
-    # Pemetaan Nama Indikator
-    map_indikator = {
-        'pct_su_valid': '% SU Valid',
-        'pct_pra_suel': '% Pra-SUEL',
-        'pct_bt_valid': '% BT Valid',
-        'pct_pra_btel': '% Pra-BTEL',
-        'pct_pra_sertel': '% Pra-SERTEL'
-    }
+    map_indikator = {'pct_su_valid': '% SU Valid', 'pct_pra_suel': '% Pra-SUEL', 'pct_bt_valid': '% BT Valid', 'pct_pra_btel': '% Pra-BTEL', 'pct_pra_sertel': '% Pra-SERTEL'}
     df_merged['Indikator'] = df_merged['Indikator_Code'].map(map_indikator)
 
-    # Ekstraksi nilai realisasi & pembagi untuk Tooltip Hover
     def get_hover_values(row):
         code = row['Indikator_Code']
-        if code == 'pct_su_valid':
-            return [row['jumlah_suvalid'], row['jumlah_su']]
-        elif code == 'pct_pra_suel':
-            return [row['pra_suel'], row['jumlah_su']]
-        elif code == 'pct_bt_valid':
-            return [row['bt_valid'], row['jumlah_bt']]
-        elif code == 'pct_pra_btel':
-            return [row['pra_btel'], row['bt_valid']]
-        else: # pct_pra_sertel
-            # PERUBAHAN UTAMA: Pembagi % Pra-SERTEL mengambil jumlah_bt
-            return [row['pra_sertel'], row['jumlah_bt']]
+        if code == 'pct_su_valid': return [row['jumlah_suvalid'], row['jumlah_su']]
+        elif code == 'pct_pra_suel': return [row['pra_suel'], row['jumlah_su']]
+        elif code == 'pct_bt_valid': return [row['bt_valid'], row['jumlah_bt']]
+        elif code == 'pct_pra_btel': return [row['pra_btel'], row['bt_valid']]
+        else: return [row['pra_sertel'], row['jumlah_bt']]
 
     df_merged['val_realisasi'] = df_merged.apply(lambda r: get_hover_values(r)[0], axis=1)
     df_merged['val_pembagi']   = df_merged.apply(lambda r: get_hover_values(r)[1], axis=1)
-
-    # Format Teks Angka Indonesia untuk Hover (titik pemisah ribuan)
     df_merged['realisasi_fmt'] = df_merged['val_realisasi'].apply(lambda x: f"{x:,.0f}".replace(',', '.'))
     df_merged['pembagi_fmt']   = df_merged['val_pembagi'].apply(lambda x: f"{x:,.0f}".replace(',', '.'))
 
-    # Palet Warna Pastel Soft Modern
-    pastel_color_map = {
-        '% SU Valid': '#ffd383',   # Soft Sky Blue
-        '% Pra-SUEL': '#dc9513',   # Soft Pastel Yellow
-        '% BT Valid': '#b4ffb3',   # Soft Indigo/Royal
-        '% Pra-BTEL': '#51ce4f',   # Soft Soft Pink
-        '% Pra-SERTEL': '#1f9f1d' # Soft Mint Green
-    }
+    pastel_color_map = {'% SU Valid': '#ffd383', '% Pra-SUEL': '#dc9513', '% BT Valid': '#b4ffb3', '% Pra-BTEL': '#51ce4f', '% Pra-SERTEL': '#1f9f1d'}
 
-    # Render 1 Grafik Gabungan Terurut
     st.markdown("---")
     fig_combined = px.bar(
-        df_merged, x=x_col, y='Persentase', color='Indikator',
-        barmode='group',
-        title=f"📊 Grafik Capaian Pra-SERTEL",
-        color_discrete_map=pastel_color_map,
-        category_orders={
-            x_col: x_order,  # Mengunci urutan Sumbu-X sesuai % Pra-Sertel
-            'Indikator': ['% SU Valid', '% Pra-SUEL', '% BT Valid', '% Pra-BTEL', '% Pra-SERTEL']
-        },
+        df_merged, x=x_col, y='Persentase', color='Indikator', barmode='group',
+        title="📊 Grafik Capaian Pra-SERTEL", color_discrete_map=pastel_color_map,
+        category_orders={x_col: x_order, 'Indikator': ['% SU Valid', '% Pra-SUEL', '% BT Valid', '% Pra-BTEL', '% Pra-SERTEL']},
         custom_data=df_merged[['realisasi_fmt', 'pembagi_fmt']]
     )
 
     fig_combined.update_traces(
         hovertemplate=f"<b>{x_label}: %{{x}}</b><br>%{{fullData.name}}: <b>%{{y:.2f}}%</b><br>Jumlah Capaian: <b>%{{customdata[0]}}</b><br>Total Pembagi: <b>%{{customdata[1]}}</b><extra></extra>",
-        marker=dict(line=dict(width=1, color='#000000')) # Outline Hitam
+        marker=dict(line=dict(width=1, color='#000000'))
     )
 
     fig_combined.update_layout(
-        height=450,
-        xaxis_title="",
-        yaxis_title="", # Hilangkan title axis sumbu Y
-        paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)',
-        margin=dict(l=10, r=10, t=35, b=10),
-        separators=',.', # Pemisah ribuan Indonesia
+        height=450, xaxis_title="", yaxis_title="", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+        margin=dict(l=10, r=10, t=35, b=10), separators=',.',
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, title_text=''),
-        yaxis=dict(
-            gridcolor='#f2f2f2',
-            range=[0, max(df_merged['Persentase'].max() * 1.15, 100)],
-            tickvals=[0, 50, 100],
-            ticktext=['0%', '50%', '100%']
-        )
+        yaxis=dict(gridcolor='#f2f2f2', range=[0, max(df_merged['Persentase'].max() * 1.15, 100)], tickvals=[0, 50, 100], ticktext=['0%', '50%', '100%'])
     )
     st.plotly_chart(fig_combined, use_container_width=True)
 
-    # ==========================================
-    # 6. GRAFIK TREN PROGRESS HARIAN (TOTAL MURNI ALL ROWS & ABSOLUTE INTEGER)
-    # ==========================================
     if df_progress is not None and not df_progress.empty:
         df_p_line = df_progress.copy()
-        
-        # Bersihkan nama kolom dari spasi & ubah ke huruf kecil
         df_p_line.columns = [str(c).strip().lower() for c in df_p_line.columns]
 
         col_tgl  = next((c for c in df_p_line.columns if 'tgl' in c), 'tgl_data')
@@ -1575,156 +762,52 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
         col_pdes = 'prasertel_desa' if 'prasertel_desa' in df_p_line.columns else next((c for c in df_p_line.columns if 'prasertel' in c), 'prasertel_desa')
 
         if col_tgl in df_p_line.columns and col_pdes in df_p_line.columns:
-            # 1. Bersihkan Kolom Tanggal (Menjaga semua baris tanggal)
             df_p_line['tgl_str'] = df_p_line[col_tgl].astype(str).str.strip()
             df_p_line = df_p_line[df_p_line['tgl_str'].notna() & (df_p_line['tgl_str'] != '') & (df_p_line['tgl_str'].str.lower() != 'nan')].copy()
 
-            # 2. PARSER ULTIMATE: Mengonversi "1.007" menjadi 1007 secara mutlak
             def parse_prasertel_absolute(val):
-                if pd.isna(val) or val is None:
-                    return 0
-                
-                # Ubah ke string murni
+                if pd.isna(val) or val is None: return 0
                 s = str(val).strip()
-                if not s or s.lower() in ['nan', 'none', 'null', '']:
-                    return 0
-                
-                # Jika tipe data awal sudah float dari pandas (misal 1.007)
-                # Kita ubah formatnya untuk menghilangkan koma desimal palsu akibat pemisah ribuan titik
-                if isinstance(val, float):
-                    # Jika float memiliki 3 digit desimal (seperti 1.007), itu adalah 1007 dari Google Sheet
-                    s_float = f"{val:.3f}"
-                    s = s_float.replace('.', '')
-                else:
-                    # Jika string, hapus semua titik, koma, dan karakter non-angka
-                    s = s.replace('.', '').replace(',', '').replace('Rp', '').replace('%', '').strip()
-                
-                try:
-                    return int(s)
-                except ValueError:
-                    return 0
+                if not s or s.lower() in ['nan', 'none', 'null', '']: return 0
+                s = f"{val:.3f}".replace('.', '') if isinstance(val, float) else s.replace('.', '').replace(',', '').replace('Rp', '').replace('%', '').strip()
+                try: return int(s)
+                except ValueError: return 0
 
-            # Penerapan parser ke seluruh baris
             df_p_line['val_pdes'] = df_p_line[col_pdes].apply(parse_prasertel_absolute)
-
-            # Ambil urutan tanggal unik murni dari Google Sheet
             unique_tgls = df_p_line['tgl_str'].unique().tolist()
 
-            # Tentukan Hirarki Wilayah & Label Hover
-            is_kec_active = selected_kec and str(selected_kec).strip() not in ['', 'Semua', 'Semua Kecamatan']
-            is_kab_active = selected_kab and str(selected_kab).strip() not in ['', 'Semua', 'Semua Kabupaten/Kota']
+            if is_kec_active and col_des in df_p_line.columns: group_col, hover_area_label, chart_title = col_des, "Desa/Kelurahan", f"📈 Tren Progress Prasertel per Desa/Kelurahan ({selected_kec})"
+            elif is_kab_active and col_kec in df_p_line.columns: group_col, hover_area_label, chart_title = col_kec, "Kecamatan", f"📈 Tren Progress Prasertel per Kecamatan ({selected_kab})"
+            else: group_col, hover_area_label, chart_title = (col_kab if col_kab in df_p_line.columns else None), "Kab/Kota", "📈 Tren Progres Prasertel"
 
-            if is_kec_active and col_des in df_p_line.columns:
-                group_col = col_des
-                hover_area_label = "Desa/Kelurahan"
-                chart_title = f"📈 Tren Progress Prasertel per Desa/Kelurahan ({selected_kec})"
-            elif is_kab_active and col_kec in df_p_line.columns:
-                group_col = col_kec
-                hover_area_label = "Kecamatan"
-                chart_title = f"📈 Tren Progress Prasertel per Kecamatan ({selected_kab})"
-            else:
-                group_col = col_kab if col_kab in df_p_line.columns else None
-                hover_area_label = "Kab/Kota"
-                chart_title = "📈 Tren Progres Prasertel"
-
-            # 3. PENJUMLAHAN TOTAL SELURUH BARIS BERDASARKAN TANGGAL & WILAYAH
             if group_col and group_col in df_p_line.columns:
                 df_trend = df_p_line.groupby(['tgl_str', group_col], as_index=False)['val_pdes'].sum()
-
-                fig_line = px.line(
-                    df_trend, x='tgl_str', y='val_pdes', color=group_col,
-                    markers=True,
-                    title=chart_title,
-                    category_orders={'tgl_str': unique_tgls}
-                )
+                fig_line = px.line(df_trend, x='tgl_str', y='val_pdes', color=group_col, markers=True, title=chart_title, category_orders={'tgl_str': unique_tgls})
             else:
                 df_trend = df_p_line.groupby('tgl_str', as_index=False)['val_pdes'].sum()
-
-                fig_line = px.line(
-                    df_trend, x='tgl_str', y='val_pdes',
-                    markers=True,
-                    title=chart_title,
-                    category_orders={'tgl_str': unique_tgls}
-                )
+                fig_line = px.line(df_trend, x='tgl_str', y='val_pdes', markers=True, title=chart_title, category_orders={'tgl_str': unique_tgls})
                 fig_line.update_traces(line_color='#0451C9', line_width=3)
 
-            # Format Tooltip Hover: Wilayah, Tanggal, & Jumlah BT
-            fig_line.update_traces(
-                hovertemplate=f"<b>{hover_area_label}: %{{fullData.name}}</b><br>Tanggal: %{{x}}<br>Jml Prasertel: <b>%{{y:,.0f}} BT</b><extra></extra>",
-                marker=dict(size=8, line=dict(width=1.5, color='#000000'))
-            )
-
-            # Format Layout Grafik Full-Width
-            fig_line.update_layout(
-                height=480,
-                xaxis_title="",
-                yaxis_title="",
-                paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)',
-                margin=dict(l=15, r=15, t=60, b=80),
-                separators=',.', # Pemisah ribuan dengan titik
-                title=dict(
-                    text=chart_title,
-                    x=0, y=0.98,
-                    xanchor='left', yanchor='top',
-                    font=dict(size=15, color='#1e293b')
-                ),
-                legend=dict(
-                    orientation="h",
-                    yanchor="top", y=-0.2,
-                    xanchor="center", x=0.5,
-                    title_text='',
-                    font=dict(size=11)
-                ),
-                yaxis=dict(
-                    gridcolor='#f2f2f2'
-                ),
-                xaxis=dict(
-                    type='category'
-                )
-            )
+            fig_line.update_traces(hovertemplate=f"<b>{hover_area_label}: %{{fullData.name}}</b><br>Tanggal: %{{x}}<br>Jml Prasertel: <b>%{{y:,.0f}} BT</b><extra></extra>", marker=dict(size=8, line=dict(width=1.5, color='#000000')))
+            fig_line.update_layout(height=480, xaxis_title="", yaxis_title="", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', margin=dict(l=15, r=15, t=60, b=80), separators=',.', yaxis=dict(gridcolor='#f2f2f2'), xaxis=dict(type='category'))
 
             st.markdown("---")
             st.plotly_chart(fig_line, use_container_width=True)
-            st.markdown('</div>', unsafe_allow_html=True)
 
-    # ==========================================
-    # 7. TABEL TARGET HARIAN PRASERTEL MENUJU 70% (DESEMBER 2026) - CUSTOM HTML
-    # ==========================================
     st.markdown("<br>", unsafe_allow_html=True)
     st.subheader("🎯 Target Harian Prasertel Menuju 70% (Desember 2026)")
 
-    # 1. Hitung Sisa Hari Kerja (Senin - Jumat)
     today = datetime.now().date()
     end_date = date(2026, 12, 31)
-
-    if today < end_date:
-        sisa_hari_kerja = np.busday_count(today, end_date + timedelta(days=1))
-    else:
-        sisa_hari_kerja = 1
-
+    sisa_hari_kerja = np.busday_count(today, end_date + timedelta(days=1)) if today < end_date else 1
     st.info(f"📅 **{sisa_hari_kerja} hari kerja** menuju Tgl. 31 Desember 2026")
 
-    # 2. Persiapan Dataframe Utama (Pengambilan dari jumlah_bt)
     df_tabel_target = df_clean.copy()
+    if is_kec_active and 'desa_kelurahan' in df_tabel_target.columns: col_wilayah, label_wilayah = 'desa_kelurahan', "Desa / Kelurahan"
+    elif is_kab_active and 'kecamatan' in df_tabel_target.columns: col_wilayah, label_wilayah = 'kecamatan', "Kecamatan"
+    else: col_wilayah, label_wilayah = 'kabupaten_kota', "Kabupaten / Kota"
 
-    is_kec_active = selected_kec and str(selected_kec).strip() not in ['', 'Semua', 'Semua Kecamatan']
-    is_kab_active = selected_kab and str(selected_kab).strip() not in ['', 'Semua', 'Semua Kabupaten/Kota']
-
-    if is_kec_active and 'desa_kelurahan' in df_tabel_target.columns:
-        col_wilayah = 'desa_kelurahan'
-        label_wilayah = "Desa / Kelurahan"
-    elif is_kab_active and 'kecamatan' in df_tabel_target.columns:
-        col_wilayah = 'kecamatan'
-        label_wilayah = "Kecamatan"
-    else:
-        col_wilayah = 'kabupaten_kota'
-        label_wilayah = "Kabupaten / Kota"
-
-    # PEMETAAN EKSPLISIT: Ambil 'jumlah_bt' untuk BT Valid & 'pra_sertel' untuk Prasertel
     col_bt_source = 'jumlah_bt' if 'jumlah_bt' in df_tabel_target.columns else 'bt_valid'
-    
-    # Parser angka murni
     def parse_num_table(val):
         if pd.isna(val) or val is None: return 0
         s = str(val).replace('.', '').replace(',', '').strip()
@@ -1734,60 +817,35 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
     df_tabel_target['bt_valid_clean'] = df_tabel_target[col_bt_source].apply(parse_num_table) if col_bt_source in df_tabel_target.columns else 0
     df_tabel_target['pra_sertel_clean'] = df_tabel_target['pra_sertel'].apply(parse_num_table) if 'pra_sertel' in df_tabel_target.columns else 0
 
-    # Agregasi per Wilayah
     df_target_grp = df_tabel_target.groupby(col_wilayah, as_index=False)[['bt_valid_clean', 'pra_sertel_clean']].sum()
     df_target_grp.rename(columns={'bt_valid_clean': 'bt_valid', 'pra_sertel_clean': 'pra_sertel'}, inplace=True)
 
-    # 3. Hitung % Saat ini & Target Harian
     df_target_grp['pct_saat_ini'] = (df_target_grp['pra_sertel'] / df_target_grp['bt_valid'].replace(0, 1)) * 100.0
     df_target_grp['target_bt_70'] = df_target_grp['bt_valid'] * 0.70
     df_target_grp['sisa_bt_kejar'] = (df_target_grp['target_bt_70'] - df_target_grp['pra_sertel']).apply(lambda x: max(0, x))
     df_target_grp['target_harian'] = (df_target_grp['sisa_bt_kejar'] / sisa_hari_kerja).apply(np.ceil).astype(int)
 
-    # 4. Hitung "Capaian Terbaru" dari GID 386436131 (df_progress)
     df_capaian_map = {}
     if df_progress is not None and not df_progress.empty:
         df_p_cap = df_progress.copy()
         df_p_cap.columns = [str(c).strip().lower() for c in df_p_cap.columns]
-        
         c_tgl  = next((c for c in df_p_cap.columns if 'tgl' in c), 'tgl_data')
         c_wil  = next((c for c in df_p_cap.columns if col_wilayah[:3] in c), col_wilayah)
         c_pdes = 'prasertel_desa' if 'prasertel_desa' in df_p_cap.columns else next((c for c in df_p_cap.columns if 'prasertel' in c), 'prasertel_desa')
 
         if c_tgl in df_p_cap.columns and c_pdes in df_p_cap.columns and c_wil in df_p_cap.columns:
-            # Parse Tanggal Kronologis
             df_p_cap['tgl_dt'] = pd.to_datetime(df_p_cap[c_tgl], format='%d/%m/%Y', errors='coerce')
-            if df_p_cap['tgl_dt'].isna().all():
-                df_p_cap['tgl_dt'] = pd.to_datetime(df_p_cap[c_tgl], dayfirst=True, errors='coerce')
-            
-            # Ambil 2 Tanggal Terakhir
+            if df_p_cap['tgl_dt'].isna().all(): df_p_cap['tgl_dt'] = pd.to_datetime(df_p_cap[c_tgl], dayfirst=True, errors='coerce')
             unique_dates = sorted(df_p_cap['tgl_dt'].dropna().unique())
             if len(unique_dates) >= 2:
-                t_latest = unique_dates[-1]
-                t_prev   = unique_dates[-2]
-
-                def parse_val_cap(val):
-                    if pd.isna(val) or val is None: return 0
-                    if isinstance(val, float): return int(round(val))
-                    s = str(val).replace('.', '').replace(',', '').strip()
-                    try: return int(s)
-                    except: return 0
-
-                df_p_cap['val_clean'] = df_p_cap[c_pdes].apply(parse_val_cap)
-
-                # Agregasi per tanggal & wilayah
-                grp_latest = df_p_cap[df_p_cap['tgl_dt'] == t_latest].groupby(c_wil)['val_clean'].sum()
-                grp_prev   = df_p_cap[df_p_cap['tgl_dt'] == t_prev].groupby(c_wil)['val_clean'].sum()
-
+                df_p_cap['val_clean'] = df_p_cap[c_pdes].apply(parse_num_table)
+                grp_latest = df_p_cap[df_p_cap['tgl_dt'] == unique_dates[-1]].groupby(c_wil)['val_clean'].sum()
+                grp_prev   = df_p_cap[df_p_cap['tgl_dt'] == unique_dates[-2]].groupby(c_wil)['val_clean'].sum()
                 for w_name in df_target_grp[col_wilayah]:
-                    val_lat = grp_latest.get(w_name, 0)
-                    val_prv = grp_prev.get(w_name, 0)
-                    df_capaian_map[w_name] = val_lat - val_prv
+                    df_capaian_map[w_name] = grp_latest.get(w_name, 0) - grp_prev.get(w_name, 0)
 
-    # Urutkan Berdasarkan % Prasertel Terkecil Ke Terbesar
     df_target_grp = df_target_grp.sort_values(by='pct_saat_ini', ascending=True).reset_index(drop=True)
 
-    # 5. Formating Baris HTML Modern
     rows_target_html = []
     for idx, row in df_target_grp.iterrows():
         wil_name = row[col_wilayah]
@@ -1796,446 +854,39 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
         pct_val  = row['pct_saat_ini']
         tgt_hr   = f"{row['target_harian']:,.0f} BT".replace(',', '.')
 
-        # Badge Warna Berdasarkan Persentase
-        if pct_val <= 50.0:
-            badge_class = "badge-red"
-        elif pct_val <= 70.0:
-            badge_class = "badge-yellow"
-        else:
-            badge_class = "badge-green"
-
+        badge_class = "badge-red" if pct_val <= 50.0 else ("badge-yellow" if pct_val <= 70.0 else "badge-green")
         pct_formatted = f"<span class='{badge_class}'>{pct_val:.2f}%</span>"
 
-        # Formating Capaian Terbaru
         cap_val = df_capaian_map.get(wil_name, 0)
-        if cap_val > 0:
-            cap_formatted = f"<span style='color: #10B981; font-weight: bold;'>+{cap_val:,.0f} BT</span>".replace(',', '.')
-        elif cap_val < 0:
-            cap_formatted = f"<span style='color: #EF4444; font-weight: bold;'>{cap_val:,.0f} BT</span>".replace(',', '.')
-        else:
-            cap_formatted = "<span style='color: #6B7280;'>0 BT</span>"
+        cap_formatted = f"<span style='color: #10B981; font-weight: bold;'>+{cap_val:,.0f} BT</span>".replace(',', '.') if cap_val > 0 else (f"<span style='color: #EF4444; font-weight: bold;'>{cap_val:,.0f} BT</span>".replace(',', '.') if cap_val < 0 else "<span style='color: #6B7280;'>0 BT</span>")
 
-        r_html = (
-            f"<tr>"
-            f"<td style='text-align: center; font-weight: bold; width: 50px;'>{idx+1}</td>"
-            f"<td style='text-align: left; font-weight: 600;'>{wil_name}</td>"
-            f"<td style='text-align: center;'>{bt_val}</td>"
-            f"<td style='text-align: center;'>{p_sertel}</td>"
-            f"<td style='text-align: center;'>{pct_formatted}</td>"
-            f"<td style='text-align: center;'>{cap_formatted}</td>"
-            f"<td style='text-align: center; font-weight: bold; color: #1E3A8A;'>{tgt_hr}</td>"
-            f"</tr>"
-        )
-        rows_target_html.append(r_html)
+        rows_target_html.append(f"<tr><td style='text-align: center; font-weight: bold; width: 50px;'>{idx+1}</td><td style='text-align: left; font-weight: 600;'>{wil_name}</td><td style='text-align: center;'>{bt_val}</td><td style='text-align: center;'>{p_sertel}</td><td style='text-align: center;'>{pct_formatted}</td><td style='text-align: center;'>{cap_formatted}</td><td style='text-align: center; font-weight: bold; color: #1E3A8A;'>{tgt_hr}</td></tr>")
 
-    body_target_html = "".join(rows_target_html)
-
-    # 6. Render Tabel CSS & HTML
     html_target_table = f"""<style>
-.target-table-container {{
-    width: 100%;
-    border: 1px solid #E5E7EB;
-    border-radius: 10px;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-    margin-top: 10px;
-    overflow: hidden;
-}}
-.target-table {{
-    width: 100%;
-    border-collapse: collapse;
-    font-family: system-ui, -apple-system, sans-serif;
-    font-size: 0.88rem;
-}}
-.target-table th {{
-    background-color: #1E293B;
-    color: #FFFFFF;
-    font-weight: 700;
-    padding: 12px 10px;
-    text-align: center;
-    border-bottom: 2px solid #0F172A;
-    letter-spacing: 0.3px;
-}}
-.target-table th.th-left {{
-    text-align: left !important;
-}}
-.target-table td {{
-    padding: 10px 12px;
-    border-bottom: 1px solid #F1F5F9;
-    vertical-align: middle;
-}}
-.target-table tr:nth-child(even) {{
-    background-color: #F8FAFC;
-}}
-.target-table tr:hover {{
-    background-color: #F1F5F9;
-}}
-.badge-red {{
-    background-color: #FEE2E2;
-    color: #991B1B;
-    padding: 4px 10px;
-    border-radius: 6px;
-    font-weight: 700;
-    display: inline-block;
-}}
-.badge-yellow {{
-    background-color: #FEF3C7;
-    color: #92400E;
-    padding: 4px 10px;
-    border-radius: 6px;
-    font-weight: 700;
-    display: inline-block;
-}}
-.badge-green {{
-    background-color: #D1FAE5;
-    color: #065F46;
-    padding: 4px 10px;
-    border-radius: 6px;
-    font-weight: 700;
-    display: inline-block;
-}}
+.target-table-container {{ width: 100%; border: 1px solid #E5E7EB; border-radius: 10px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); margin-top: 10px; overflow: hidden; }}
+.target-table {{ width: 100%; border-collapse: collapse; font-family: system-ui, -apple-system, sans-serif; font-size: 0.88rem; }}
+.target-table th {{ background-color: #1E293B; color: #FFFFFF; font-weight: 700; padding: 12px 10px; text-align: center; border-bottom: 2px solid #0F172A; }}
+.target-table th.th-left {{ text-align: left !important; }}
+.target-table td {{ padding: 10px 12px; border-bottom: 1px solid #F1F5F9; vertical-align: middle; }}
+.target-table tr:nth-child(even) {{ background-color: #F8FAFC; }}
+.badge-red {{ background-color: #FEE2E2; color: #991B1B; padding: 4px 10px; border-radius: 6px; font-weight: 700; display: inline-block; }}
+.badge-yellow {{ background-color: #FEF3C7; color: #92400E; padding: 4px 10px; border-radius: 6px; font-weight: 700; display: inline-block; }}
+.badge-green {{ background-color: #D1FAE5; color: #065F46; padding: 4px 10px; border-radius: 6px; font-weight: 700; display: inline-block; }}
 </style>
 <div class="target-table-container">
 <table class="target-table">
-<thead>
-<tr>
-<th>No</th>
-<th class="th-left">{label_wilayah}</th>
-<th>Jumlah BT Valid</th>
-<th>Jumlah Prasertel</th>
-<th>Persentase Saat Ini</th>
-<th>Capaian Terbaru</th>
-<th>Target Harian</th>
-</tr>
-</thead>
-<tbody>
-{body_target_html}
-</tbody>
-</table>
-</div>"""
-
+<thead><tr><th>No</th><th class="th-left">{label_wilayah}</th><th>Jumlah BT Valid</th><th>Jumlah Prasertel</th><th>Persentase Saat Ini</th><th>Capaian Terbaru</th><th>Target Harian</th></tr></thead>
+<tbody>{"".join(rows_target_html)}</tbody>
+</table></div>"""
     st.markdown(html_target_table, unsafe_allow_html=True)
 
-    
-
-# -----------------------------------------------------------------------------
-# 3. SIDEBAR: FILTER & NAVIGATION
-# -----------------------------------------------------------------------------
-with st.sidebar:    
-    st.header("📋 Data Tgl. 24/07/2026")
-    
-    # Filter Kabupaten/Kota (diambil dari gabungan semua dataframe agar aman)
-    list_kabupaten = sorted(list(set(
-        df_layanan['kabupaten_kota'].dropna().unique().tolist() +
-        df_elektronik['kabupaten_kota'].dropna().unique().tolist() +
-        df_sdm['kabupaten_kota'].dropna().unique().tolist() +
-        df_psn['kabupaten_kota'].dropna().unique().tolist()
-    )))
-    list_kabupaten.insert(0, "Semua Kabupaten/Kota")
-    selected_kab = st.selectbox("Kabupaten / Kota", list_kabupaten)
-    
-    # Filter Kecamatan (Hanya muncul/relevan jika ada di df_elektronik yang memiliki kolom kecamatan)
-    if selected_kab != "Semua Kabupaten/Kota":
-        df_kec_pool = df_elektronik[df_elektronik['kabupaten_kota'] == selected_kab]
-        list_kecamatan = sorted(df_kec_pool['kecamatan'].dropna().unique().tolist())
-    else:
-        list_kecamatan = sorted(df_elektronik['kecamatan'].dropna().unique().tolist())
-        
-    list_kecamatan.insert(0, "Semua Kecamatan")
-    selected_kec = st.selectbox("Kecamatan", list_kecamatan)
-    
-    if st.button("🔄 Refresh Data", use_container_width=True):
-        st.cache_data.clear()  # Hapus cache Streamlit
-        st.rerun()
-    
-    st.header("🗂️ Menu Utama")
-    
-    # TAMBAHKAN key="menu_pilihan" AGAR PILIHAN TERSIMPAN DI SESSION STATE
-    menu_pilihan = st.radio(
-        "Pilih Halaman:",
-        [
-            "🏛️ Profil & Anggaran",
-            "🎯 PSN 2026",
-            "💼 Layanan Pertanahan",
-            "⚡ Data Elektronik",
-            "📌 Isu Strategis"
-        ],
-        key="🏛️ Profil & Anggaran"  # <--- Kunci utama agar menu tidak ter-reset
-    )
-    
-    st.markdown("---")
-    
-    # Kamus untuk mempersingkat nama kabupaten
-    KAB_MAP = {
-        'Banggai': 'BG', 'Banggai Kepulauan': 'BK', 'Banggai Laut': 'BL',
-        'Buol': 'BU', 'Donggala': 'DG', 'Parigi Moutong': 'PM',
-        'Poso': 'PS', 'Tojo Una-una': 'TU', 'Toli-toli': 'TL',
-        'Morowali': 'MW', 'Morowali Utara': 'MU', 'Palu': 'PL',
-        'Sigi': 'SG', 'Sulawesi Tengah': 'ST'
-    }
-    
-    # Kamus pembalik untuk mengubah kode singkatan kembali ke nama lengkap di hover
-    REVERSE_KAB_MAP = {v: k for k, v in KAB_MAP.items()}
-
-    # Fungsi pembantu untuk menyingkat nama kabupaten di DataFrame
-    def singkat_kab(df):
-        if not df.empty and 'kabupaten_kota' in df.columns:
-            df['kab_singkat'] = df['kabupaten_kota'].map(lambda x: KAB_MAP.get(x, x))
-        return df
-
-    # Terapkan singkatan ke dataframe rekap
-    df_sdm_singkat = singkat_kab(df_sdm.copy())
-    df_layanan_singkat = singkat_kab(df_layanan.copy())
-    df_elek_singkat = singkat_kab(df_elektronik.copy())
-
-    # ==========================================
-    # 1. GRAFIK: Distribusi Pegawai (Stacked Bar - Terurut)
-    # ==========================================
-    if not df_sdm_singkat.empty and 'kategori_asn' in df_sdm_singkat.columns:
-        df_sdm_rekap = df_sdm_singkat.groupby(['kab_singkat', 'kategori_asn']).size().reset_index(name='jumlah')
-        df_sdm_pivot = df_sdm_rekap.pivot(index='kab_singkat', columns='kategori_asn', values='jumlah').fillna(0).astype(int)
-        df_sdm_total = df_sdm_singkat.groupby('kab_singkat').size().reset_index(name='total_all')
-        df_sdm_rekap = df_sdm_rekap.merge(df_sdm_pivot, on='kab_singkat').merge(df_sdm_total, on='kab_singkat')
-        df_sdm_rekap = df_sdm_rekap.sort_values(by='total_all', ascending=False)
-        
-        # Tambahkan kolom nama lengkap untuk hover
-        df_sdm_rekap['kab_full'] = df_sdm_rekap['kab_singkat'].map(lambda x: REVERSE_KAB_MAP.get(x, x))
-        
-        hover_text = "<b>%{customdata[0]} | ASN %{customdata[1]} orang<br>"
-        custom_data_cols = ['kab_full', 'total_all']
-        for i, col in enumerate(df_sdm_pivot.columns):
-            hover_text += f"{col}: %{{customdata[{i+2}]}} orang<br>"
-            custom_data_cols.append(col)
-
-        fig_sdm = px.bar(
-            df_sdm_rekap, x='kab_singkat', y='jumlah', color='kategori_asn',
-            title="Distribusi Pegawai",
-            custom_data=df_sdm_rekap[custom_data_cols]
-        )
-        fig_sdm.update_traces(hovertemplate=hover_text + "<extra></extra>")
-        fig_sdm.update_layout(
-            showlegend=True, legend_title_text='', height=310,
-            xaxis_title="", yaxis_title="",
-            xaxis={'categoryorder':'total descending'},
-            margin=dict(l=10, r=10, t=35, b=10),
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-        )
-        st.plotly_chart(fig_sdm, use_container_width=True)
-
-
-    # ==========================================
-    # 2. GRAFIK BARU: % Realisasi Anggaran (GID 1168898330)
-    # ==========================================
-    if not df_sdm_singkat.empty and 'target_dipa' in df_sdm_singkat.columns and 'realisasi_dipa' in df_sdm_singkat.columns:
-        # Bersihkan nilai numerik
-        df_anggaran = df_sdm_singkat.copy()
-        
-        def clean_num_local(val):
-            if pd.isna(val): return 0.0
-            if isinstance(val, (int, float)): return float(val)
-            clean_str = str(val).replace('.', '').replace(',', '').replace('Rp', '').strip()
-            try: return float(clean_str)
-            except: return 0.0
-
-        df_anggaran['target_clean'] = df_anggaran['target_dipa'].apply(clean_num_local)
-        df_anggaran['realisasi_clean'] = df_anggaran['realisasi_dipa'].apply(clean_num_local)
-        
-        # Agregasi total per kabupaten
-        df_ang_rekap = df_anggaran.groupby('kab_singkat')[['target_clean', 'realisasi_clean']].sum().reset_index()
-        df_ang_rekap['persen_realisasi'] = (df_ang_rekap['realisasi_clean'] / df_ang_rekap['target_clean'].replace(0, 1)) * 100
-        
-        # Format teks Rupiah & Persen untuk hover
-        df_ang_rekap['target_fmt'] = df_ang_rekap['target_clean'].apply(lambda x: f"{x:,.0f}".replace(',', '.'))
-        df_ang_rekap['realisasi_fmt'] = df_ang_rekap['realisasi_clean'].apply(lambda x: f"{x:,.0f}".replace(',', '.'))
-        df_ang_rekap['persen_fmt'] = df_ang_rekap['persen_realisasi'].apply(lambda x: f"{x:.2f}".replace('.', ','))
-        
-        # Tambahkan kolom nama lengkap untuk hover
-        df_ang_rekap['kab_full'] = df_ang_rekap['kab_singkat'].map(lambda x: REVERSE_KAB_MAP.get(x, x))
-        
-        # Urutkan dari persentase realisasi tertinggi ke terendah
-        df_ang_rekap = df_ang_rekap.sort_values(by='persen_realisasi', ascending=False)
-
-        fig_anggaran = px.bar(
-            df_ang_rekap, x='kab_singkat', y='persen_realisasi',
-            title="% Realisasi Anggaran",
-            custom_data=df_ang_rekap[['kab_full', 'target_fmt', 'realisasi_fmt', 'persen_fmt']]
-        )
-        fig_anggaran.update_traces(
-            hovertemplate="<b>%{customdata[0]} %{customdata[3]}%</b><br>Target Rp %{customdata[1]}<br>Realisasi Rp %{customdata[2]}<br>",
-            marker_color='#17BECF'
-        )
-        fig_anggaran.update_layout(
-            showlegend=False, height=250,
-            xaxis_title="", yaxis_title="",
-            xaxis={'categoryorder':'total descending'},
-            margin=dict(l=10, r=10, t=35, b=10),
-            yaxis=dict(
-                gridcolor='#f2f2f2',
-                ticksuffix='%' # Menambahkan % pada sumbu-Y
-            )
-        )
-        st.plotly_chart(fig_anggaran, use_container_width=True)
-
-    # ==========================================
-    # 3. GRAFIK: Berkas Lewat SOP (Terurut)
-    # ==========================================
-    if not df_layanan_singkat.empty and 'nmr_berkas' in df_layanan_singkat.columns:
-        df_layanan_total = df_layanan_singkat.groupby('kab_singkat')['nmr_berkas'].count().reset_index(name='total_berkas')
-        df_layanan_total = df_layanan_total.sort_values(by='total_berkas', ascending=False)
-        
-        # Tambahkan kolom nama lengkap untuk hover
-        df_layanan_total['kab_full'] = df_layanan_total['kab_singkat'].map(lambda x: REVERSE_KAB_MAP.get(x, x))
-        
-        if 'posisi_berkas' in df_layanan_singkat.columns:
-            df_layanan_pos = df_layanan_singkat.groupby(['kab_singkat', 'posisi_berkas']).size().reset_index(name='jml_pos')
-            df_layanan_pivot = df_layanan_pos.pivot(index='kab_singkat', columns='posisi_berkas', values='jml_pos').fillna(0).astype(int)
-            df_layanan_total = df_layanan_total.merge(df_layanan_pivot, on='kab_singkat')
-            
-            hover_layanan = "<b>%{customdata[0]} %{y} berkas</b><br>--- Detail Posisi ---<br>"
-            custom_data_layanan = ['kab_full', 'total_berkas']
-            for i, col in enumerate(df_layanan_pivot.columns):
-                hover_layanan += f"{col}: %{{customdata[{i+2}]}}<br>"
-                custom_data_layanan.append(col)
-        else:
-            hover_layanan = "<b>Kab/Kota: %{x}</b><br>Total Berkas: %{y}<extra></extra>"
-            custom_data_layanan = ['kab_full', 'total_berkas']
-
-        fig_layanan = px.bar(
-            df_layanan_total, x='kab_singkat', y='total_berkas',
-            title="Berkas Tunggakan PDDM",
-            custom_data=df_layanan_total[custom_data_layanan] if custom_data_layanan else None
-        )
-        fig_layanan.update_traces(hovertemplate=hover_layanan + "<extra></extra>", marker_color='#EF553B')
-        fig_layanan.update_layout(
-            showlegend=False, height=250,
-            xaxis_title="", yaxis_title="",
-            xaxis={'categoryorder':'total descending'},
-            margin=dict(l=10, r=10, t=35, b=10)
-        )
-        st.plotly_chart(fig_layanan, use_container_width=True)
-
-    # ==========================================
-    # 4. GRAFIK: Persentase Prasertel (Sidebar - Mengambil Sumber dari jumlah_bt)
-    # ==========================================
-    col_bt = 'jumlah_bt' if 'jumlah_bt' in df_elek_singkat.columns else 'bt_valid'
-    
-    if not df_elek_singkat.empty and 'pra_sertel' in df_elek_singkat.columns and col_bt in df_elek_singkat.columns:
-        df_elek_rekap = df_elek_singkat.copy()
-        
-        # PARSER ABSOLUT: Mengonversi format "30.822" menjadi 30822 secara bulat tanpa desimal
-        def parse_sidebar_int(val):
-            if pd.isna(val) or val is None:
-                return 0
-            s = str(val).strip()
-            if not s or s.lower() in ['nan', 'none', 'null', '']:
-                return 0
-            
-            # Jika tipe data awal terlanjur dibaca float oleh pandas
-            if isinstance(val, float):
-                s_float = f"{val:.3f}"
-                s = s_float.replace('.', '')
-            else:
-                s = s.replace('.', '').replace(',', '').replace('Rp', '').replace('%', '').strip()
-            
-            try:
-                return int(s)
-            except ValueError:
-                return 0
-
-        # Terapkan konversi murni ke kolom pra_sertel dan jumlah_bt
-        df_elek_rekap['pra_sertel_clean'] = df_elek_rekap['pra_sertel'].apply(parse_sidebar_int)
-        df_elek_rekap['bt_clean']         = df_elek_rekap[col_bt].apply(parse_sidebar_int)
-
-        # Agregasi total per kabupaten/kota
-        df_elek_grp = df_elek_rekap.groupby('kab_singkat')[['pra_sertel_clean', 'bt_clean']].sum().reset_index()
-
-        # Kalkulasi persentase (%): (Pra-SERTEL / Jumlah BT) * 100
-        df_elek_grp['Persentase'] = (df_elek_grp['pra_sertel_clean'] / df_elek_grp['bt_clean'].replace(0, 1)) * 100.0
-        df_elek_grp = df_elek_grp.sort_values(by='Persentase', ascending=False)
-
-        # Format string Indonesia dengan titik pemisah ribuan murni (tanpa desimal)
-        df_elek_grp['pra_sertel_fmt'] = df_elek_grp['pra_sertel_clean'].apply(lambda x: f"{x:,.0f}".replace(',', '.'))
-        df_elek_grp['bt_fmt']         = df_elek_grp['bt_clean'].apply(lambda x: f"{x:,.0f}".replace(',', '.'))
-
-        # Tambahkan kolom nama lengkap untuk hover
-        df_elek_grp['kab_full'] = df_elek_grp['kab_singkat'].map(lambda x: REVERSE_KAB_MAP.get(x, x))
-
-        # Render Bar Chart Plotly Sidebar
-        fig_elek = px.bar(
-            df_elek_grp, x='kab_singkat', y='Persentase',
-            title="% Prasertel",
-            custom_data=df_elek_grp[['kab_full', 'pra_sertel_fmt', 'bt_fmt']]
-        )
-        
-        # Hover format khusus string murni Indonesia dengan rujukan Jumlah BT
-        fig_elek.update_traces(
-            hovertemplate="<b>%{customdata[0]} | %{y:.2f}%</b><br>Jumlah Prasertel: <b>%{customdata[1]}</b><br>Jumlah BT: <b>%{customdata[2]}</b><extra></extra>",
-            marker_color='#00CC96'
-        )
-        
-        fig_elek.update_layout(
-            showlegend=False, 
-            height=250,
-            xaxis_title="", 
-            yaxis_title="",
-            xaxis={'categoryorder': 'total descending'},
-            paper_bgcolor='rgba(0,0,0,0)',
-            plot_bgcolor='rgba(0,0,0,0)',
-            margin=dict(l=10, r=10, t=35, b=10),
-            separators=',.', # Pemisah ribuan Indonesia
-            yaxis=dict(
-                gridcolor='#f2f2f2',
-                ticksuffix='%' # Menambahkan % pada sumbu-Y
-            )
-        )
-        st.plotly_chart(fig_elek, use_container_width=True)
-
-# -----------------------------------------------------------------------------
-# 4. PROSES FILTERING DATA
-# -----------------------------------------------------------------------------
-# Salinan dataframe untuk difilter berdasarkan sidebar
-df_f_layanan = df_layanan.copy() if 'df_layanan' in locals() and df_layanan is not None else pd.DataFrame()
-df_f_elektronik = df_elektronik.copy() if 'df_elektronik' in locals() and df_elektronik is not None else pd.DataFrame()
-df_f_sdm = df_sdm.copy() if 'df_sdm' in locals() and df_sdm is not None else pd.DataFrame()
-df_f_psn = df_psn.copy() if 'df_psn' in locals() and df_psn is not None else pd.DataFrame()
-
-# BUAT DENGAN AMAN df_f_progress DARI df_progress (GID 386436131)
-if 'df_progress' in locals() and df_progress is not None and not df_progress.empty:
-    df_f_progress = df_progress.copy()
-elif 'df_progress_raw' in locals() and df_progress_raw is not None and not df_progress_raw.empty:
-    df_f_progress = df_progress_raw.copy()
-else:
-    df_f_progress = pd.DataFrame()
-
-# Filter berdasarkan Kabupaten/Kota
-if selected_kab != "Semua Kabupaten/Kota":
-    if not df_f_layanan.empty and 'kabupaten_kota' in df_f_layanan.columns:
-        df_f_layanan = df_f_layanan[df_f_layanan['kabupaten_kota'] == selected_kab]
-    if not df_f_elektronik.empty and 'kabupaten_kota' in df_f_elektronik.columns:
-        df_f_elektronik = df_f_elektronik[df_f_elektronik['kabupaten_kota'] == selected_kab]
-    if not df_f_sdm.empty and 'kabupaten_kota' in df_f_sdm.columns:
-        df_f_sdm = df_f_sdm[df_f_sdm['kabupaten_kota'] == selected_kab]
-    if not df_f_psn.empty and 'kabupaten_kota' in df_f_psn.columns:
-        df_f_psn = df_f_psn[df_f_psn['kabupaten_kota'] == selected_kab]
-    if not df_f_progress.empty and 'kabupaten_kota' in df_f_progress.columns:
-        df_f_progress = df_f_progress[df_f_progress['kabupaten_kota'] == selected_kab]
-
-# Filter berdasarkan Kecamatan
-if selected_kec != "Semua Kecamatan":
-    if not df_f_elektronik.empty and 'kecamatan' in df_f_elektronik.columns:
-        df_f_elektronik = df_f_elektronik[df_f_elektronik['kecamatan'] == selected_kec]
-    if not df_f_progress.empty and 'kecamatan' in df_f_progress.columns:
-        df_f_progress = df_f_progress[df_f_progress['kecamatan'] == selected_kec]
-
 def render_isu_strategis(df_isu):
-    st.title("✍️ Diskusi Isu Strategis")
-    
-    # ==========================================
-    # 1. FORM INPUT ISU STRATEGIS BARU
-    # ==========================================
+    st.title("✍️ Isu Strategis & Perkembangan Terakhir")
+    st.caption("Wadah diskusi & pemantauan isu strategis pertanahan se-Sulawesi Tengah.")
+
     with st.expander("➕ **Tambah Isu Strategis Baru**", expanded=False):
         with st.form("form_isu_baru", clear_on_submit=True):
             col_f1, col_f2 = st.columns(2)
-            
             list_kab_st = [
                 "Sulawesi Tengah (Provinsi)", "Banggai", "Banggai Kepulauan", "Banggai Laut",
                 "Buol", "Donggala", "Kota Palu", "Morowali", "Morowali Utara",
@@ -2244,184 +895,105 @@ def render_isu_strategis(df_isu):
             list_unit = [
                 "Kepala Kantor", "Tata Usaha", "Survei dan Pemetaan",
                 "Penetapan Hak dan Pendaftaran", "Penataan dan Pemberdayaan",
-                "Pengadaan Tanah dan Pengembangan", "Pengendalian dan Penanganan Sengketa", "Fungsional Ahli Madya"
+                "Pengadaan Tanah dan Pengembangan", "Pengendalian dan Penanganan Sengketa"
             ]
-
             with col_f1:
                 input_kab = st.selectbox("Kabupaten / Kota / Wilayah", list_kab_st)
                 input_pembuat = st.text_input("Nama & Jabatan Pembuat Isu", placeholder="Contoh: Ahmad, S.Si.T. (Kasi PHPT)")
-
             with col_f2:
                 input_unit = st.selectbox("Unit Working Group / Seksi", list_unit)
 
             input_isu = st.text_area("Deskripsi Isu Strategis (Maks. 500 kata)", height=120)
-            
             submit_isu = st.form_submit_button("🚀 Kirim Isu Strategis")
 
             if submit_isu:
-                # Validasi jumlah kata (Maksimal 500 kata)
                 word_count = len(input_isu.strip().split())
-                if not input_pembuat.strip():
-                    st.error("⚠️ Nama & Jabatan Pembuat wajib diisi!")
-                elif not input_isu.strip():
-                    st.error("⚠️ Teks Isu Strategis tidak boleh kosong!")
-                elif word_count > 500:
-                    st.error(f"⚠️ Isu Strategis melebihi batas 500 kata! (Saat ini: {word_count} kata)")
+                if not input_pembuat.strip(): st.error("⚠️ Nama & Jabatan Pembuat wajib diisi!")
+                elif not input_isu.strip(): st.error("⚠️ Teks Isu Strategis tidak boleh kosong!")
+                elif word_count > 500: st.error(f"⚠️ Isu Strategis melebihi batas 500 kata! ({word_count} kata)")
                 else:
-                    # Persiapan Data Kirim
-                    # Mengunci waktu ke WITA (Asia/Makassar - GMT+8)
+                    # Kunci Waktu ke WITA (GMT+8)
                     now_str = datetime.now(ZoneInfo("Asia/Makassar")).strftime("%Y-%m-%d %H:%M:%S")
                     payload = {
-                        "gid": "1699480367",
-                        "kabupaten_kota": input_kab,
-                        "unit": input_unit,
-                        "tgl_jam": now_str,
-                        "isu_strategis": input_isu.strip(),
-                        "pembahasan": "-", # Pembahasan awal kosong
-                        "pembuat": input_pembuat.strip()
+                        "gid": "1699480367", "kabupaten_kota": input_kab, "unit": input_unit,
+                        "tgl_jam": now_str, "isu_strategis": input_isu.strip(),
+                        "pembahasan": "-", "pembuat": input_pembuat.strip()
                     }
-                    
                     try:
-                        # Kirim data ke Google Sheets via Apps Script Web App
-                        resp = requests.post(GSHEET_WEBAPP_URL, json=payload)
+                        requests.post(GSHEET_WEBAPP_URL, json=payload)
                         st.cache_data.clear()
                         st.success("✅ Isu Strategis berhasil ditambahkan!")
-                        st.rerun() # Refresh tampilan Streamlit
+                        st.rerun()
                     except Exception as e:
                         st.error(f"❌ Gagal mengirim data ke Google Sheet: {e}")
 
     st.markdown("---")
 
-    # ==========================================
-    # 2. TAMPILAN THREAD DISKUSI ISU STRATEGIS
-    # ==========================================
     if df_isu is None or df_isu.empty:
         st.info("ℹ️ Belum ada isu strategis yang tercatat.")
         return
 
     df_display = df_isu.copy()
-    
-    # Bersihkan nama kolom
-    df_display.columns = [str(c).strip().lower() for c in df_display.columns]
+    df_display.columns = [str(c).strip().lower().replace(' ', '_') for c in df_display.columns]
 
-    # Konversi tanggal & urutkan dari tgl_jam TERBARU ke TERLAMA
     if 'tgl_jam' in df_display.columns:
         df_display['tgl_dt'] = pd.to_datetime(df_display['tgl_jam'], errors='coerce')
         df_display = df_display.sort_values(by='tgl_dt', ascending=False)
 
-    # Filter Wilayah & Unit
     col_f1, col_f2 = st.columns(2)
-    with col_f1:
-        f_kab = st.selectbox("🔍 Filter Wilayah", ["Semua Wilayah"] + list_kab_st)
-    with col_f2:
-        f_unit = st.selectbox("🔍 Filter Unit", ["Semua Unit"] + list_unit)
+    with col_f1: f_kab = st.selectbox("🔍 Filter Wilayah", ["Semua Wilayah"] + list_kab_st)
+    with col_f2: f_unit = st.selectbox("🔍 Filter Unit", ["Semua Unit"] + list_unit)
 
-    if f_kab != "Semua Wilayah" and 'kabupaten_kota' in df_display.columns:
-        df_display = df_display[df_display['kabupaten_kota'] == f_kab]
-    if f_unit != "Semua Unit" and 'unit' in df_display.columns:
-        df_display = df_display[df_display['unit'] == f_unit]
+    if f_kab != "Semua Wilayah" and 'kabupaten_kota' in df_display.columns: df_display = df_display[df_display['kabupaten_kota'] == f_kab]
+    if f_unit != "Semua Unit" and 'unit' in df_display.columns: df_display = df_display[df_display['unit'] == f_unit]
 
-    # Grouping berdasarkan Isu Strategis
     grouped_isu = df_display.groupby('isu_strategis', sort=False)
 
     for isu_text, group in grouped_isu:
-        if not isu_text or str(isu_text).strip() in ['-', 'nan', '']:
-            continue
-        
-        # -----------------------------------------------------------------
-        # 1. CARI BARIS INDUK (PEMBUAT ISU STRATEGIS PERTAMA / TANGGAL TERLAMA)
-        # -----------------------------------------------------------------
-        # Coba cari baris di mana pembahasan kosong / '-'
-        baris_induk = group[group['pembahasan'].astype(str).str.strip().isin(['-', '', 'nan'])]
-        
-        if not baris_induk.empty:
-            # Jika ada baris pembuatan isu murni, urutkan dan ambil yang paling awal/lama
-            if 'tgl_dt' in baris_induk.columns:
-                row_utama = baris_induk.sort_values(by='tgl_dt', ascending=True).iloc[0]
-            else:
-                row_utama = baris_induk.iloc[-1]  # Baris paling bawah/awal
-        else:
-            # Fallback: Ambil baris dengan tgl_dt paling awal di dalam grup ini
-            if 'tgl_dt' in group.columns:
-                row_utama = group.sort_values(by='tgl_dt', ascending=True).iloc[0]
-            else:
-                row_utama = group.iloc[0]
+        if not isu_text or str(isu_text).strip() in ['-', 'nan', '']: continue
 
-        # Ekstraksi informasi induk (pasti menggunakan jam asli saat isu dibuat)
+        baris_induk = group[group['pembahasan'].astype(str).str.strip().isin(['-', '', 'nan'])]
+        if not baris_induk.empty:
+            row_utama = baris_induk.sort_values(by='tgl_dt', ascending=True).iloc[0] if 'tgl_dt' in baris_induk.columns else baris_induk.iloc[-1]
+        else:
+            row_utama = group.sort_values(by='tgl_dt', ascending=True).iloc[0] if 'tgl_dt' in group.columns else group.iloc[0]
+
         kab_val = row_utama.get('kabupaten_kota', '-')
         unit_val = row_utama.get('unit', '-')
         tgl_val = row_utama.get('tgl_jam', '-')
         pembuat_isu = row_utama.get('pembuat', 'Anonim')
 
-        # Tampilan Box Kartu Isu Utama
         card_html = f"""
         <style>
-        .isu-box {{
-            background-color: #F8FAFC;
-            border-left: 5px solid #1E40AF;
-            border-radius: 8px;
-            padding: 16px;
-            margin-bottom: 12px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }}
-        .isu-header {{
-            font-size: 0.82rem;
-            color: #64748B;
-            margin-bottom: 8px;
-        }}
-        .pembuat-isu {{
-            color: #1E40AF;
-            font-weight: bold;
-        }}
-        .pembuat-bahas {{
-            color: #D97706;
-            font-weight: bold;
-        }}
-        .isu-body {{
-            font-size: 0.95rem;
-            color: #1E293B;
-            line-height: 1.5;
-            white-space: pre-wrap;
-        }}
+        .isu-box {{ background-color: #F8FAFC; border-left: 5px solid #1E40AF; border-radius: 8px; padding: 16px; margin-bottom: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }}
+        .isu-header {{ font-size: 0.82rem; color: #64748B; margin-bottom: 8px; }}
+        .pembuat-isu {{ color: #1E40AF; font-weight: bold; }}
+        .pembuat-bahas {{ color: #D97706; font-weight: bold; }}
+        .isu-body {{ font-size: 0.95rem; color: #1E293B; line-height: 1.5; white-space: pre-wrap; }}
         </style>
         <div class="isu-box">
-            <div class="isu-header">
-                📍 <b>{kab_val}</b> | 🏢 {unit_val} | 🕒 {tgl_val} <br>
-                Oleh: <span class="pembuat-isu">{pembuat_isu}</span>
-            </div>
+            <div class="isu-header">📍 <b>{kab_val}</b> | 🏢 {unit_val} | 🕒 {tgl_val}<br>Oleh: <span class="pembuat-isu">{pembuat_isu}</span></div>
             <div class="isu-body"><b>ISU STRATEGIS:</b><br>{isu_text}</div>
         </div>
         """
         st.markdown(card_html, unsafe_allow_html=True)
 
-        # -----------------------------------------------------------------
-        # 2. RENDER BARIS TANGGAPAN / PEMBAHASAN (URUT DARI TANGGAL TERLAMA -> TERBARU)
-        # -----------------------------------------------------------------
-        group_tanggapan = group.copy()
-        if 'tgl_dt' in group_tanggapan.columns:
-            group_tanggapan = group_tanggapan.sort_values(by='tgl_dt', ascending=True)
-
+        group_tanggapan = group.sort_values(by='tgl_dt', ascending=True) if 'tgl_dt' in group.columns else group
         for idx, row in group_tanggapan.iterrows():
             pembahasan_text = str(row.get('pembahasan', '')).strip()
             pembuat_bahas = row.get('pembuat', 'Anonim')
             tgl_bahas = row.get('tgl_jam', '-')
 
-            # Hanya tampilkan jika baris tersebut memiliki isi pembahasan murni
             if pembahasan_text and pembahasan_text not in ['-', 'nan', '']:
                 chat_html = f"""
                 <div style="margin-left: 30px; background-color: #FFFBEB; border-left: 3px solid #D97706; padding: 10px 14px; border-radius: 6px; margin-bottom: 8px;">
-                    <div style="font-size: 0.8rem; color: #78350F;">
-                        💬 Ditanggapi oleh: <span class="pembuat-bahas">{pembuat_bahas}</span> ({tgl_bahas})
-                    </div>
-                    <div style="font-size: 0.9rem; color: #451A03; margin-top: 4px;">
-                        {pembahasan_text}
-                    </div>
+                    <div style="font-size: 0.8rem; color: #78350F;">💬 Ditanggapi oleh: <span class="pembuat-bahas">{pembuat_bahas}</span> ({tgl_bahas})</div>
+                    <div style="font-size: 0.9rem; color: #451A03; margin-top: 4px;">{pembahasan_text}</div>
                 </div>
                 """
                 st.markdown(chat_html, unsafe_allow_html=True)
 
-        # Form Tambah Pembahasan / Tanggapan Baru
-        with st.expander(f"💬 Tambah Tanggapan / Pembahasan Isu Ini", expanded=False):
+        with st.expander("💬 Tambah Tanggapan / Pembahasan Isu Ini", expanded=False):
             with st.form(f"form_reply_{hash(isu_text)}", clear_on_submit=True):
                 reply_pembuat = st.text_input("Nama & Jabatan Penanggap", key=f"p_{hash(isu_text)}")
                 reply_text = st.text_area("Tanggapan / Perkembangan Terakhir (Maks. 300 kata)", height=80, key=f"t_{hash(isu_text)}")
@@ -2429,25 +1001,18 @@ def render_isu_strategis(df_isu):
 
                 if submit_reply:
                     word_cnt_reply = len(reply_text.strip().split())
-                    if not reply_pembuat.strip():
-                        st.error("⚠️ Nama & Jabatan Penanggap wajib diisi!")
-                    elif not reply_text.strip():
-                        st.error("⚠️ Teks tanggapan tidak boleh kosong!")
-                    elif word_cnt_reply > 300:
-                        st.error(f"⚠️ Tanggapan melebihi batas 300 kata! ({word_cnt_reply} kata)")
+                    if not reply_pembuat.strip(): st.error("⚠️ Nama & Jabatan Penanggap wajib diisi!")
+                    elif not reply_text.strip(): st.error("⚠️ Teks tanggapan tidak boleh kosong!")
+                    elif word_cnt_reply > 300: st.error(f"⚠️ Tanggapan melebihi batas 300 kata! ({word_cnt_reply} kata)")
                     else:
                         now_str = datetime.now(ZoneInfo("Asia/Makassar")).strftime("%Y-%m-%d %H:%M:%S")
                         payload_reply = {
-                            "gid": "1699480367",
-                            "kabupaten_kota": kab_val,
-                            "unit": unit_val,
-                            "tgl_jam": now_str,
-                            "isu_strategis": isu_text, # Menautkan ke isu yang sama
-                            "pembahasan": reply_text.strip(),
-                            "pembuat": reply_pembuat.strip()
+                            "gid": "1699480367", "kabupaten_kota": kab_val, "unit": unit_val,
+                            "tgl_jam": now_str, "isu_strategis": isu_text,
+                            "pembahasan": reply_text.strip(), "pembuat": reply_pembuat.strip()
                         }
                         try:
-                            resp = requests.post(GSHEET_WEBAPP_URL, json=payload_reply)
+                            requests.post(GSHEET_WEBAPP_URL, json=payload_reply)
                             st.cache_data.clear()
                             st.success("✅ Tanggapan berhasil disimpan!")
                             st.rerun()
@@ -2456,36 +1021,220 @@ def render_isu_strategis(df_isu):
         st.markdown("<br>", unsafe_allow_html=True)
 
 # -----------------------------------------------------------------------------
-# 5. ROUTING HALAMAN UTAMA
+# 4. FUNGSI AUTENTIKASI (LOGIN & LOGOUT)
 # -----------------------------------------------------------------------------
-if menu_pilihan == "🏛️ Profil & Anggaran":    
-    render_profil_anggaran(df_f_sdm)
-elif menu_pilihan == "🎯 PSN 2026":
-    render_psn_2026(df_f_psn)
-elif menu_pilihan == "💼 Layanan Pertanahan":
-    render_layanan_pertanahan(df_f_layanan)
-elif menu_pilihan == "⚡ Data Elektronik":
-    # Ambil dataframe peringkat (GID 880542789) dengan aman
-    df_peringkat_data = pd.DataFrame()
-    if 'df_peringkat' in locals() and df_peringkat is not None:
-        df_peringkat_data = df_peringkat
-    elif 'df_peringkat_raw' in locals() and df_peringkat_raw is not None:
-        df_peringkat_data = df_peringkat_raw
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+    st.session_state.user_info = None
 
-    render_pertanahan_elektronik(
-        df_f_elektronik, 
-        df_f_progress, 
-        df_peringkat_data,
-        selected_kab=selected_kab, 
-        selected_kec=selected_kec
-    )
-elif menu_pilihan == "📌 Isu Strategis":
-    # Menyiapkan dataframe isu dengan aman
-    df_isu_data = pd.DataFrame()
-    if 'df_isu' in locals() and df_isu is not None:
-        df_isu_data = df_isu
-    elif 'df_isu_raw' in locals() and df_isu_raw is not None:
-        df_isu_data = df_isu_raw
+def login():
+    st.markdown("<h2 style='text-align: center;'>🔐 Login Dashboard Pertanahan</h2>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #666;'>Masukkan kode akses resmi untuk melanjutkan</p>", unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        with st.form("form_login"):
+            kode_input = st.text_input("Kode Akses / PIN", type="password", placeholder="Masukkan kode login Anda...").strip()
+            submit = st.form_submit_button("🔑 Masuk Dashboard", use_container_width=True)
+            
+            if submit:
+                if kode_input in USERS_DB:
+                    user_data = USERS_DB[kode_input]
+                    st.session_state.logged_in = True
+                    st.session_state.user_info = user_data
+                    st.success(f"Selamat datang, {user_data['nama']}!")
+                    st.rerun()
+                else:
+                    st.error("❌ Kode akses tidak valid! Silakan hubungi Administrator.")
 
-    # Panggil fungsi render isu strategis
-    render_isu_strategis(df_isu_data)
+def logout():
+    st.session_state.logged_in = False
+    st.session_state.user_info = None
+    st.rerun()
+
+# -----------------------------------------------------------------------------
+# 5. SIDEBAR NAVIGATION & ROUTING UTAMA (EKSEKUSI DI AKHIR)
+# -----------------------------------------------------------------------------
+if not st.session_state.logged_in:
+    login()
+else:
+    user = st.session_state.user_info
+    menu_diizinkan = user.get("akses_menu", [])
+
+    # SIDEBAR ATAS: PROFIL USER & MENU DAHULU
+    st.sidebar.title("📌 Navigation")
+    st.sidebar.markdown(f"**Pengguna:** {user['nama']}")
+    st.sidebar.caption(f"**Role:** {user['role']}")
+    
+    if st.sidebar.button("🚪 Keluar (Logout)", use_container_width=True):
+        logout()
+        
+    st.sidebar.markdown("---")
+
+    if not menu_diizinkan:
+        st.sidebar.warning("⚠️ Akun Anda belum diberikan akses ke menu mana pun. Hubungi Admin.")
+    else:
+        menu_pilihan = st.sidebar.radio(
+            "Pilih Menu Dashboard:",
+            menu_diizinkan,
+            key="dashboard_menu_radio"
+        )
+
+        st.sidebar.markdown("---")
+
+        # FILTER KABUPATEN & KECAMATAN DI SIDEBAR
+        list_kabupaten = sorted(list(set(
+            df_layanan['kabupaten_kota'].dropna().unique().tolist() +
+            df_elektronik['kabupaten_kota'].dropna().unique().tolist() +
+            df_sdm['kabupaten_kota'].dropna().unique().tolist() +
+            df_psn['kabupaten_kota'].dropna().unique().tolist()
+        )))
+        list_kabupaten.insert(0, "Semua Kabupaten/Kota")
+        selected_kab = st.sidebar.selectbox("Kabupaten / Kota", list_kabupaten)
+        
+        if selected_kab != "Semua Kabupaten/Kota":
+            df_kec_pool = df_elektronik[df_elektronik['kabupaten_kota'] == selected_kab]
+            list_kecamatan = sorted(df_kec_pool['kecamatan'].dropna().unique().tolist())
+        else:
+            list_kecamatan = sorted(df_elektronik['kecamatan'].dropna().unique().tolist())
+            
+        list_kecamatan.insert(0, "Semua Kecamatan")
+        selected_kec = st.sidebar.selectbox("Kecamatan", list_kecamatan)
+        
+        if st.sidebar.button("🔄 Refresh Data", use_container_width=True):
+            st.cache_data.clear()
+            st.rerun()
+
+        st.sidebar.markdown("---")
+
+        # FILTERING DATASET SESUAI KAB/KEC
+        df_f_sdm = df_sdm.copy()
+        df_f_psn = df_psn.copy()
+        df_f_layanan = df_layanan.copy()
+        df_f_elektronik = df_elektronik.copy()
+
+        if selected_kab != "Semua Kabupaten/Kota":
+            df_f_sdm = df_f_sdm[df_f_sdm['kabupaten_kota'] == selected_kab]
+            df_f_psn = df_f_psn[df_f_psn['kabupaten_kota'] == selected_kab]
+            df_f_layanan = df_f_layanan[df_f_layanan['kabupaten_kota'] == selected_kab]
+            df_f_elektronik = df_f_elektronik[df_f_elektronik['kabupaten_kota'] == selected_kab]
+
+        if selected_kec != "Semua Kecamatan" and 'kecamatan' in df_f_elektronik.columns:
+            df_f_elektronik = df_f_elektronik[df_f_elektronik['kecamatan'] == selected_kec]
+
+        globals()['df_f_elektronik'] = df_f_elektronik
+
+        # ROUTING HALAMAN UTAMA
+        if menu_pilihan == "🏛️ Profil & Anggaran":
+            render_profil_anggaran(df_f_sdm)
+
+        elif menu_pilihan == "🎯 PSN 2026":
+            render_psn_2026(df_f_psn)
+
+        elif menu_pilihan == "💼 Layanan Pertanahan":
+            render_layanan_pertanahan(df_f_layanan)
+
+        elif menu_pilihan == "⚡ Data Elektronik":
+            render_pertanahan_elektronik(
+                df_f_elektronik, 
+                df_progress_raw, 
+                df_peringkat_raw,
+                selected_kab=selected_kab, 
+                selected_kec=selected_kec
+            )
+
+        elif menu_pilihan == "✍️ Isu Strategis":
+            render_isu_strategis(df_isu_raw)
+
+        # SIDEBAR BAWAH: RENDER GRAFIK REKAPITULASI (AKHIR SIDEBAR)
+        st.sidebar.markdown("---")
+        KAB_MAP = {
+            'Banggai': 'BG', 'Banggai Kepulauan': 'BK', 'Banggai Laut': 'BL',
+            'Buol': 'BU', 'Donggala': 'DG', 'Parigi Moutong': 'PM',
+            'Poso': 'PS', 'Tojo Una-una': 'TU', 'Toli-toli': 'TL',
+            'Morowali': 'MW', 'Morowali Utara': 'MU', 'Palu': 'PL',
+            'Sigi': 'SG', 'Sulawesi Tengah': 'ST'
+        }
+        REVERSE_KAB_MAP = {v: k for k, v in KAB_MAP.items()}
+
+        def singkat_kab(df_src):
+            if not df_src.empty and 'kabupaten_kota' in df_src.columns:
+                df_src['kab_singkat'] = df_src['kabupaten_kota'].map(lambda x: KAB_MAP.get(x, x))
+            return df_src
+
+        df_sdm_singkat = singkat_kab(df_sdm.copy())
+        df_layanan_singkat = singkat_kab(df_layanan.copy())
+        df_elek_singkat = singkat_kab(df_elektronik.copy())
+
+        # 1. GRAFIK Pegawai
+        if not df_sdm_singkat.empty and 'kategori_asn' in df_sdm_singkat.columns:
+            df_sdm_rekap = df_sdm_singkat.groupby(['kab_singkat', 'kategori_asn']).size().reset_index(name='jumlah')
+            df_sdm_pivot = df_sdm_rekap.pivot(index='kab_singkat', columns='kategori_asn', values='jumlah').fillna(0).astype(int)
+            df_sdm_total = df_sdm_singkat.groupby('kab_singkat').size().reset_index(name='total_all')
+            df_sdm_rekap = df_sdm_rekap.merge(df_sdm_pivot, on='kab_singkat').merge(df_sdm_total, on='kab_singkat').sort_values(by='total_all', ascending=False)
+            df_sdm_rekap['kab_full'] = df_sdm_rekap['kab_singkat'].map(lambda x: REVERSE_KAB_MAP.get(x, x))
+            
+            fig_sdm = px.bar(df_sdm_rekap, x='kab_singkat', y='jumlah', color='kategori_asn', title="Distribusi Pegawai")
+            fig_sdm.update_layout(showlegend=True, legend_title_text='', height=280, xaxis_title="", yaxis_title="", margin=dict(l=10, r=10, t=35, b=10))
+            st.sidebar.plotly_chart(fig_sdm, use_container_width=True)
+
+        # 2. GRAFIK Anggaran
+        if not df_sdm_singkat.empty and 'target_dipa' in df_sdm_singkat.columns and 'realisasi_dipa' in df_sdm_singkat.columns:
+            df_anggaran = df_sdm_singkat.copy()
+            df_anggaran['target_clean'] = df_anggaran['target_dipa'].apply(lambda v: float(str(v).replace('.', '').replace(',', '').replace('Rp', '').strip()) if pd.notna(v) and str(v).replace('.', '').replace(',', '').replace('Rp', '').strip().replace('.','').isdigit() else 0.0)
+            df_anggaran['realisasi_clean'] = df_anggaran['realisasi_dipa'].apply(lambda v: float(str(v).replace('.', '').replace(',', '').replace('Rp', '').strip()) if pd.notna(v) and str(v).replace('.', '').replace(',', '').replace('Rp', '').strip().replace('.','').isdigit() else 0.0)
+            
+            df_ang_rekap = df_anggaran.groupby('kab_singkat')[['target_clean', 'realisasi_clean']].sum().reset_index()
+            df_ang_rekap['persen_realisasi'] = (df_ang_rekap['realisasi_clean'] / df_ang_rekap['target_clean'].replace(0, 1)) * 100
+            df_ang_rekap = df_ang_rekap.sort_values(by='persen_realisasi', ascending=False)
+            
+            fig_anggaran = px.bar(df_ang_rekap, x='kab_singkat', y='persen_realisasi', title="% Realisasi Anggaran")
+            fig_anggaran.update_traces(marker_color='#17BECF')
+            fig_anggaran.update_layout(showlegend=False, height=250, xaxis_title="", yaxis_title="", margin=dict(l=10, r=10, t=35, b=10), yaxis=dict(gridcolor='#f2f2f2', ticksuffix='%'))
+            st.sidebar.plotly_chart(fig_anggaran, use_container_width=True)
+
+        # 3. GRAFIK Berkas Tunggakan PDDM
+        if not df_layanan_singkat.empty and 'nmr_berkas' in df_layanan_singkat.columns:
+            df_layanan_total = df_layanan_singkat.groupby('kab_singkat')['nmr_berkas'].count().reset_index(name='total_berkas').sort_values(by='total_berkas', ascending=False)
+            fig_layanan = px.bar(df_layanan_total, x='kab_singkat', y='total_berkas', title="Berkas Tunggakan PDDM")
+            fig_layanan.update_traces(marker_color='#EF553B')
+            fig_layanan.update_layout(showlegend=False, height=250, xaxis_title="", yaxis_title="", margin=dict(l=10, r=10, t=35, b=10))
+            st.sidebar.plotly_chart(fig_layanan, use_container_width=True)
+
+        # 4. GRAFIK % Prasertel (Dari jumlah_bt)
+        col_bt = 'jumlah_bt' if 'jumlah_bt' in df_elek_singkat.columns else 'bt_valid'
+        if not df_elek_singkat.empty and 'pra_sertel' in df_elek_singkat.columns and col_bt in df_elek_singkat.columns:
+            df_elek_rekap = df_elek_singkat.copy()
+            def parse_sidebar_int(val):
+                if pd.isna(val) or val is None: return 0
+                s = str(val).strip()
+                if not s or s.lower() in ['nan', 'none', 'null', '']: return 0
+                s = f"{val:.3f}".replace('.', '') if isinstance(val, float) else s.replace('.', '').replace(',', '').replace('Rp', '').replace('%', '').strip()
+                try: return int(s)
+                except ValueError: return 0
+
+            df_elek_rekap['pra_sertel_clean'] = df_elek_rekap['pra_sertel'].apply(parse_sidebar_int)
+            df_elek_rekap['bt_clean']         = df_elek_rekap[col_bt].apply(parse_sidebar_int)
+
+            df_elek_grp = df_elek_rekap.groupby('kab_singkat')[['pra_sertel_clean', 'bt_clean']].sum().reset_index()
+            df_elek_grp['Persentase'] = (df_elek_grp['pra_sertel_clean'] / df_elek_grp['bt_clean'].replace(0, 1)) * 100.0
+            df_elek_grp = df_elek_grp.sort_values(by='Persentase', ascending=False)
+
+            df_elek_grp['pra_sertel_fmt'] = df_elek_grp['pra_sertel_clean'].apply(lambda x: f"{x:,.0f}".replace(',', '.'))
+            df_elek_grp['bt_fmt']         = df_elek_grp['bt_clean'].apply(lambda x: f"{x:,.0f}".replace(',', '.'))
+            df_elek_grp['kab_full']       = df_elek_grp['kab_singkat'].map(lambda x: REVERSE_KAB_MAP.get(x, x))
+
+            fig_elek = px.bar(
+                df_elek_grp, x='kab_singkat', y='Persentase',
+                title="% Prasertel", custom_data=df_elek_grp[['kab_full', 'pra_sertel_fmt', 'bt_fmt']]
+            )
+            fig_elek.update_traces(
+                hovertemplate="<b>%{customdata[0]} | %{y:.2f}%</b><br>Jumlah Prasertel: <b>%{customdata[1]}</b><br>Jumlah BT: <b>%{customdata[2]}</b><extra></extra>",
+                marker_color='#00CC96'
+            )
+            fig_elek.update_layout(
+                showlegend=False, height=250, xaxis_title="", yaxis_title="",
+                xaxis={'categoryorder': 'total descending'}, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+                margin=dict(l=10, r=10, t=35, b=10), separators=',.', yaxis=dict(gridcolor='#f2f2f2', ticksuffix='%')
+            )
+            st.sidebar.plotly_chart(fig_elek, use_container_width=True)
