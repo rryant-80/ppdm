@@ -1183,7 +1183,11 @@ else:
             df_sdm_total = df_sdm_singkat.groupby('kab_singkat').size().reset_index(name='total_all')
             df_sdm_rekap = df_sdm_rekap.merge(df_sdm_pivot, on='kab_singkat').merge(df_sdm_total, on='kab_singkat').sort_values(by='total_all', ascending=False)
             df_sdm_rekap['kab_full'] = df_sdm_rekap['kab_singkat'].map(lambda x: REVERSE_KAB_MAP.get(x, x))
-            
+            hover_text = "<b>%{customdata[0]} | ASN %{customdata[1]} orang<br>"
+            custom_data_cols = ['kab_full', 'total_all']
+            for i, col in enumerate(df_sdm_pivot.columns):
+                hover_text += f"{col}: %{{customdata[{i+2}]}} orang<br>"
+                custom_data_cols.append(col)
             fig_sdm = px.bar(df_sdm_rekap, x='kab_singkat', y='jumlah', color='kategori_asn', title="Distribusi Pegawai")
             fig_sdm.update_layout(showlegend=True, legend_title_text='', height=280, xaxis_title="", yaxis_title="", margin=dict(l=10, r=10, t=35, b=10))
             st.sidebar.plotly_chart(fig_sdm, use_container_width=True)
