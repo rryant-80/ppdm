@@ -1176,19 +1176,59 @@ else:
         df_layanan_singkat = singkat_kab(df_layanan.copy())
         df_elek_singkat = singkat_kab(df_elektronik.copy())
 
-        # 1. GRAFIK Pegawai
+        # ==========================================
+        # 1. GRAFIK: Distribusi Pegawai (Sidebar - Custom Hover & Legenda Horizontal)
+        # ==========================================
         if not df_sdm_singkat.empty and 'kategori_asn' in df_sdm_singkat.columns:
             df_sdm_rekap = df_sdm_singkat.groupby(['kab_singkat', 'kategori_asn']).size().reset_index(name='jumlah')
             df_sdm_pivot = df_sdm_rekap.pivot(index='kab_singkat', columns='kategori_asn', values='jumlah').fillna(0).astype(int)
             df_sdm_total = df_sdm_singkat.groupby('kab_singkat').size().reset_index(name='total_all')
-            df_sdm_rekap = df_sdm_rekap.merge(df_sdm_pivot, on='kab_singkat').merge(df_sdm_total, on='kab_singkat').sort_values(by='total_all', ascending=False)
+            df_sdm_rekap = df_sdm_rekap.merge(df_sdm_pivot, on='kab_singkat').merge(df_sdm_total, on='kab_singkat')
+            df_sdm_rekap = df_sdm_rekap.sort_values(by='total_all', ascending=False)
+            
+            # Tambahkan kolom nama lengkap untuk hover
             df_sdm_rekap['kab_full'] = df_sdm_rekap['kab_singkat'].map(lambda x: REVERSE_KAB_MAP.get(x, x))
-            fig_elek.update_traces(
-                hovertemplate="<b>%{customdata[0]} | %{y:.2f}%</b><br>Jumlah Prasertel: <b>%{customdata[1]}</b><br>Jumlah BT: <b>%{customdata[2]}</b><extra></extra>",
-                marker_color='#00CC96'
+            
+            # Format teks hover dinamis berdasarkan kategori ASN yang ada
+            hover_text = "<b>%{customdata[0]} | ASN %{customdata[1]} orang</b><br>"
+            custom_data_cols = ['kab_full', 'total_all']
+            for i, col in enumerate(df_sdm_pivot.columns):
+                hover_text += f"{col}: %{{customdata[{i+2}]}} orang<br>"
+                custom_data_cols.append(col)
+
+            fig_sdm = px.bar(
+                df_sdm_rekap, 
+                x='kab_singkat', 
+                y='jumlah', 
+                color='kategori_asn',
+                title="Distribusi Pegawai",
+                custom_data=df_sdm_rekap[custom_data_cols]
             )
-            fig_sdm = px.bar(df_sdm_rekap, x='kab_singkat', y='jumlah', color='kategori_asn', title="Distribusi Pegawai")
-            fig_sdm.update_layout(showlegend=True, legend_title_text='', height=280, xaxis_title="", yaxis_title="", margin=dict(l=10, r=10, t=35, b=10))
+            
+            # Terapkan template hover khusus
+            fig_sdm.update_traces(hovertemplate=hover_text + "<extra></extra>")
+            
+            # Terapkan tata letak legenda horizontal dan tinggi area grafik
+            fig_sdm.update_layout(
+                showlegend=True, 
+                legend_title_text='', 
+                height=310,
+                xaxis_title="", 
+                yaxis_title="",
+                xaxis={'categoryorder': 'total descending'},
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                margin=dict(l=10, r=10, t=35, b=10),
+                legend=dict(
+                    orientation="h", 
+                    yanchor="bottom", 
+                    y=1.02, 
+                    xanchor="right", 
+                    x=1,
+                    font=dict(size=9)
+                )
+            )
+            
             st.sidebar.plotly_chart(fig_sdm, use_container_width=True)
             
         # 2. GRAFIK Anggaran
