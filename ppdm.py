@@ -709,8 +709,8 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
     if is_kec_active and 'desa_kelurahan' in df_chart.columns: x_col, x_label = 'desa_kelurahan', "Desa / Kelurahan"
     elif is_kab_active and 'kecamatan' in df_chart.columns: x_col, x_label = 'kecamatan', "Kecamatan"
     else:
-        df_chart['x_group'] = df_chart['kabupaten_kota'].map(lambda x: KAB_MAP.get(x, x)) if 'kabupaten_kota' in df_chart.columns else '-'
-        x_col, x_label = 'x_group', "Kabupaten / Kota"
+        x_col = 'kabupaten_kota'
+        x_label = "Kabupaten / Kota"
 
     req_cols = ['jumlah_su', 'jumlah_suvalid', 'jumlah_bt', 'bt_valid', 'pra_suel', 'pra_btel', 'pra_sertel']
     for c in req_cols:
@@ -754,23 +754,45 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
 
     st.markdown("---")
     fig_combined = px.bar(
-        df_merged, x=x_col, y='Persentase', color='Indikator', barmode='group',
-        title="📊 Grafik Capaian Pra-SERTEL", color_discrete_map=pastel_color_map,
-        category_orders={x_col: x_order, 'Indikator': ['% SU Valid', '% Pra-SUEL', '% BT Valid', '% Pra-BTEL', '% Pra-SERTEL']},
+        df_merged, 
+        x=x_col,  # <--- Otomatis berisi nama lengkap kabupaten
+        y='Persentase', 
+        color='Indikator',
+        barmode='group',
+        title=f"📊 Grafik Capaian Pra-SERTEL",
+        color_discrete_map=pastel_color_map,
+        category_orders={
+            x_col: x_order,  # Urutan Sumbu-X sesuai % Pra-Sertel
+            'Indikator': ['% SU Valid', '% Pra-SUEL', '% BT Valid', '% Pra-BTEL', '% Pra-SERTEL']
+        },
         custom_data=df_merged[['realisasi_fmt', 'pembagi_fmt']]
     )
 
     fig_combined.update_traces(
         hovertemplate=f"<b>{x_label}: %{{x}}</b><br>%{{fullData.name}}: <b>%{{y:.2f}}%</b><br>Jumlah Capaian: <b>%{{customdata[0]}}</b><br>Total Pembagi: <b>%{{customdata[1]}}</b><extra></extra>",
-        marker=dict(line=dict(width=1, color='#000000'))
+        marker=dict(line=dict(width=1, color='#000000')) # Outline Hitam
     )
 
     fig_combined.update_layout(
-        height=450, xaxis_title="", yaxis_title="", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
-        margin=dict(l=10, r=10, t=35, b=10), separators=',.',
+        height=480, # Sedikit ditambah agar nama kabupaten panjang muat rapi
+        xaxis_title="",
+        yaxis_title="",
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        margin=dict(l=10, r=10, t=35, b=60),
+        separators=',.',
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, title_text=''),
-        yaxis=dict(gridcolor='#f2f2f2', range=[0, max(df_merged['Persentase'].max() * 1.15, 100)], tickvals=[0, 50, 100], ticktext=['0%', '50%', '100%'])
+        yaxis=dict(
+            gridcolor='#f2f2f2',
+            range=[0, max(df_merged['Persentase'].max() * 1.15, 100)],
+            tickvals=[0, 50, 100],
+            ticktext=['0%', '50%', '100%']
+        ),
+        xaxis=dict(
+            tickangle=-30 # (Opsional) Memiringkan label jika nama kabupaten terlalu panjang
+        )
     )
+    
     st.plotly_chart(fig_combined, use_container_width=True)
 
     if df_progress is not None and not df_progress.empty:
