@@ -1181,13 +1181,32 @@ else:
             df_sdm_rekap = df_sdm_singkat.groupby(['kab_singkat', 'kategori_asn']).size().reset_index(name='jumlah')
             df_sdm_pivot = df_sdm_rekap.pivot(index='kab_singkat', columns='kategori_asn', values='jumlah').fillna(0).astype(int)
             df_sdm_total = df_sdm_singkat.groupby('kab_singkat').size().reset_index(name='total_all')
-            df_sdm_rekap = df_sdm_rekap.merge(df_sdm_pivot, on='kab_singkat').merge(df_sdm_total, on='kab_singkat').sort_values(by='total_all', ascending=False)
+            df_sdm_rekap = df_sdm_rekap.merge(df_sdm_pivot, on='kab_singkat').merge(df_sdm_total, on='kab_singkat')
+            df_sdm_rekap = df_sdm_rekap.sort_values(by='total_all', ascending=False)
+            
+            # Tambahkan kolom nama lengkap untuk hover
             df_sdm_rekap['kab_full'] = df_sdm_rekap['kab_singkat'].map(lambda x: REVERSE_KAB_MAP.get(x, x))
             
-            fig_sdm = px.bar(df_sdm_rekap, x='kab_singkat', y='jumlah', color='kategori_asn', title="Distribusi Pegawai")
-            fig_sdm.update_layout(showlegend=True, legend_title_text='', height=280, xaxis_title="", yaxis_title="", margin=dict(l=10, r=10, t=35, b=10))
-            st.sidebar.plotly_chart(fig_sdm, use_container_width=True)
-
+            hover_text = "<b>%{customdata[0]} | ASN %{customdata[1]} orang<br>"
+            custom_data_cols = ['kab_full', 'total_all']
+            for i, col in enumerate(df_sdm_pivot.columns):
+                hover_text += f"{col}: %{{customdata[{i+2}]}} orang<br>"
+                custom_data_cols.append(col)
+    
+            fig_sdm = px.bar(
+                df_sdm_rekap, x='kab_singkat', y='jumlah', color='kategori_asn',
+                title="Distribusi Pegawai",
+                custom_data=df_sdm_rekap[custom_data_cols]
+            )
+            fig_sdm.update_traces(hovertemplate=hover_text + "<extra></extra>")
+            fig_sdm.update_layout(
+                showlegend=True, legend_title_text='', height=310,
+                xaxis_title="", yaxis_title="",
+                xaxis={'categoryorder':'total descending'},
+                margin=dict(l=10, r=10, t=35, b=10),
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+            )
+            st.plotly_chart(fig_sdm, use_container_width=True)
         # 2. GRAFIK Anggaran
         if not df_sdm_singkat.empty and 'target_dipa' in df_sdm_singkat.columns and 'realisasi_dipa' in df_sdm_singkat.columns:
             df_anggaran = df_sdm_singkat.copy()
