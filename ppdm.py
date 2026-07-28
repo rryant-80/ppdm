@@ -564,7 +564,6 @@ def render_layanan_pertanahan(df_filtered_layanan):
 
 def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=None, selected_kab=None, selected_kec=None):
     st.title("💻 Data Elektronik")
-    st.markdown("---")
 
     if df_elektronik.empty:
         st.warning("Data Elektronik (GID 1848496896) tidak ditemukan atau kosong.")
