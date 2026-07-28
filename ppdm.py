@@ -679,7 +679,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
                 pct_nas = (p_nas_val / b_nas_val * 100.0) if b_nas_val > 0 else 0.0
                 sub_card10 = f"{fmt_dec2(pct_nas)}% dari {fmt_idr(b_nas_val)} BT"
 
-    
+    st.markdown("""
     <style>
     .orange-card-box { background: linear-gradient(135deg, #ffffff 0%, #fff8f0 100%); border: 2px solid #f39c12; border-radius: 12px; padding: 10px 12px; height: 104px; display: flex; flex-direction: column; justify-content: space-between; margin-bottom: 12px; }
     .orange-card-title { color: #d35400; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; }
@@ -772,7 +772,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
 
     pastel_color_map = {'% SU Valid': '#ffd383', '% Pra-SUEL': '#dc9513', '% BT Valid': '#b4ffb3', '% Pra-BTEL': '#51ce4f', '% Pra-SERTEL': '#1f9f1d'}
 
-    st.markdown("---")
+    
     fig_combined = px.bar(
         df_merged, 
         x=x_col,  # <--- Otomatis berisi nama lengkap kabupaten
