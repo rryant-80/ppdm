@@ -712,7 +712,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
     with r2_c4: render_blue_card("Progress Terbaru", f"+{fmt_idr(val_prog_harian)} Pra Sertel", sub_card9)
     with r2_c5: render_blue_card("Peringkat Nasional", f"Sulteng #{rank_num_val}", sub_card10)
 
-    st.markdown("<br>", unsafe_allow_html=True)
+    
 
     KAB_MAP = {
         'Banggai': 'BG', 'Banggai Kepulauan': 'BK', 'Banggai Laut': 'BL',
