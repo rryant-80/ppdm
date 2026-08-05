@@ -1607,8 +1607,7 @@ else:
             )
             
             st.sidebar.plotly_chart(fig_sdm, use_container_width=True)
-            
-        # 2. GRAFIK Anggaran
+
         # ==========================================
         # 2. GRAFIK: % Realisasi Anggaran (Sidebar - Custom Hover & Format Indonesia)
         # ==========================================
@@ -1679,7 +1678,6 @@ else:
             
             st.sidebar.plotly_chart(fig_anggaran, use_container_width=True)
 
-        # 3. GRAFIK Berkas Tunggakan PDDM
         # ==========================================
         # 3. GRAFIK: Berkas Tunggakan PDDM (Sidebar - Custom Hover & Detail Posisi)
         # ==========================================
@@ -1772,10 +1770,19 @@ else:
         # ==========================================
         # 4. GRAFIK: Jumlah KW456 (Sidebar - Custom Hover & Singkatan Kabupaten)
         # ==========================================
-        if not df_kakanwil_raw.empty:
+        if 'df_kakanwil_raw' in locals() and df_kakanwil_raw is not None and not df_kakanwil_raw.empty:
             df_kw_side = df_kakanwil_raw.copy()
             df_kw_side.columns = [str(c).strip().lower() for c in df_kw_side.columns]
             
+            # Helper parser angka lokal aman scope
+            def parse_num_side(val):
+                if pd.isna(val) or val is None: return 0
+                if isinstance(val, (int, np.integer)): return int(val)
+                if isinstance(val, (float, np.floating)): return int(round(val))
+                s = str(val).replace('Rp', '').replace('%', '').replace('.', '').replace(',', '').strip()
+                try: return int(s)
+                except ValueError: return 0
+
             # Identifikasi nama kolom
             col_kab_s = 'kabupaten_kota' if 'kabupaten_kota' in df_kw_side.columns else next((c for c in df_kw_side.columns if 'kab' in c), 'kabupaten_kota')
             col_bt_s = 'btvalid_kab' if 'btvalid_kab' in df_kw_side.columns else next((c for c in df_kw_side.columns if 'btvalid' in c or 'bt' in c), 'btvalid_kab')
@@ -1786,10 +1793,10 @@ else:
             col_kw6_s = 'jml_kw6' if 'jml_kw6' in df_kw_side.columns else next((c for c in df_kw_side.columns if 'kw6' in c), 'jml_kw6')
 
             # Parsing kolom numerik
-            df_kw_side['btvalid_clean'] = df_kw_side[col_bt_s].apply(parse_num)
-            df_kw_side['kw4_clean'] = df_kw_side[col_kw4_s].apply(parse_num) if col_kw4_s in df_kw_side.columns else 0
-            df_kw_side['kw5_clean'] = df_kw_side[col_kw5_s].apply(parse_num) if col_kw5_s in df_kw_side.columns else 0
-            df_kw_side['kw6_clean'] = df_kw_side[col_kw6_s].apply(parse_num) if col_kw6_s in df_kw_side.columns else 0
+            df_kw_side['btvalid_clean'] = df_kw_side[col_bt_s].apply(parse_num_side)
+            df_kw_side['kw4_clean'] = df_kw_side[col_kw4_s].apply(parse_num_side) if col_kw4_s in df_kw_side.columns else 0
+            df_kw_side['kw5_clean'] = df_kw_side[col_kw5_s].apply(parse_num_side) if col_kw5_s in df_kw_side.columns else 0
+            df_kw_side['kw6_clean'] = df_kw_side[col_kw6_s].apply(parse_num_side) if col_kw6_s in df_kw_side.columns else 0
             df_kw_side['total_kw456'] = df_kw_side['kw4_clean'] + df_kw_side['kw5_clean'] + df_kw_side['kw6_clean']
             
             df_kw_side['kab_clean'] = df_kw_side[col_kab_s].astype(str).str.strip()
@@ -1826,7 +1833,7 @@ else:
 
             fig_kw_side.update_traces(
                 hovertemplate="<b>%{customdata[0]}</b><br>Jumlah BT Valid: <b>%{customdata[1]}</b><br>Jml KW456: <b>%{customdata[2]}</b><br>%KW456: <b>%{customdata[3]}%</b><extra></extra>",
-                marker_color='#FF9F43'  # Warna Orange
+                marker_color='#FF9F43'
             )
 
             fig_kw_side.update_layout(
