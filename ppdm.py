@@ -1290,7 +1290,7 @@ def render_monitoring_kakanwil(df_kakanwil):
     )
 
     fig_line_kw.update_traces(
-        hovertemplate="<b>Kab/Kota: %{fullData.name}</b><br>Tanggal: %{x}<br>Total KW456: <b>%{y:,.0f} Bidang</b><extra></extra>",
+        hovertemplate="<b>%{fullData.name}</b><br>Tgl.: %{x}<br>KW456 : <b>%{y:,.0f} Bidang</b><extra></extra>",
         marker=dict(size=8, line=dict(width=1.5, color='#000000'))
     )
 
