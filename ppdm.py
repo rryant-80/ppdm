@@ -1333,7 +1333,7 @@ def render_monitoring_kakanwil(df_kakanwil):
         for k_name in df_latest_by_kab['kab_clean']:
             df_capaian_kw_map[k_name] = grp_latest_kw.get(k_name, 0) - grp_prev_kw.get(k_name, 0)
 
-    # Urutkan dari % KW456 terkecil ke terbesar (atau sesuai kebutuhan)
+    # Urutkan dari % KW456 terkecil ke terbesar
     df_kw_grp = df_latest_by_kab.sort_values(by='pct_kw456', ascending=True).reset_index(drop=True)
 
     rows_kw_html = []
@@ -1343,14 +1343,20 @@ def render_monitoring_kakanwil(df_kakanwil):
         v_kw4 = f"{row['kw4_clean']:,.0f}".replace(',', '.')
         v_kw5 = f"{row['kw5_clean']:,.0f}".replace(',', '.')
         v_kw6 = f"{row['kw6_clean']:,.0f}".replace(',', '.')
-        v_tot_kw = f"{row['total_kw456']:,.0f}".replace(',', '.')
+        
+        tot_kw_num = row['total_kw456']
+        v_tot_kw = f"{tot_kw_num:,.0f}".replace(',', '.')
         pct_kw = row['pct_kw456']
 
-        # 💡 1. Pewarnaan Badge % KW456: Hijau <= 5%, Kuning 5.01-10%, Merah > 10.01%
+        # 💡 1. Pewarnaan Badge Total KW456: Hijau < 1.000, Kuning 1.001-5.000, Merah > 5.000
+        badge_tot_class = "badge-green" if tot_kw_num <= 1000 else ("badge-yellow" if tot_kw_num <= 5000 else "badge-red")
+        v_tot_kw_formatted = f"<span class='{badge_tot_class}'>{v_tot_kw}</span>"
+
+        # 💡 2. Pewarnaan Badge % KW456: Hijau <= 5%, Kuning 5.01-10%, Merah > 10.01%
         badge_kw_class = "badge-green" if pct_kw <= 5.0 else ("badge-yellow" if pct_kw <= 10.0 else "badge-red")
         pct_kw_formatted = f"<span class='{badge_kw_class}'>{pct_kw:.2f}%</span>"
 
-        # 💡 2. Pewarnaan Teks Capaian Terbaru KW456: Hijau jika 0 atau minus, Merah jika plus (+)
+        # 💡 3. Pewarnaan Teks Capaian Terbaru KW456: Hijau jika 0 atau minus, Merah jika plus (+)
         cap_kw_val = df_capaian_kw_map.get(wil_name, 0)
         if cap_kw_val > 0:
             cap_kw_formatted = f"<span style='color: #EF4444; font-weight: bold;'>+{cap_kw_val:,.0f}</span>".replace(',', '.')
@@ -1367,7 +1373,7 @@ def render_monitoring_kakanwil(df_kakanwil):
             f"<td style='text-align: center;'>{v_kw4}</td>"
             f"<td style='text-align: center;'>{v_kw5}</td>"
             f"<td style='text-align: center;'>{v_kw6}</td>"
-            f"<td style='text-align: center; font-weight: bold; color: #0284C7;'>{v_tot_kw}</td>"
+            f"<td style='text-align: center;'>{v_tot_kw_formatted}</td>"
             f"<td style='text-align: center;'>{pct_kw_formatted}</td>"
             f"<td style='text-align: center;'>{cap_kw_formatted}</td>"
             f"</tr>"
@@ -1381,9 +1387,9 @@ def render_monitoring_kakanwil(df_kakanwil):
 <th>No</th>
 <th class="th-left">Kabupaten / Kota</th>
 <th>Jumlah BT Valid</th>
-<th>KW4</th>
-<th>KW5</th>
-<th>KW6</th>
+<th>Jumlah KW4</th>
+<th>Jumlah KW5</th>
+<th>Jumlah KW6</th>
 <th>Total KW456</th>
 <th>% KW456</th>
 <th>Capaian Terbaru</th>
