@@ -1083,9 +1083,7 @@ def render_isu_strategis(df_isu):
         st.markdown("<br>", unsafe_allow_html=True)
 
 def render_monitoring_kakanwil(df_kakanwil):
-    st.title("🛡️ Monitoring Kakanwil")
-    st.caption("Pantauan tren perkembangan Prasertel, Target Harian, dan Capaian KW456 tingkat Kabupaten/Kota se-Sulawesi Tengah.")
-    st.markdown("---")
+    st.title("🛡️ Monitoring Prasertel & KW456")    
 
     if df_kakanwil is None or df_kakanwil.empty:
         st.warning("Data Monitoring Kakanwil (GID 806976086) tidak ditemukan atau kosong.")
@@ -1151,7 +1149,7 @@ def render_monitoring_kakanwil(df_kakanwil):
         y='sertel_clean', 
         color='kab_clean',
         markers=True,
-        title="📈 Tren Progress Prasertel (Tingkat Kabupaten/Kota)",
+        title="📈 Tren Progress Prasertel",
         category_orders={'tgl_str': unique_tgls}
     )
 
@@ -1168,7 +1166,7 @@ def render_monitoring_kakanwil(df_kakanwil):
         plot_bgcolor='rgba(0,0,0,0)',
         margin=dict(l=15, r=15, t=60, b=80),
         separators=',.',
-        title=dict(text="📈 Tren Progress Prasertel (Tingkat Kabupaten/Kota)", x=0, y=0.98, xanchor='left', yanchor='top', font=dict(size=15, color='#1e293b')),
+        title=dict(text="📈 Tren Progress Prasertel", x=0, y=0.98, xanchor='left', yanchor='top', font=dict(size=15, color='#1e293b')),
         legend=dict(orientation="h", yanchor="top", y=-0.2, xanchor="center", x=0.5, title_text='', font=dict(size=11)),
         yaxis=dict(gridcolor='#f2f2f2'),
         xaxis=dict(type='category')
@@ -1285,7 +1283,7 @@ def render_monitoring_kakanwil(df_kakanwil):
         y='total_kw456', 
         color='kab_clean',
         markers=True,
-        title="📈 Tren Progress KW456 (Jumlah KW4 + KW5 + KW6)",
+        title="📈 Tren Progress KW456",
         category_orders={'tgl_str': unique_tgls}
     )
 
@@ -1302,7 +1300,7 @@ def render_monitoring_kakanwil(df_kakanwil):
         plot_bgcolor='rgba(0,0,0,0)',
         margin=dict(l=15, r=15, t=60, b=80),
         separators=',.',
-        title=dict(text="📈 Tren Progress KW456 (Jumlah KW4 + KW5 + KW6)", x=0, y=0.98, xanchor='left', yanchor='top', font=dict(size=15, color='#1e293b')),
+        title=dict(text="📈 Tren Penyelesaian KW456", x=0, y=0.98, xanchor='left', yanchor='top', font=dict(size=15, color='#1e293b')),
         legend=dict(orientation="h", yanchor="top", y=-0.2, xanchor="center", x=0.5, title_text='', font=dict(size=11)),
         yaxis=dict(gridcolor='#f2f2f2'),
         xaxis=dict(type='category')
@@ -1313,7 +1311,7 @@ def render_monitoring_kakanwil(df_kakanwil):
     # ==========================================
     # DASHBOARD 4: TABEL REKAPITULASI KW456
     # ==========================================
-    st.subheader("📋 Rekapitulasi Capaian KW456 per Kabupaten/Kota")
+    st.subheader("📋 Rekapitulasi Capaian Penyelesaian KW456")
 
     # Ambil snapshot tanggal paling akhir per kabupaten berdasarkan tgl_dt
     df_latest_by_kab = df_line.sort_values(by='tgl_dt').groupby('kab_clean', as_index=False).last()
@@ -1387,9 +1385,9 @@ def render_monitoring_kakanwil(df_kakanwil):
 <th>No</th>
 <th class="th-left">Kabupaten / Kota</th>
 <th>Jumlah BT Valid</th>
-<th>Jumlah KW4</th>
-<th>Jumlah KW5</th>
-<th>Jumlah KW6</th>
+<th>KW4</th>
+<th>KW5</th>
+<th>KW6</th>
 <th>Total KW456</th>
 <th>% KW456</th>
 <th>Capaian Terbaru</th>
