@@ -183,7 +183,7 @@ def render_profil_anggaran(df_filtered_sdm):
             with st.container(border=True):
                 sub_c1, sub_c2 = st.columns([1, 2.2])
                 with sub_c1:
-                    st.image(p_info["url"], use_column_width=True)
+                    st.image(p_info["url"], use_container_width=True)
                 with sub_c2:
                     html_content = f"""
                     <div style="line-height: 1.25; margin-bottom: 4px;">
