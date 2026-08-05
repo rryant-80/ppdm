@@ -1084,7 +1084,7 @@ def render_isu_strategis(df_isu):
 
 def render_monitoring_kakanwil(df_kakanwil):
     st.title("🛡️ Monitoring Kakanwil")
-    st.caption("Pantauan tren perkembangan Prasertel dan Target Harian tingkat Kabupaten/Kota se-Sulawesi Tengah.")
+    st.caption("Pantauan tren perkembangan Prasertel, Target Harian, dan Capaian KW456 tingkat Kabupaten/Kota se-Sulawesi Tengah.")
     st.markdown("---")
 
     if df_kakanwil is None or df_kakanwil.empty:
@@ -1116,8 +1116,20 @@ def render_monitoring_kakanwil(df_kakanwil):
     col_sertel = 'sertel_kab' if 'sertel_kab' in df.columns else next((c for c in df.columns if 'sertel' in c), 'sertel_kab')
     col_btvalid = 'btvalid_kab' if 'btvalid_kab' in df.columns else next((c for c in df.columns if 'btvalid' in c or 'bt' in c), 'btvalid_kab')
 
+    # Identifikasi kolom KW4, KW5, KW6
+    col_kw4 = 'jml_kw4' if 'jml_kw4' in df.columns else next((c for c in df.columns if 'kw4' in c), 'jml_kw4')
+    col_kw5 = 'jml_kw5' if 'jml_kw5' in df.columns else next((c for c in df.columns if 'kw5' in c), 'jml_kw5')
+    col_kw6 = 'jml_kw6' if 'jml_kw6' in df.columns else next((c for c in df.columns if 'kw6' in c), 'jml_kw6')
+
+    # Parsing & pembersihan nilai numerik
     df['sertel_clean'] = df[col_sertel].apply(parse_num)
     df['btvalid_clean'] = df[col_btvalid].apply(parse_num)
+    df['kw4_clean'] = df[col_kw4].apply(parse_num) if col_kw4 in df.columns else 0
+    df['kw5_clean'] = df[col_kw5].apply(parse_num) if col_kw5 in df.columns else 0
+    df['kw6_clean'] = df[col_kw6].apply(parse_num) if col_kw6 in df.columns else 0
+    
+    # Penjumlahan total KW456 per baris
+    df['total_kw456'] = df['kw4_clean'] + df['kw5_clean'] + df['kw6_clean']
     df['kab_clean'] = df[col_kab].astype(str).str.strip()
 
     # Filter baris non-kabupaten (jika ada total)
@@ -1247,6 +1259,119 @@ def render_monitoring_kakanwil(df_kakanwil):
 </table></div>"""
 
     st.markdown(html_target_table, unsafe_allow_html=True)
+
+    # ==========================================
+    # DASHBOARD 3: GRAFIK TREN KHUSUS KW456
+    # ==========================================
+    st.markdown("<br><hr>", unsafe_allow_html=True)
+    
+    df_trend_kw = df_line.groupby(['tgl_str', 'kab_clean'], as_index=False)['total_kw456'].sum()
+
+    fig_line_kw = px.line(
+        df_trend_kw, 
+        x='tgl_str', 
+        y='total_kw456', 
+        color='kab_clean',
+        markers=True,
+        title="📈 Tren Progress KW456 (Jumlah KW4 + KW5 + KW6)",
+        category_orders={'tgl_str': unique_tgls}
+    )
+
+    fig_line_kw.update_traces(
+        hovertemplate="<b>Kab/Kota: %{fullData.name}</b><br>Tanggal: %{x}<br>Total KW456: <b>%{y:,.0f} Bidang</b><extra></extra>",
+        marker=dict(size=8, line=dict(width=1.5, color='#000000'))
+    )
+
+    fig_line_kw.update_layout(
+        height=480,
+        xaxis_title="",
+        yaxis_title="",
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        margin=dict(l=15, r=15, t=60, b=80),
+        separators=',.',
+        title=dict(text="📈 Tren Progress KW456 (Jumlah KW4 + KW5 + KW6)", x=0, y=0.98, xanchor='left', yanchor='top', font=dict(size=15, color='#1e293b')),
+        legend=dict(orientation="h", yanchor="top", y=-0.2, xanchor="center", x=0.5, title_text='', font=dict(size=11)),
+        yaxis=dict(gridcolor='#f2f2f2'),
+        xaxis=dict(type='category')
+    )
+
+    st.plotly_chart(fig_line_kw, use_container_width=True)
+
+    # ==========================================
+    # DASHBOARD 4: TABEL REKAPITULASI KW456
+    # ==========================================
+    st.subheader("📋 Rekapitulasi Capaian KW456 per Kabupaten/Kota")
+
+    # Hitung % KW456 dan perbedaan capaian terbaru
+    df_latest_by_kab['pct_kw456'] = (df_latest_by_kab['total_kw456'] / df_latest_by_kab['btvalid_clean'].replace(0, 1)) * 100.0
+
+    df_capaian_kw_map = {}
+    if len(unique_tgls) >= 2:
+        t_latest = unique_tgls[-1]
+        t_prev = unique_tgls[-2]
+
+        grp_latest_kw = df_line[df_line['tgl_str'] == t_latest].groupby('kab_clean')['total_kw456'].sum()
+        grp_prev_kw = df_line[df_line['tgl_str'] == t_prev].groupby('kab_clean')['total_kw456'].sum()
+
+        for k_name in df_latest_by_kab['kab_clean']:
+            df_capaian_kw_map[k_name] = grp_latest_kw.get(k_name, 0) - grp_prev_kw.get(k_name, 0)
+
+    # Urutkan dari % KW456 tertinggi ke terkecil
+    df_kw_grp = df_latest_by_kab.sort_values(by='pct_kw456', ascending=False).reset_index(drop=True)
+
+    rows_kw_html = []
+    for idx, row in df_kw_grp.iterrows():
+        wil_name = row['kab_clean']
+        bt_val = f"{row['btvalid_clean']:,.0f}".replace(',', '.')
+        v_kw4 = f"{row['kw4_clean']:,.0f}".replace(',', '.')
+        v_kw5 = f"{row['kw5_clean']:,.0f}".replace(',', '.')
+        v_kw6 = f"{row['kw6_clean']:,.0f}".replace(',', '.')
+        v_tot_kw = f"{row['total_kw456']:,.0f}".replace(',', '.')
+        pct_kw = row['pct_kw456']
+
+        cap_kw_val = df_capaian_kw_map.get(wil_name, 0)
+        if cap_kw_val > 0:
+            cap_kw_formatted = f"<span style='color: #10B981; font-weight: bold;'>+{cap_kw_val:,.0f}</span>".replace(',', '.')
+        elif cap_kw_val < 0:
+            cap_kw_formatted = f"<span style='color: #EF4444; font-weight: bold;'>{cap_kw_val:,.0f}</span>".replace(',', '.')
+        else:
+            cap_kw_formatted = "<span style='color: #6B7280;'>0</span>"
+
+        rows_kw_html.append(
+            f"<tr>"
+            f"<td style='text-align: center; font-weight: bold; width: 50px;'>{idx+1}</td>"
+            f"<td style='text-align: left; font-weight: 600;'>{wil_name}</td>"
+            f"<td style='text-align: center;'>{bt_val}</td>"
+            f"<td style='text-align: center;'>{v_kw4}</td>"
+            f"<td style='text-align: center;'>{v_kw5}</td>"
+            f"<td style='text-align: center;'>{v_kw6}</td>"
+            f"<td style='text-align: center; font-weight: bold; color: #0284C7;'>{v_tot_kw}</td>"
+            f"<td style='text-align: center; font-weight: bold;'>{pct_kw:.2f}%</td>"
+            f"<td style='text-align: center;'>{cap_kw_formatted}</td>"
+            f"</tr>"
+        )
+
+    html_kw_table = f"""
+<div class="target-table-container">
+<table class="target-table">
+<thead>
+<tr>
+<th>No</th>
+<th class="th-left">Kabupaten / Kota</th>
+<th>Jumlah BT Valid</th>
+<th>Jumlah KW4</th>
+<th>Jumlah KW5</th>
+<th>Jumlah KW6</th>
+<th>Total KW456</th>
+<th>% KW456</th>
+<th>Capaian Terbaru</th>
+</tr>
+</thead>
+<tbody>{"".join(rows_kw_html)}</tbody>
+</table></div>"""
+
+    st.markdown(html_kw_table, unsafe_allow_html=True)
 
 # -----------------------------------------------------------------------------
 # 4. FUNGSI AUTENTIKASI (LOGIN & LOGOUT)
