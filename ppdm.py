@@ -1208,7 +1208,7 @@ def render_monitoring_kakanwil(df_kakanwil):
             df_capaian_map[k_name] = grp_latest.get(k_name, 0) - grp_prev.get(k_name, 0)
 
     # Urutkan dari % Prasertel terkecil ke terbesar
-    df_target_grp = df_latest_by_kab.sort_values(by='pct_saat_ini', ascending=True).reset_index(drop=True)
+    df_target_grp = df_latest_by_kab.sort_values(by='pct_saat_ini', ascending=False).reset_index(drop=True)
 
     rows_target_html = []
     for idx, row in df_target_grp.iterrows():
