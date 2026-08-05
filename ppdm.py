@@ -1133,9 +1133,6 @@ def render_monitoring_kakanwil(df_kakanwil):
     df['kw5_clean'] = df[col_kw5].apply(parse_num) if col_kw5 in df.columns else 0
     df['kw6_clean'] = df[col_kw6].apply(parse_num) if col_kw6 in df.columns else 0
     df['total_kw456'] = df['kw4_clean'] + df['kw5_clean'] + df['kw6_clean']
-    df['kab_clean'] = df[col_kab].astype(str).str.strip()
-
-    # Filter baris non-kabupaten (jika ada total)
     df_clean = df[~df['kab_clean'].str.contains('Total|Jumlah|Sulawesi Tengah', case=False, na=False)].copy()
 
     # ==========================================
