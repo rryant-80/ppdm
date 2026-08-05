@@ -1121,22 +1121,26 @@ def render_monitoring_kakanwil(df_kakanwil):
     col_sertel = 'sertel_kab' if 'sertel_kab' in df.columns else next((c for c in df.columns if 'sertel' in c), 'sertel_kab')
     col_btvalid = 'btvalid_kab' if 'btvalid_kab' in df.columns else next((c for c in df.columns if 'btvalid' in c or 'bt' in c), 'btvalid_kab')
 
-    # Identifikasi kolom KW4, KW5, KW6
     col_kw4 = 'jml_kw4' if 'jml_kw4' in df.columns else next((c for c in df.columns if 'kw4' in c), 'jml_kw4')
     col_kw5 = 'jml_kw5' if 'jml_kw5' in df.columns else next((c for c in df.columns if 'kw5' in c), 'jml_kw5')
     col_kw6 = 'jml_kw6' if 'jml_kw6' in df.columns else next((c for c in df.columns if 'kw6' in c), 'jml_kw6')
 
-    # Parsing & pembersihan nilai numerik
+    # 💡 1. BUAT 'kab_clean' TERLEBIH DAHULU!
+    df['kab_clean'] = df[col_kab].astype(str).str.strip()
+
+    # -----------------------------------------------------------------------------
+    # 2. PARSING NUMERIK
+    # -----------------------------------------------------------------------------
     df['sertel_clean'] = df[col_sertel].apply(parse_num)
     df['btvalid_clean'] = df[col_btvalid].apply(parse_num)
     df['kw4_clean'] = df[col_kw4].apply(parse_num) if col_kw4 in df.columns else 0
     df['kw5_clean'] = df[col_kw5].apply(parse_num) if col_kw5 in df.columns else 0
     df['kw6_clean'] = df[col_kw6].apply(parse_num) if col_kw6 in df.columns else 0
-    
+
     # Penjumlahan total KW456 per baris
     df['total_kw456'] = df['kw4_clean'] + df['kw5_clean'] + df['kw6_clean']
-    
-    # Filter baris non-kabupaten (Memastikan df_clean membawa kolom total_kw456)
+
+    # 💡 3. BARU BUAT df_clean (Sekarang 'kab_clean' dijamin sudah ada)
     df_clean = df[~df['kab_clean'].str.contains('Total|Jumlah|Sulawesi Tengah', case=False, na=False)].copy()
 
     # ==========================================
