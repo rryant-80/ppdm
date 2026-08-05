@@ -1832,7 +1832,7 @@ else:
             )
 
             fig_kw_side.update_traces(
-                hovertemplate="<b>%{customdata[0]}</b><br>Jumlah BT Valid: <b>%{customdata[1]}</b><br>Jml KW456: <b>%{customdata[2]}</b><br>%KW456: <b>%{customdata[3]}%</b><extra></extra>",
+                hovertemplate="<b>%{customdata[0]} | %KW456: <b>%{customdata[3]}%</b><br>Jumlah BT Valid: <b>%{customdata[1]}</b><br>Jml KW456: <b>%{customdata[2]}</b><br>%KW456: <b>%{customdata[3]}%</b><extra></extra>",
                 marker_color='#FF9F43'
             )
 
