@@ -1311,7 +1311,15 @@ def render_monitoring_kakanwil(df_kakanwil):
     # ==========================================
     st.subheader("📋 Rekapitulasi Capaian KW456 per Kabupaten/Kota")
 
+    df_clean['tgl_dt'] = pd.to_datetime(df_clean[col_tgl], format='%d/%m/%Y', errors='coerce')
+
+    # Jika format di GSheet campuran (misal YYYY-MM-DD atau DD/MM/YYYY)
+    if df_clean['tgl_dt'].isna().all():
+        df_clean['tgl_dt'] = pd.to_datetime(df_clean[col_tgl], dayfirst=True, errors='coerce')
     # Hitung % KW456 dan perbedaan capaian terbaru
+    df_latest_by_kab = df_clean.sort_values(by='tgl_dt').groupby('kab_clean', as_index=False).last()
+
+    # Hitung % KW456
     df_latest_by_kab['pct_kw456'] = (df_latest_by_kab['total_kw456'] / df_latest_by_kab['btvalid_clean'].replace(0, 1)) * 100.0
 
     df_capaian_kw_map = {}
