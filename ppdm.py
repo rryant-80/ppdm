@@ -1098,17 +1098,22 @@ def render_monitoring_kakanwil(df_kakanwil):
     def parse_num(val):
         if pd.isna(val) or val is None:
             return 0
+        if isinstance(val, (int, np.integer)):
+            return int(val)
+        if isinstance(val, (float, np.floating)):
+            return int(round(val))            
         s = str(val).strip()
         if not s or s.lower() in ['nan', 'none', 'null', '']:
             return 0
-        if isinstance(val, float):
-            s = f"{val:.3f}".replace('.', '')
-        else:
-            s = s.replace('.', '').replace(',', '').replace('Rp', '').replace('%', '').strip()
+        s = s.replace('Rp', '').replace('%', '').strip()
+        s = s.replace('.', '').replace(',', '')
         try:
             return int(s)
         except ValueError:
-            return 0
+            try:
+                return int(float(s))
+            except ValueError:
+                return 0
 
     # Pastikan kolom-kolom utama ada dan dibersihkan
     col_tgl = 'tgl_kab' if 'tgl_kab' in df.columns else next((c for c in df.columns if 'tgl' in c), 'tgl_kab')
