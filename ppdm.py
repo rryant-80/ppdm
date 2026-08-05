@@ -1258,7 +1258,18 @@ def render_monitoring_kakanwil(df_kakanwil):
 <tbody>{"".join(rows_target_html)}</tbody>
 </table></div>"""
 
-    st.markdown(html_target_table, unsafe_allow_html=True)    
+    st.markdown(html_target_table, unsafe_allow_html=True)
+    df_line = df_clean.copy()
+    df_line['tgl_dt'] = pd.to_datetime(df_line[col_tgl], format='%d/%m/%Y', errors='coerce')
+    if df_line['tgl_dt'].isna().all():
+        df_line['tgl_dt'] = pd.to_datetime(df_line[col_tgl], dayfirst=True, errors='coerce')
+
+    # Urutkan secara kronologis berdasarkan datetime
+    df_line = df_line.sort_values(by='tgl_dt').reset_index(drop=True)
+    df_line['tgl_str'] = df_line[col_tgl].astype(str).str.strip()
+
+    # Dapatkan urutan tanggal unik yang benar secara kronologis
+    unique_tgls = df_line.drop_duplicates(subset=['tgl_dt'])['tgl_str'].tolist()
 
     # ==========================================
     # DASHBOARD 3: GRAFIK TREN KHUSUS KW456
