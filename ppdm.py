@@ -1146,45 +1146,29 @@ def render_monitoring_kakanwil(df_kakanwil):
     # ==========================================
     # DASHBOARD 1: GRAFIK TREN PROGRESS PRASERTEL
     # ==========================================
-    # ==========================================
-    # PERBAIKAN URUTAN TANGGAL GRAFIK (Mencegah Grafik Terpotong)
-    # ==========================================
     df_line = df_clean.copy()
-    df_line['tgl_dt'] = pd.to_datetime(df_line[col_tgl], format='%d/%m/%Y', errors='coerce')
-    if df_line['tgl_dt'].isna().all():
-        df_line['tgl_dt'] = pd.to_datetime(df_line[col_tgl], dayfirst=True, errors='coerce')
-
-    # Urutkan secara kronologis berdasarkan datetime
-    df_line = df_line.sort_values(by='tgl_dt').reset_index(drop=True)
     df_line['tgl_str'] = df_line[col_tgl].astype(str).str.strip()
+    df_line = df_line[df_line['tgl_str'].notna() & (df_line['tgl_str'] != '') & (df_line['tgl_str'].str.lower() != 'nan')].copy()
 
-    # Dapatkan urutan tanggal unik yang benar secara kronologis
-    unique_tgls = df_line.drop_duplicates(subset=['tgl_dt'])['tgl_str'].tolist()
+    unique_tgls = df_line['tgl_str'].unique().tolist()
+    df_trend = df_line.groupby(['tgl_str', 'kab_clean'], as_index=False)['sertel_clean'].sum()
 
-    # ==========================================
-    # DASHBOARD 3: GRAFIK TREN KHUSUS KW456
-    # ==========================================
-    st.markdown("<br><hr>", unsafe_allow_html=True)
-    
-    df_trend_kw = df_line.groupby(['tgl_dt', 'tgl_str', 'kab_clean'], as_index=False)['total_kw456'].sum()
-    df_trend_kw = df_trend_kw.sort_values(by='tgl_dt')
-
-    fig_line_kw = px.line(
-        df_trend_kw, 
+    fig_line = px.line(
+        df_trend, 
         x='tgl_str', 
-        y='total_kw456', 
+        y='sertel_clean', 
         color='kab_clean',
         markers=True,
-        title="📈 Tren Progress KW456 (Jumlah KW4 + KW5 + KW6)",
+        title="📈 Tren Progress Prasertel (Tingkat Kabupaten/Kota)",
         category_orders={'tgl_str': unique_tgls}
     )
 
-    fig_line_kw.update_traces(
-        hovertemplate="<b>Kab/Kota: %{fullData.name}</b><br>Tanggal: %{x}<br>Total KW456: <b>%{y:,.0f} Bidang</b><extra></extra>",
+    fig_line.update_traces(
+        hovertemplate="<b>Kab/Kota: %{fullData.name}</b><br>Tanggal: %{x}<br>Jml Prasertel: <b>%{y:,.0f} BT</b><extra></extra>",
         marker=dict(size=8, line=dict(width=1.5, color='#000000'))
     )
 
-    fig_line_kw.update_layout(
+    fig_line.update_layout(
         height=480,
         xaxis_title="",
         yaxis_title="",
@@ -1192,97 +1176,97 @@ def render_monitoring_kakanwil(df_kakanwil):
         plot_bgcolor='rgba(0,0,0,0)',
         margin=dict(l=15, r=15, t=60, b=80),
         separators=',.',
-        title=dict(text="📈 Tren Progress KW456 (Jumlah KW4 + KW5 + KW6)", x=0, y=0.98, xanchor='left', yanchor='top', font=dict(size=15, color='#1e293b')),
+        title=dict(text="📈 Tren Progress Prasertel (Tingkat Kabupaten/Kota)", x=0, y=0.98, xanchor='left', yanchor='top', font=dict(size=15, color='#1e293b')),
         legend=dict(orientation="h", yanchor="top", y=-0.2, xanchor="center", x=0.5, title_text='', font=dict(size=11)),
         yaxis=dict(gridcolor='#f2f2f2'),
         xaxis=dict(type='category')
     )
 
-    st.plotly_chart(fig_line_kw, use_container_width=True)
+    st.plotly_chart(fig_line, use_container_width=True)
 
     # ==========================================
-    # DASHBOARD 4: TABEL REKAPITULASI KW456
+    # DASHBOARD 2: TABEL TARGET HARIAN PRASERTEL MENUJU 70%
     # ==========================================
-    st.subheader("📋 Rekapitulasi Capaian KW456 per Kabupaten/Kota")
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.subheader("🎯 Target Harian Prasertel Menuju 70% (Desember 2026)")
 
-    # Ambil snapshot tanggal paling akhir per kabupaten berdasarkan tgl_dt
-    df_latest_by_kab = df_line.sort_values(by='tgl_dt').groupby('kab_clean', as_index=False).last()
+    today = datetime.now().date()
+    end_date = date(2026, 12, 31)
+    sisa_hari_kerja = np.busday_count(today, end_date + timedelta(days=1)) if today < end_date else 1
+    st.info(f"📅 **{sisa_hari_kerja} hari kerja** menuju Tgl. 31 Desember 2026")
 
-    # Hitung % KW456
-    df_latest_by_kab['pct_kw456'] = (df_latest_by_kab['total_kw456'] / df_latest_by_kab['btvalid_clean'].replace(0, 1)) * 100.0
+    # Ambil data snapshot tanggal terbaru untuk tiap kabupaten
+    df_latest_by_kab = df_clean.sort_values(by=col_tgl).groupby('kab_clean', as_index=False).last()
 
-    # Perhitungan capaian terbaru (selisih snapshot tanggal terakhir & tanggal sebelumnya)
-    df_capaian_kw_map = {}
+    df_latest_by_kab['pct_saat_ini'] = (df_latest_by_kab['sertel_clean'] / df_latest_by_kab['btvalid_clean'].replace(0, 1)) * 100.0
+    df_latest_by_kab['target_bt_70'] = df_latest_by_kab['btvalid_clean'] * 0.70
+    df_latest_by_kab['sisa_bt_kejar'] = (df_latest_by_kab['target_bt_70'] - df_latest_by_kab['sertel_clean']).apply(lambda x: max(0, x))
+    df_latest_by_kab['target_harian'] = (df_latest_by_kab['sisa_bt_kejar'] / sisa_hari_kerja).apply(np.ceil).astype(int)
+
+    # Hitung capaian terbaru dibanding snapshot tanggal sebelumnya
+    df_capaian_map = {}
     if len(unique_tgls) >= 2:
         t_latest = unique_tgls[-1]
         t_prev = unique_tgls[-2]
 
-        grp_latest_kw = df_line[df_line['tgl_str'] == t_latest].groupby('kab_clean')['total_kw456'].sum()
-        grp_prev_kw = df_line[df_line['tgl_str'] == t_prev].groupby('kab_clean')['total_kw456'].sum()
+        grp_latest = df_line[df_line['tgl_str'] == t_latest].groupby('kab_clean')['sertel_clean'].sum()
+        grp_prev = df_line[df_line['tgl_str'] == t_prev].groupby('kab_clean')['sertel_clean'].sum()
 
         for k_name in df_latest_by_kab['kab_clean']:
-            df_capaian_kw_map[k_name] = grp_latest_kw.get(k_name, 0) - grp_prev_kw.get(k_name, 0)
+            df_capaian_map[k_name] = grp_latest.get(k_name, 0) - grp_prev.get(k_name, 0)
 
-    # Urutkan dari % KW456 terkecil ke terbesar (atau sesuai kebutuhan)
-    df_kw_grp = df_latest_by_kab.sort_values(by='pct_kw456', ascending=True).reset_index(drop=True)
+    # Urutkan dari % Prasertel terkecil ke terbesar
+    df_target_grp = df_latest_by_kab.sort_values(by='pct_saat_ini', ascending=True).reset_index(drop=True)
 
-    rows_kw_html = []
-    for idx, row in df_kw_grp.iterrows():
+    rows_target_html = []
+    for idx, row in df_target_grp.iterrows():
         wil_name = row['kab_clean']
         bt_val = f"{row['btvalid_clean']:,.0f}".replace(',', '.')
-        v_kw4 = f"{row['kw4_clean']:,.0f}".replace(',', '.')
-        v_kw5 = f"{row['kw5_clean']:,.0f}".replace(',', '.')
-        v_kw6 = f"{row['kw6_clean']:,.0f}".replace(',', '.')
-        v_tot_kw = f"{row['total_kw456']:,.0f}".replace(',', '.')
-        pct_kw = row['pct_kw456']
+        p_sertel = f"{row['sertel_clean']:,.0f}".replace(',', '.')
+        pct_val = row['pct_saat_ini']
+        tgt_hr = f"{row['target_harian']:,.0f} BT".replace(',', '.')
 
-        # 💡 1. Pewarnaan Badge % KW456: Hijau <= 5%, Kuning 5.01-10%, Merah > 10.01%
-        badge_kw_class = "badge-green" if pct_kw <= 5.0 else ("badge-yellow" if pct_kw <= 10.0 else "badge-red")
-        pct_kw_formatted = f"<span class='{badge_kw_class}'>{pct_kw:.2f}%</span>"
+        badge_class = "badge-red" if pct_val <= 50.0 else ("badge-yellow" if pct_val <= 70.0 else "badge-green")
+        pct_formatted = f"<span class='{badge_class}'>{pct_val:.2f}%</span>"
 
-        # 💡 2. Pewarnaan Teks Capaian Terbaru KW456: Hijau jika 0 atau minus, Merah jika plus (+)
-        cap_kw_val = df_capaian_kw_map.get(wil_name, 0)
-        if cap_kw_val > 0:
-            cap_kw_formatted = f"<span style='color: #EF4444; font-weight: bold;'>+{cap_kw_val:,.0f}</span>".replace(',', '.')
-        elif cap_kw_val < 0:
-            cap_kw_formatted = f"<span style='color: #10B981; font-weight: bold;'>{cap_kw_val:,.0f}</span>".replace(',', '.')
+        cap_val = df_capaian_map.get(wil_name, 0)
+        if cap_val > 0:
+            cap_formatted = f"<span style='color: #10B981; font-weight: bold;'>+{cap_val:,.0f} BT</span>".replace(',', '.')
+        elif cap_val < 0:
+            cap_formatted = f"<span style='color: #EF4444; font-weight: bold;'>{cap_val:,.0f} BT</span>".replace(',', '.')
         else:
-            cap_kw_formatted = "<span style='color: #10B981; font-weight: bold;'>0</span>"
+            cap_formatted = "<span style='color: #6B7280;'>0 BT</span>"
 
-        rows_kw_html.append(
+        rows_target_html.append(
             f"<tr>"
             f"<td style='text-align: center; font-weight: bold; width: 50px;'>{idx+1}</td>"
             f"<td style='text-align: left; font-weight: 600;'>{wil_name}</td>"
             f"<td style='text-align: center;'>{bt_val}</td>"
-            f"<td style='text-align: center;'>{v_kw4}</td>"
-            f"<td style='text-align: center;'>{v_kw5}</td>"
-            f"<td style='text-align: center;'>{v_kw6}</td>"
-            f"<td style='text-align: center; font-weight: bold; color: #0284C7;'>{v_tot_kw}</td>"
-            f"<td style='text-align: center;'>{pct_kw_formatted}</td>"
-            f"<td style='text-align: center;'>{cap_kw_formatted}</td>"
+            f"<td style='text-align: center;'>{p_sertel}</td>"
+            f"<td style='text-align: center;'>{pct_formatted}</td>"
+            f"<td style='text-align: center;'>{cap_formatted}</td>"
+            f"<td style='text-align: center; font-weight: bold; color: #1E3A8A;'>{tgt_hr}</td>"
             f"</tr>"
         )
 
-    html_kw_table = f"""
+    html_target_table = f"""<style>
+.target-table-container {{ width: 100%; border: 1px solid #E5E7EB; border-radius: 10px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); margin-top: 10px; overflow: hidden; }}
+.target-table {{ width: 100%; border-collapse: collapse; font-family: system-ui, -apple-system, sans-serif; font-size: 0.88rem; }}
+.target-table th {{ background-color: #1E293B; color: #FFFFFF; font-weight: 700; padding: 12px 10px; text-align: center; border-bottom: 2px solid #0F172A; }}
+.target-table th.th-left {{ text-align: left !important; }}
+.target-table td {{ padding: 10px 12px; border-bottom: 1px solid #F1F5F9; vertical-align: middle; }}
+.target-table tr:nth-child(even) {{ background-color: #F8FAFC; }}
+.badge-red {{ background-color: #FEE2E2; color: #991B1B; padding: 4px 10px; border-radius: 6px; font-weight: 700; display: inline-block; }}
+.badge-yellow {{ background-color: #FEF3C7; color: #92400E; padding: 4px 10px; border-radius: 6px; font-weight: 700; display: inline-block; }}
+.badge-green {{ background-color: #D1FAE5; color: #065F46; padding: 4px 10px; border-radius: 6px; font-weight: 700; display: inline-block; }}
+</style>
 <div class="target-table-container">
 <table class="target-table">
-<thead>
-<tr>
-<th>No</th>
-<th class="th-left">Kabupaten / Kota</th>
-<th>Jumlah BT Valid</th>
-<th>Jumlah KW4</th>
-<th>Jumlah KW5</th>
-<th>Jumlah KW6</th>
-<th>Total KW456</th>
-<th>% KW456</th>
-<th>Capaian Terbaru</th>
-</tr>
-</thead>
-<tbody>{"".join(rows_kw_html)}</tbody>
+<thead><tr><th>No</th><th class="th-left">Kabupaten / Kota</th><th>Jumlah BT Valid</th><th>Jumlah Prasertel</th><th>Persentase Saat Ini</th><th>Capaian Terbaru</th><th>Target Harian</th></tr></thead>
+<tbody>{"".join(rows_target_html)}</tbody>
 </table></div>"""
 
-    st.markdown(html_kw_table, unsafe_allow_html=True)
+    st.markdown(html_target_table, unsafe_allow_html=True)
 
 # -----------------------------------------------------------------------------
 # 4. FUNGSI AUTENTIKASI (LOGIN & LOGOUT)
