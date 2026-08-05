@@ -131,9 +131,9 @@ def render_profil_anggaran(df_filtered_sdm):
 
     with col_layout_left:
         col_pic1, col_pic2, col_pic3 = st.columns(3)
-        with col_pic1: st.image(pimpinan_0["url"], use_column_width=True)
-        with col_pic2: st.image(pimpinan_1["url"], use_column_width=True)
-        with col_pic3: st.image(pimpinan_2["url"], use_column_width=True)
+        with col_pic1: st.image(pimpinan_0["url"], use_container_width=True)
+        with col_pic2: st.image(pimpinan_1["url"], use_container_width=True)
+        with col_pic3: st.image(pimpinan_2["url"], use_container_width=True)
 
     with col_layout_right:
         jml_pegawai = len(df_filtered_sdm)
