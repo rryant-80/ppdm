@@ -1258,14 +1258,15 @@ def render_monitoring_kakanwil(df_kakanwil):
 <tbody>{"".join(rows_target_html)}</tbody>
 </table></div>"""
 
-    st.markdown(html_target_table, unsafe_allow_html=True)
+    st.markdown(html_target_table, unsafe_allow_html=True)    
 
     # ==========================================
     # DASHBOARD 3: GRAFIK TREN KHUSUS KW456
     # ==========================================
     st.markdown("<br><hr>", unsafe_allow_html=True)
     
-    df_trend_kw = df_line.groupby(['tgl_str', 'kab_clean'], as_index=False)['total_kw456'].sum()
+    df_trend_kw = df_line.groupby(['tgl_dt', 'tgl_str', 'kab_clean'], as_index=False)['total_kw456'].sum()
+    df_trend_kw = df_trend_kw.sort_values(by='tgl_dt')
 
     fig_line_kw = px.line(
         df_trend_kw, 
@@ -1303,9 +1304,13 @@ def render_monitoring_kakanwil(df_kakanwil):
     # ==========================================
     st.subheader("📋 Rekapitulasi Capaian KW456 per Kabupaten/Kota")
 
-    # Hitung % KW456 dan perbedaan capaian terbaru
+    # Ambil snapshot tanggal paling akhir per kabupaten berdasarkan tgl_dt
+    df_latest_by_kab = df_line.sort_values(by='tgl_dt').groupby('kab_clean', as_index=False).last()
+
+    # Hitung % KW456
     df_latest_by_kab['pct_kw456'] = (df_latest_by_kab['total_kw456'] / df_latest_by_kab['btvalid_clean'].replace(0, 1)) * 100.0
 
+    # Perhitungan capaian terbaru (selisih snapshot tanggal terakhir & tanggal sebelumnya)
     df_capaian_kw_map = {}
     if len(unique_tgls) >= 2:
         t_latest = unique_tgls[-1]
@@ -1317,8 +1322,8 @@ def render_monitoring_kakanwil(df_kakanwil):
         for k_name in df_latest_by_kab['kab_clean']:
             df_capaian_kw_map[k_name] = grp_latest_kw.get(k_name, 0) - grp_prev_kw.get(k_name, 0)
 
-    # Urutkan dari % KW456 tertinggi ke terkecil
-    df_kw_grp = df_latest_by_kab.sort_values(by='pct_kw456', ascending=False).reset_index(drop=True)
+    # Urutkan dari % KW456 terkecil ke terbesar (atau sesuai kebutuhan)
+    df_kw_grp = df_latest_by_kab.sort_values(by='pct_kw456', ascending=True).reset_index(drop=True)
 
     rows_kw_html = []
     for idx, row in df_kw_grp.iterrows():
@@ -1330,13 +1335,18 @@ def render_monitoring_kakanwil(df_kakanwil):
         v_tot_kw = f"{row['total_kw456']:,.0f}".replace(',', '.')
         pct_kw = row['pct_kw456']
 
+        # 💡 1. Pewarnaan Badge % KW456: Hijau <= 5%, Kuning 5.01-10%, Merah > 10.01%
+        badge_kw_class = "badge-green" if pct_kw <= 5.0 else ("badge-yellow" if pct_kw <= 10.0 else "badge-red")
+        pct_kw_formatted = f"<span class='{badge_kw_class}'>{pct_kw:.2f}%</span>"
+
+        # 💡 2. Pewarnaan Teks Capaian Terbaru KW456: Hijau jika 0 atau minus, Merah jika plus (+)
         cap_kw_val = df_capaian_kw_map.get(wil_name, 0)
         if cap_kw_val > 0:
-            cap_kw_formatted = f"<span style='color: #10B981; font-weight: bold;'>+{cap_kw_val:,.0f}</span>".replace(',', '.')
+            cap_kw_formatted = f"<span style='color: #EF4444; font-weight: bold;'>+{cap_kw_val:,.0f}</span>".replace(',', '.')
         elif cap_kw_val < 0:
-            cap_kw_formatted = f"<span style='color: #EF4444; font-weight: bold;'>{cap_kw_val:,.0f}</span>".replace(',', '.')
+            cap_kw_formatted = f"<span style='color: #10B981; font-weight: bold;'>{cap_kw_val:,.0f}</span>".replace(',', '.')
         else:
-            cap_kw_formatted = "<span style='color: #6B7280;'>0</span>"
+            cap_kw_formatted = "<span style='color: #10B981; font-weight: bold;'>0</span>"
 
         rows_kw_html.append(
             f"<tr>"
@@ -1347,7 +1357,7 @@ def render_monitoring_kakanwil(df_kakanwil):
             f"<td style='text-align: center;'>{v_kw5}</td>"
             f"<td style='text-align: center;'>{v_kw6}</td>"
             f"<td style='text-align: center; font-weight: bold; color: #0284C7;'>{v_tot_kw}</td>"
-            f"<td style='text-align: center; font-weight: bold;'>{pct_kw:.2f}%</td>"
+            f"<td style='text-align: center;'>{pct_kw_formatted}</td>"
             f"<td style='text-align: center;'>{cap_kw_formatted}</td>"
             f"</tr>"
         )
