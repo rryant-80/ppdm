@@ -1127,12 +1127,16 @@ def render_monitoring_kakanwil(df_kakanwil):
     col_kw6 = 'jml_kw6' if 'jml_kw6' in df.columns else next((c for c in df.columns if 'kw6' in c), 'jml_kw6')
 
     # Parsing & pembersihan nilai numerik
-    f['sertel_clean'] = df[col_sertel].apply(parse_num)
+    df['sertel_clean'] = df[col_sertel].apply(parse_num)
     df['btvalid_clean'] = df[col_btvalid].apply(parse_num)
     df['kw4_clean'] = df[col_kw4].apply(parse_num) if col_kw4 in df.columns else 0
     df['kw5_clean'] = df[col_kw5].apply(parse_num) if col_kw5 in df.columns else 0
     df['kw6_clean'] = df[col_kw6].apply(parse_num) if col_kw6 in df.columns else 0
+    
+    # Penjumlahan total KW456 per baris
     df['total_kw456'] = df['kw4_clean'] + df['kw5_clean'] + df['kw6_clean']
+    
+    # Filter baris non-kabupaten (Memastikan df_clean membawa kolom total_kw456)
     df_clean = df[~df['kab_clean'].str.contains('Total|Jumlah|Sulawesi Tengah', case=False, na=False)].copy()
 
     # ==========================================
