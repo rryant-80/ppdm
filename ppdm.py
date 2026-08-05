@@ -1769,3 +1769,76 @@ else:
                 margin=dict(l=10, r=10, t=35, b=10), separators=',.', yaxis=dict(gridcolor='#f2f2f2', ticksuffix='%')
             )
             st.sidebar.plotly_chart(fig_elek, use_container_width=True)
+        # ==========================================
+        # 4. GRAFIK: Jumlah KW456 (Sidebar - Custom Hover & Singkatan Kabupaten)
+        # ==========================================
+        if not df_kakanwil_raw.empty:
+            df_kw_side = df_kakanwil_raw.copy()
+            df_kw_side.columns = [str(c).strip().lower() for c in df_kw_side.columns]
+            
+            # Identifikasi nama kolom
+            col_kab_s = 'kabupaten_kota' if 'kabupaten_kota' in df_kw_side.columns else next((c for c in df_kw_side.columns if 'kab' in c), 'kabupaten_kota')
+            col_bt_s = 'btvalid_kab' if 'btvalid_kab' in df_kw_side.columns else next((c for c in df_kw_side.columns if 'btvalid' in c or 'bt' in c), 'btvalid_kab')
+            col_tgl_s = 'tgl_kab' if 'tgl_kab' in df_kw_side.columns else next((c for c in df_kw_side.columns if 'tgl' in c), 'tgl_kab')
+            
+            col_kw4_s = 'jml_kw4' if 'jml_kw4' in df_kw_side.columns else next((c for c in df_kw_side.columns if 'kw4' in c), 'jml_kw4')
+            col_kw5_s = 'jml_kw5' if 'jml_kw5' in df_kw_side.columns else next((c for c in df_kw_side.columns if 'kw5' in c), 'jml_kw5')
+            col_kw6_s = 'jml_kw6' if 'jml_kw6' in df_kw_side.columns else next((c for c in df_kw_side.columns if 'kw6' in c), 'jml_kw6')
+
+            # Parsing kolom numerik
+            df_kw_side['btvalid_clean'] = df_kw_side[col_bt_s].apply(parse_num)
+            df_kw_side['kw4_clean'] = df_kw_side[col_kw4_s].apply(parse_num) if col_kw4_s in df_kw_side.columns else 0
+            df_kw_side['kw5_clean'] = df_kw_side[col_kw5_s].apply(parse_num) if col_kw5_s in df_kw_side.columns else 0
+            df_kw_side['kw6_clean'] = df_kw_side[col_kw6_s].apply(parse_num) if col_kw6_s in df_kw_side.columns else 0
+            df_kw_side['total_kw456'] = df_kw_side['kw4_clean'] + df_kw_side['kw5_clean'] + df_kw_side['kw6_clean']
+            
+            df_kw_side['kab_clean'] = df_kw_side[col_kab_s].astype(str).str.strip()
+            df_kw_side = df_kw_side[~df_kw_side['kab_clean'].str.contains('Total|Jumlah|Sulawesi Tengah', case=False, na=False)].copy()
+
+            # Tangani pengurutan tanggal kronologis untuk snapshot data terbaru
+            df_kw_side['tgl_dt'] = pd.to_datetime(df_kw_side[col_tgl_s], format='%d/%m/%Y', errors='coerce')
+            if df_kw_side['tgl_dt'].isna().all():
+                df_kw_side['tgl_dt'] = pd.to_datetime(df_kw_side[col_tgl_s], dayfirst=True, errors='coerce')
+
+            # Ambil snapshot tanggal paling baru untuk tiap kabupaten
+            df_kw_latest = df_kw_side.sort_values(by='tgl_dt').groupby('kab_clean', as_index=False).last()
+
+            # Pemetaan nama lengkap ke nama singkat & persentase
+            df_kw_latest['kab_singkat'] = df_kw_latest['kab_clean'].map(lambda x: KAB_MAP.get(x, x))
+            df_kw_latest['pct_kw456'] = (df_kw_latest['total_kw456'] / df_kw_latest['btvalid_clean'].replace(0, 1)) * 100.0
+
+            # Formatting teks untuk Hover
+            df_kw_latest['bt_fmt'] = df_kw_latest['btvalid_clean'].apply(lambda x: f"{x:,.0f}".replace(',', '.'))
+            df_kw_latest['kw_fmt'] = df_kw_latest['total_kw456'].apply(lambda x: f"{x:,.0f}".replace(',', '.'))
+            df_kw_latest['pct_fmt'] = df_kw_latest['pct_kw456'].apply(lambda x: f"{x:.2f}".replace('.', ','))
+
+            # Urutkan dari total KW456 terbesar ke terkecil
+            df_kw_latest = df_kw_latest.sort_values(by='total_kw456', ascending=False)
+
+            # Render Grafik Bar Plotly Warna Orange
+            fig_kw_side = px.bar(
+                df_kw_latest, 
+                x='kab_singkat', 
+                y='total_kw456',
+                title="Jumlah KW456",
+                custom_data=df_kw_latest[['kab_clean', 'bt_fmt', 'kw_fmt', 'pct_fmt']]
+            )
+
+            fig_kw_side.update_traces(
+                hovertemplate="<b>%{customdata[0]}</b><br>Jumlah BT Valid: <b>%{customdata[1]}</b><br>Jml KW456: <b>%{customdata[2]}</b><br>%KW456: <b>%{customdata[3]}%</b><extra></extra>",
+                marker_color='#FF9F43'  # Warna Orange
+            )
+
+            fig_kw_side.update_layout(
+                showlegend=False, 
+                height=250,
+                xaxis_title="", 
+                yaxis_title="",
+                xaxis={'categoryorder': 'total descending'},
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                margin=dict(l=10, r=10, t=35, b=10),
+                yaxis=dict(gridcolor='#f2f2f2')
+            )
+
+            st.sidebar.plotly_chart(fig_kw_side, use_container_width=True)
