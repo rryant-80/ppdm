@@ -1381,9 +1381,9 @@ def render_monitoring_kakanwil(df_kakanwil):
 <th>No</th>
 <th class="th-left">Kabupaten / Kota</th>
 <th>Jumlah BT Valid</th>
-<th>Jumlah KW4</th>
-<th>Jumlah KW5</th>
-<th>Jumlah KW6</th>
+<th>KW4</th>
+<th>KW5</th>
+<th>KW6</th>
 <th>Total KW456</th>
 <th>% KW456</th>
 <th>Capaian Terbaru</th>
