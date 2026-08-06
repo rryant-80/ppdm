@@ -360,9 +360,9 @@ def render_psn_2026(df_filtered_psn):
         st.markdown(card_wrapper_start, unsafe_allow_html=True)
         fig_shat = create_psn_chart(
             "2. Realisasi SHAT", df_rekap, 'target_shat', 
-            {'Puldadis': 'puldadis', 'Berkas': 'berkas', 'K1': 'k1', 'Sertipikat PTSL': 'siap_serah'}, 
-            ['#b4ffb3', '#44bc43', '#1f9f1d', '#026b00'], 
-            sort_metric='siap_serah', 
+            {'Puldadis': 'puldadis', 'Berkas': 'berkas', 'Sertipikat PTSL': 'k1'}, 
+            ['#b4ffb3', '#44bc43', '#026b00'], 
+            sort_metric='k1', 
             unit="Bdg"
         )
         st.plotly_chart(fig_shat, use_container_width=True)
