@@ -270,16 +270,31 @@ def render_psn_2026(df_filtered_psn):
     # -----------------------------------------------------------------------------
     # 2. FUNGSI RENDER GRAFIK PSN
     # -----------------------------------------------------------------------------
-    def create_psn_chart(title, df_data, target_col, metrics_dict, color_sequence, unit="Bdg", is_stacked=False):
+    def create_psn_chart(title, df_data, target_col, metrics_dict, color_sequence, sort_metric=None, unit="Bdg", is_stacked=False):
         df_valid = df_data[df_data[target_col] > 0].copy()
         if df_valid.empty:
             fig_empty = px.bar(title=f"{title} (Tidak ada target aktif)")
             fig_empty.update_layout(height=310, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', margin=dict(l=10, r=10, t=30, b=10))
             return fig_empty
-
+    
+        # --- LOGIKA PENGURUTAN (TERBESAR KE TERKECIL) ---
+        if sort_metric:
+            if isinstance(sort_metric, list):
+                # Jika berupa list (misal PBT), jumlahkan indikatornya dulu lalu hitung total %
+                df_valid['_sum_real'] = df_valid[sort_metric].sum(axis=1)
+                df_valid['_sort_val'] = (df_valid['_sum_real'] / df_valid[target_col]) * 100
+            else:
+                # Jika kolom tunggal
+                df_valid['_sort_val'] = (df_valid[sort_metric] / df_valid[target_col]) * 100
+            
+            # Urutkan secara descending (terbesar ke terkecil)
+            df_valid = df_valid.sort_values(by='_sort_val', ascending=False)
+        
+        # Ambil daftar kabupaten yang sudah terurut
+        sorted_kabs = df_valid['kabupaten_kota'].tolist()
+    
         long_rows = []
         for _, row in df_valid.iterrows():
-            # 💡 AMBIL NAMA LENGKAP KABUPATEN (Aman karena sudah ada di df_rekap)
             kab = row['kabupaten_kota']
             target_val = row[target_col]
             for label, col_name in metrics_dict.items():
@@ -297,55 +312,86 @@ def render_psn_2026(df_filtered_psn):
         fig = px.bar(
             df_long, x='Kab/Kota', y='Persentase', color='Indikator',
             barmode='relative' if is_stacked else 'group', title=title,
-            color_discrete_sequence=color_sequence, custom_data=['Real_Fmt', 'Target_Fmt', 'Pct_Fmt']
+            color_discrete_sequence=color_sequence, 
+            category_orders={'Kab/Kota': sorted_kabs},  # Penguncian urutan sumbu-X
+            custom_data=['Real_Fmt', 'Target_Fmt', 'Pct_Fmt']
         )
         fig.update_traces(
             hovertemplate="<b>%{x}</b><br>%{fullData.name} | %{customdata[2]}%<extra></extra><br>Target: %{customdata[1]}<br>Realisasi: %{customdata[0]}",
             marker=dict(line=dict(width=1.2, color='#111111'))
         )
         fig.update_layout(
-            height=360,  # Disesuaikan agar nama kabupaten panjang tidak terpotong
+            height=370,
             xaxis_title="", yaxis_title="", legend_title_text="",
-            paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', margin=dict(l=5, r=5, t=32, b=50),
+            paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', margin=dict(l=5, r=5, t=32, b=60),
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(size=10)),
             title=dict(font=dict(size=14)), 
             yaxis=dict(gridcolor='#c4c4c4', tickfont=dict(size=9)), 
             xaxis=dict(
                 showgrid=False, 
-                tickfont=dict(size=8.5),
-                tickangle=-30  # Kemiringan -30 derajat agar nama lengkap terbaca rapi
+                tickfont=dict(size=10),  # Ukuran font label sumbu X (diperbesar ke 10pt)
+                tickangle=-30
             )
         )
         return fig
-
+    
+    # --- PEMANGGILAN GRAFIK DENGAN PARAMETER SORTING ---
     card_wrapper_start = "<div style='background-color: #dbdbdb; border-radius: 10px; padding: 6px 10px 4px 10px; margin-bottom: 8px; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);'>"
     card_wrapper_end = "</div>"
-
+    
     row1_col1, row1_col2 = st.columns(2)
     row2_col1, row2_col2 = st.columns(2)
-
+    
+    # 1. Realisasi PBT (Urut berdasarkan akumulasi 3 indikator)
     with row1_col1:
         st.markdown(card_wrapper_start, unsafe_allow_html=True)
-        fig_pbt = create_psn_chart("1. Realisasi PBT", df_rekap, 'target_pbt', {'Bidang Baru': 'realisasi_baru', 'Pemetaan K4': 'realisasi_k4', 'Reposisi Bidang': 'realisasi_repo'}, ['#dbdbdb', '#a9a9a9', '#656565'], unit="Ha", is_stacked=True)
+        fig_pbt = create_psn_chart(
+            "1. Realisasi PBT", df_rekap, 'target_pbt', 
+            {'Bidang Baru': 'realisasi_baru', 'Pemetaan K4': 'realisasi_k4', 'Reposisi Bidang': 'realisasi_repo'}, 
+            ['#dbdbdb', '#a9a9a9', '#656565'], 
+            sort_metric=['realisasi_baru', 'realisasi_k4', 'realisasi_repo'], 
+            unit="Ha", is_stacked=True
+        )
         st.plotly_chart(fig_pbt, use_container_width=True)
         st.markdown(card_wrapper_end, unsafe_allow_html=True)
-
+    
+    # 2. Realisasi SHAT (Urut berdasarkan % Sertipikat PTSL / siap_serah)
     with row1_col2:
         st.markdown(card_wrapper_start, unsafe_allow_html=True)
-        fig_shat = create_psn_chart("2. Realisasi SHAT", df_rekap, 'target_shat', {'Puldadis': 'puldadis', 'Berkas': 'berkas', 'K1': 'k1', 'Sertipikat PTSL': 'siap_serah'}, ['#b4ffb3', '#44bc43', '#1f9f1d', '#026b00'], unit="Bdg")
+        fig_shat = create_psn_chart(
+            "2. Realisasi SHAT", df_rekap, 'target_shat', 
+            {'Puldadis': 'puldadis', 'Berkas': 'berkas', 'K1': 'k1', 'Sertipikat PTSL': 'siap_serah'}, 
+            ['#b4ffb3', '#44bc43', '#1f9f1d', '#026b00'], 
+            sort_metric='siap_serah', 
+            unit="Bdg"
+        )
         st.plotly_chart(fig_shat, use_container_width=True)
         st.markdown(card_wrapper_end, unsafe_allow_html=True)
-
+    
+    # 3. Realisasi Redistribusi (Urut berdasarkan % Sertipikat Redis)
     with row2_col1:
         st.markdown(card_wrapper_start, unsafe_allow_html=True)
-        fig_redis = create_psn_chart("3. Realisasi Redistribusi", df_rekap, 'target_redis', {'Subyek Obyek': 'pos_redis', 'SK Redis': 'sk_redis', 'Sertipikat Redis': 'sertipikat_redis'}, ['#99eaf2', '#17BECF', '#0097a6'], unit="Bdg")
+        fig_redis = create_psn_chart(
+            "3. Realisasi Redistribusi", df_rekap, 'target_redis', 
+            {'Subyek Obyek': 'pos_redis', 'SK Redis': 'sk_redis', 'Sertipikat Redis': 'sertipikat_redis'}, 
+            ['#99eaf2', '#17BECF', '#0097a6'], 
+            sort_metric='sertipikat_redis', 
+            unit="Bdg"
+        )
         st.plotly_chart(fig_redis, use_container_width=True)
         st.markdown(card_wrapper_end, unsafe_allow_html=True)
-
+    
+    # 4. Realisasi Lintor (Urut berdasarkan % Sertipikat Lintor)
     with row2_col2:
         st.markdown(card_wrapper_start, unsafe_allow_html=True)
         lintor_serah_col = 'lintor_serah' if 'lintor_serah' in df_rekap.columns and df_rekap['lintor_serah'].sum() > 0 else 'lintor_sertipikat'
-        fig_lintor = create_psn_chart("4. Realisasi Lintor", df_rekap, 'target_lintor', {'Lintor SU': 'lintor_su', 'Lintor SK': 'lintor_sk', 'Sertipikat Lintor': lintor_serah_col}, ['#f0d9a0', '#FECB52', '#fcb100'], unit="Bdg")
+        fig_lintor = create_psn_chart(
+            "4. Realisasi Lintor", df_rekap, 'target_lintor', 
+            {'Lintor SU': 'lintor_su', 'Lintor SK': 'lintor_sk', 'Sertipikat Lintor': lintor_serah_col}, 
+            ['#f0d9a0', '#FECB52', '#fcb100'], 
+            sort_metric=lintor_serah_col, 
+            unit="Bdg"
+        )
         st.plotly_chart(fig_lintor, use_container_width=True)
         st.markdown(card_wrapper_end, unsafe_allow_html=True)
 
