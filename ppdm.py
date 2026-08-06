@@ -332,7 +332,7 @@ def render_psn_2026(df_filtered_psn):
 
     with row1_col2:
         st.markdown(card_wrapper_start, unsafe_allow_html=True)
-        fig_shat = create_psn_chart("2. Realisasi SHAT", df_rekap, 'target_shat', {'Puldadis': 'puldadis', 'Berkas': 'berkas', 'K1': 'k1', 'Siap_Diserahkan': 'siap_serah'}, ['#b4ffb3', '#44bc43', '#1f9f1d', '#026b00'], unit="Bdg")
+        fig_shat = create_psn_chart("2. Realisasi SHAT", df_rekap, 'target_shat', {'Puldadis': 'puldadis', 'Berkas': 'berkas', 'K1': 'k1', 'Sertipikat PTSL': 'siap_serah'}, ['#b4ffb3', '#44bc43', '#1f9f1d', '#026b00'], unit="Bdg")
         st.plotly_chart(fig_shat, use_container_width=True)
         st.markdown(card_wrapper_end, unsafe_allow_html=True)
 
@@ -345,7 +345,7 @@ def render_psn_2026(df_filtered_psn):
     with row2_col2:
         st.markdown(card_wrapper_start, unsafe_allow_html=True)
         lintor_serah_col = 'lintor_serah' if 'lintor_serah' in df_rekap.columns and df_rekap['lintor_serah'].sum() > 0 else 'lintor_sertipikat'
-        fig_lintor = create_psn_chart("4. Realisasi Lintor", df_rekap, 'target_lintor', {'Lintor SU': 'lintor_su', 'Lintor SK': 'lintor_sk', 'Lintor Sertipikat': lintor_serah_col}, ['#f0d9a0', '#FECB52', '#fcb100'], unit="Bdg")
+        fig_lintor = create_psn_chart("4. Realisasi Lintor", df_rekap, 'target_lintor', {'Lintor SU': 'lintor_su', 'Lintor SK': 'lintor_sk', 'Sertipikat Lintor': lintor_serah_col}, ['#f0d9a0', '#FECB52', '#fcb100'], unit="Bdg")
         st.plotly_chart(fig_lintor, use_container_width=True)
         st.markdown(card_wrapper_end, unsafe_allow_html=True)
 
