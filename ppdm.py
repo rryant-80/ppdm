@@ -1412,7 +1412,7 @@ if "logged_in" not in st.session_state:
     st.session_state.user_info = None
 
 def login():
-    st.markdown("<h2 style='text-align: center;'>🔐 Login Dashboard Pertanahan</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center;'>🔐 Master View of Sulteng Land</h2>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; color: #666;'>Masukkan kode akses resmi untuk melanjutkan</p>", unsafe_allow_html=True)
     
     col1, col2, col3 = st.columns([1, 2, 1])
