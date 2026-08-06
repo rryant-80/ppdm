@@ -1185,6 +1185,9 @@ def render_monitoring_kakanwil(df_kakanwil):
     sisa_hari_kerja = np.busday_count(today, end_date + timedelta(days=1)) if today < end_date else 1
     st.info(f"📅 **{sisa_hari_kerja} hari kerja** menuju Tgl. 31 Desember 2026")
 
+    df_clean['tgl_dt'] = pd.to_datetime(df_clean[col_tgl], format='%d/%m/%Y', errors='coerce')
+    if df_clean['tgl_dt'].isna().all():
+        df_clean['tgl_dt'] = pd.to_datetime(df_clean[col_tgl], dayfirst=True, errors='coerce')
     # Ambil data snapshot tanggal terbaru untuk tiap kabupaten
     df_latest_by_kab = df_clean.sort_values(by=col_tgl).groupby('kab_clean', as_index=False).last()
 
