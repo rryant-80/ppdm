@@ -1189,26 +1189,29 @@ def render_monitoring_kakanwil(df_kakanwil):
     if df_clean['tgl_dt'].isna().all():
         df_clean['tgl_dt'] = pd.to_datetime(df_clean[col_tgl], dayfirst=True, errors='coerce')
     # Ambil data snapshot tanggal terbaru untuk tiap kabupaten
-    df_latest_by_kab = df_clean.sort_values(by=col_tgl).groupby('kab_clean', as_index=False).last()
+    df_latest_by_kab = df_clean.sort_values(by='tgl_dt').groupby('kab_clean', as_index=False).last()
 
     df_latest_by_kab['pct_saat_ini'] = (df_latest_by_kab['sertel_clean'] / df_latest_by_kab['btvalid_clean'].replace(0, 1)) * 100.0
     df_latest_by_kab['target_bt_70'] = df_latest_by_kab['btvalid_clean'] * 0.70
     df_latest_by_kab['sisa_bt_kejar'] = (df_latest_by_kab['target_bt_70'] - df_latest_by_kab['sertel_clean']).apply(lambda x: max(0, x))
     df_latest_by_kab['target_harian'] = (df_latest_by_kab['sisa_bt_kejar'] / sisa_hari_kerja).apply(np.ceil).astype(int)
 
-    # Hitung capaian terbaru dibanding snapshot tanggal sebelumnya
+    # Dapatkan daftar tanggal kronologis untuk kalkulasi capaian harian terbaru
+    df_line_sorted = df_clean.sort_values(by='tgl_dt').reset_index(drop=True)
+    unique_tgls = df_line_sorted.drop_duplicates(subset=['tgl_dt'])[col_tgl].astype(str).str.strip().tolist()
+
     df_capaian_map = {}
     if len(unique_tgls) >= 2:
-        t_latest = unique_tgls[-1]
-        t_prev = unique_tgls[-2]
+        t_latest = unique_tgls[-1]  # 06/08/2026
+        t_prev = unique_tgls[-2]    # 05/08/2026
 
-        grp_latest = df_line[df_line['tgl_str'] == t_latest].groupby('kab_clean')['sertel_clean'].sum()
-        grp_prev = df_line[df_line['tgl_str'] == t_prev].groupby('kab_clean')['sertel_clean'].sum()
+        grp_latest = df_clean[df_clean[col_tgl] == t_latest].groupby('kab_clean')['sertel_clean'].sum()
+        grp_prev = df_clean[df_clean[col_tgl] == t_prev].groupby('kab_clean')['sertel_clean'].sum()
 
         for k_name in df_latest_by_kab['kab_clean']:
             df_capaian_map[k_name] = grp_latest.get(k_name, 0) - grp_prev.get(k_name, 0)
 
-    # Urutkan dari % Prasertel terkecil ke terbesar
+    # Urutkan dari % Prasertel tertinggi ke terendah
     df_target_grp = df_latest_by_kab.sort_values(by='pct_saat_ini', ascending=False).reset_index(drop=True)
 
     rows_target_html = []
