@@ -11,7 +11,30 @@ import folium
 from streamlit_folium import st_folium
 
 # -----------------------------------------------------------------------------
-# MODUL TAMPILAN PETA TEMATIK INTERAKTIF
+# 1. FUNGSI CACHING LOAD GEOJSON (WAJIB DI ATAS AGAR TIDAK NAMEERROR)
+# -----------------------------------------------------------------------------
+@st.cache_data(ttl=86400)
+def load_geojson_hutan():
+    try:
+        with open("sk11879_comp.geojson", "r", encoding="utf-8") as f:
+            data = json.load(f)
+            
+        # Pembersihan nilai None/NaN agar Folium rendering stabil
+        if "features" in data:
+            for feature in data["features"]:
+                props = feature.get("properties", {})
+                for key, val in props.items():
+                    if pd.isna(val) or val is None:
+                        props[key] = "-"
+                    else:
+                        props[key] = str(val)
+        return data
+    except Exception as e:
+        st.error(f"Gagal memuat file 'sk11879_comp.geojson': {e}")
+        return None
+
+# -----------------------------------------------------------------------------
+# 2. MODUL TAMPILAN PETA TEMATIK INTERAKTIF
 # -----------------------------------------------------------------------------
 def render_peta_kawasan_hutan():
     st.title("🗺️ Peta Tematik Pertanahan & Kawasan Hutan")
@@ -19,7 +42,7 @@ def render_peta_kawasan_hutan():
     st.markdown("---")
 
     with st.spinner("Memuat data spasial kawasan hutan..."):
-        data_hutan = load_geojson_hutan()
+        data_hutan = load_geojson_hutan()  # Sekarang dipanggil dengan aman
 
     if not data_hutan:
         st.warning("Data peta kawasan hutan tidak ditemukan.")
@@ -54,7 +77,7 @@ def render_peta_kawasan_hutan():
         "features": filtered_features
     }
 
-    # Skema Warna
+    # Skema Warna Berdasarkan Kategori
     color_map = {
         "HL": "#006400",
         "HPT": "#2ca02c",
