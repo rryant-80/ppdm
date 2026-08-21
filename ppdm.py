@@ -19,7 +19,7 @@ def load_geojson_hutan():
         with open("sk11879_comp.geojson", "r", encoding="utf-8") as f:
             data = json.load(f)
             
-        # Bersihkan atribut dari nilai None/NaN agar Folium tidak AssertionError saat render
+        # Bersihkan atribut dari nilai None/NaN agar rendering stabil
         if "features" in data:
             for feature in data["features"]:
                 props = feature.get("properties", {})
@@ -34,7 +34,7 @@ def load_geojson_hutan():
         return None
 
 # -----------------------------------------------------------------------------
-# MODUL TAMPILAN PETA KAWASAN HUTAN (VERSI AMAN)
+# MODUL TAMPILAN PETA KAWASAN HUTAN (SUDAH DIPERBAIKI)
 # -----------------------------------------------------------------------------
 def render_peta_kawasan_hutan():
     st.title("🌲 Peta Kawasan Hutan Sulawesi Tengah")
@@ -54,10 +54,10 @@ def render_peta_kawasan_hutan():
     # Buat FeatureGroup
     fg_hutan = folium.FeatureGroup(name="🌲 Kawasan Hutan (SK 11879)")
 
-    # Tooltip dengan pengecekan aman
+    # Tooltip HANYA menggunakan field yang benar-benar ada di GeoJSON
     tooltip_layer = folium.GeoJsonTooltip(
-        fields=["WADMKK", "FUNGSI_KWS", "FUNGSIKWS", "FID"],
-        aliases=["Kabupaten/Kota:", "Fungsi Kawasan:", "Kategori:", "FID:"],
+        fields=["WADMKK", "FUNGSI_KWS", "FUNGSIKWS"],
+        aliases=["Kabupaten/Kota:", "Fungsi Kawasan:", "Kategori:"],
         localize=True,
         sticky=False
     )
@@ -76,8 +76,7 @@ def render_peta_kawasan_hutan():
     fg_hutan.add_to(m)
     folium.LayerControl(collapsed=False).add_to(m)
 
-    # Render dengan st_folium
-    # Catatan: Gunakan width=None agar streamlit-folium otomatis menyesuaikan kontainer tanpa error
+    # Render Peta
     st_folium(m, use_container_width=True, height=600, returned_objects=[])
 
 # -----------------------------------------------------------------------------
