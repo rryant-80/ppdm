@@ -11,7 +11,7 @@ import folium
 from streamlit_folium import st_folium
 
 # -----------------------------------------------------------------------------
-# FUNGSI CACHING LOAD DUA GEOJSON (SK 11879 & SK 6624)
+# FUNGSI CACHING LOAD GEOJSON SPASIAL
 # -----------------------------------------------------------------------------
 @st.cache_data(ttl=86400)
 def load_geojson_spasial(filename):
@@ -34,35 +34,13 @@ def load_geojson_spasial(filename):
 
 
 # -----------------------------------------------------------------------------
-# MODUL TAMPILAN PETA TEMATIK INTERAKTIF (OVERLAY MULTI-PETA)
+# MODUL TAMPILAN PETA TEMATIK INTERAKTIF
 # -----------------------------------------------------------------------------
 def render_peta_kawasan_hutan():
     st.title("🗺️ Peta Tematik Pertanahan & Kawasan Hutan")
     st.markdown("---")
 
-    # 💡 1. INJEKSI CSS UNTUK MENGATUR UKURAN TOOLTIP PETA (Poin 1)
-    st.markdown(
-        """
-        <style>
-        /* Target seluruh elemen di dalam iframe folium yang bocor atau pembungkusnya */
-        iframe {
-            font-size: 3px !important;
-        }
-        .leaflet-tooltip, 
-        .leaflet-tooltip table, 
-        .leaflet-tooltip td, 
-        .leaflet-tooltip th,
-        .leaflet-tooltip span {
-            font-size: 3px !important;  /* Ukuran huruf teks */
-            line-height: 1.1 !important;
-            padding: 2px 4px !important; /* Memperkecil padding tabel */
-        }
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
-
-    # 💡 2. MULTISELECT PEMILIHAN PETA TEMATIK UNTUK TUMPANG-SUSUN (Poin 3)
+    # 1. MULTISELECT PEMILIHAN PETA TEMATIK
     col_map_sel, col_opac = st.columns([3.5, 1.5])
 
     with col_map_sel:
@@ -82,22 +60,28 @@ def render_peta_kawasan_hutan():
         st.info("ℹ️ Silakan pilih minimal satu Peta Tematik pada menu di atas.")
         return
 
-    # Inisialisasi Peta Utama (Default OpenStreetMap - Poin 2)
+    # 2. PANTAU POSITION & ZOOM LEVEL DARI SESSION STATE (Poin 2)
+    if "map_center" not in st.session_state:
+        st.session_state["map_center"] = [-1.43, 121.44]  # Posisi default Sulteng
+    if "map_zoom" not in st.session_state:
+        st.session_state["map_zoom"] = 8  # Zoom default
+
+    # Inisialisasi Peta Folium sesuai zoom & posisi terakhir
     m = folium.Map(
-        location=[-1.43, 121.44],
-        zoom_start=8,
+        location=st.session_state["map_center"],
+        zoom_start=st.session_state["map_zoom"],
         tiles="OpenStreetMap",
         attr="OpenStreetMap",
     )
 
-    # Konfigurasi Sumber Data
+    # Config Sumber Data
     map_configs = {
         "Peta Kawasan Hutan (SK 11879)": {
             "filename": "sk11879_comp.geojson",
             "filter_field": "FUNGSI_KWS",
             "filter_label": "🌲 Filter SK 11879 (FUNGSI_KWS):",
             "fields": ["WADMKK", "FUNGSI_KWS", "FUNGSIKWS"],
-            "aliases": ["Kab/Kota :", "Fungsi Kawasan :", "Kode :"],
+            "aliases": ["Kab/Kota:", "Fungsi:", "Kategori:"],
             "state_key": "filter_sk11879",
             "base_color": "#2ca02c",
         },
@@ -105,18 +89,17 @@ def render_peta_kawasan_hutan():
             "filename": "sk6624_comp.geojson",
             "filter_field": "NOSKKWS",
             "filter_label": "📄 Filter SK 6624 (NOSKKWS):",
-            "fields": ["FUNGSIKWS_", "NOSKKWS"],
-            "aliases": ["Kode :", "Fungsi Kawasan :"],
+            "fields": ["FUNGSIKWS", "NOSKKWS"],
+            "aliases": ["Fungsi:", "No. SK:"],
             "state_key": "filter_sk6624",
             "base_color": "#ff7f0e",
         },
     }
 
-    # Dynamic Columns untuk Filter Kategori masing-masing Peta Aktif
     filter_cols = st.columns(len(peta_terpilih))
     active_legends = []
 
-    # 💡 3. PROSES PEMATIKAN & TUMPANG-SUSUN LAYER (Poin 3 & Poin 4)
+    # 3. PROSES PEMATIKAN & TUMPANG-SUSUN LAYER
     for idx, nama_peta in enumerate(peta_terpilih):
         cfg = map_configs[nama_peta]
         data_geojson = load_geojson_spasial(cfg["filename"])
@@ -126,7 +109,7 @@ def render_peta_kawasan_hutan():
 
         all_features = data_geojson.get("features", [])
 
-        # Opsi Kategori Unik
+        # Opsi Unik
         opts = sorted(
             list(
                 set(
@@ -138,14 +121,13 @@ def render_peta_kawasan_hutan():
             )
         )
 
-        # 💡 PENJAGAAN STATE LAYER (Poin 4: Mempertahankan pilihan filter agar tidak berubah/tampil semua)
+        # Penjagaan State Filter
         if (
             cfg["state_key"] not in st.session_state
             or not st.session_state[cfg["state_key"]]
         ):
             st.session_state[cfg["state_key"]] = opts
 
-        # Pastikan item di state tetap ada dalam daftar opsi
         valid_defaults = [
             o for o in st.session_state[cfg["state_key"]] if o in opts
         ]
@@ -157,10 +139,8 @@ def render_peta_kawasan_hutan():
                 default=valid_defaults,
                 key=f"widget_{cfg['state_key']}",
             )
-            # Simpan state pilihan user
             st.session_state[cfg["state_key"]] = selected_items
 
-        # Filter Fitur Geometri
         filtered_feats = [
             f
             for f in all_features
@@ -191,7 +171,6 @@ def render_peta_kawasan_hutan():
             for i, item in enumerate(opts)
         }
 
-        # Kumpulkan untuk Legenda di Bawah Peta
         for item in selected_items:
             active_legends.append(
                 {
@@ -216,7 +195,6 @@ def render_peta_kawasan_hutan():
                 "fillOpacity": opacity_val,
             }
 
-        # Tambahkan Layer ke Peta Folium
         if filtered_feats:
             fg_layer = folium.FeatureGroup(name=nama_peta)
             tooltip_layer = folium.GeoJsonTooltip(
@@ -234,10 +212,45 @@ def render_peta_kawasan_hutan():
 
             fg_layer.add_to(m)
 
-    # Render Peta Interaktif
-    st_folium(m, use_container_width=True, height=580, returned_objects=[])
+    # 4. INJEKSI CSS LANGSUNG KE INNER HTML FOLIUM (Poin 1: Untuk Memperkecil Tooltip)
+    custom_tooltip_css = """
+    <style>
+    .leaflet-tooltip {
+        font-size: 10px !important;     /* Ukuran font tooltip */
+        padding: 3px 6px !important;    /* Padding bingkai luar */
+        line-height: 1.2 !important;
+        border-radius: 4px !important;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.2) !important;
+    }
+    .leaflet-tooltip table, 
+    .leaflet-tooltip td, 
+    .leaflet-tooltip th,
+    .leaflet-tooltip span {
+        font-size: 10px !important;     /* Ukuran font teks tabel */
+        padding: 1px 3px !important;    /* Padding sel tabel */
+    }
+    </style>
+    """
+    m.get_root().html.add_child(folium.Element(custom_tooltip_css))
 
-    # 4. LEGENDA WARNA DINAMIS
+    # 5. RENDER PETA DAN TANGKAP POSISI ZOOM DENGAN ST_FOLIUM (Poin 2)
+    st_map_data = st_folium(
+        m,
+        use_container_width=True,
+        height=580,
+        returned_objects=["zoom", "center"],  # Merekam status zoom dan center
+    )
+
+    # Simpan status zoom & center ke session state jika user menggeser/zoom peta
+    if st_map_data and st_map_data.get("zoom") is not None:
+        st.session_state["map_zoom"] = st_map_data["zoom"]
+    if st_map_data and st_map_data.get("center") is not None:
+        st.session_state["map_center"] = [
+            st_map_data["center"]["lat"],
+            st_map_data["center"]["lng"],
+        ]
+
+    # 6. LEGENDA WARNA DINAMIS
     if active_legends:
         st.markdown("#### 🎨 Legenda Warna Peta Terpilih")
         leg_cols = st.columns(min(len(active_legends), 4))
@@ -254,7 +267,7 @@ def render_peta_kawasan_hutan():
                     unsafe_allow_html=True,
                 )
 
-    # 5. CATATAN SUMBER DATA
+    # 7. CATATAN SUMBER DATA
     st.markdown(
         """
         <div style="font-size: 0.78rem; color: #666666; margin-top: 10px; border-top: 1px solid #e0e0e0; padding-top: 6px;">
