@@ -45,7 +45,7 @@ def render_peta_kawasan_hutan():
         """
         <style>
         .leaflet-tooltip {
-            font-size: 7px !important;  /* Ukuran font tooltip */
+            font-size: 5px !important;  /* Ukuran font tooltip */
             padding: 3px 6px !important; /* Jarak bingkai internal */
             line-height: 1.2 !important;
             border-radius: 4px !important;
