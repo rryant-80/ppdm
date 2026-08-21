@@ -88,7 +88,7 @@ def render_peta_kawasan_hutan():
             "filename": "sk6624_comp.geojson",
             "filter_field": "NOSKKWS",
             "filter_label": "📄 Filter SK 6624 (NOSKKWS):",
-            "fields": ["FUNGSIKWS", "NOSKKWS"],
+            "fields": ["FUNGSIKWS_", "NOSKKWS"],
             "aliases": ["Fungsi:", "No. SK:"],
             "state_key": "filter_sk6624",
             "base_color": "#ff7f0e",
