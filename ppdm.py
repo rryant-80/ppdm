@@ -34,13 +34,19 @@ def load_geojson_spasial(filename):
 
 
 # -----------------------------------------------------------------------------
-# MODUL TAMPILAN PETA TEMATIK INTERAKTIF
+# MODUL TAMPILAN PETA TEMATIK INTERAKTIF (ZOOM TERKUNCI STABIL)
 # -----------------------------------------------------------------------------
 def render_peta_kawasan_hutan():
     st.title("🗺️ Peta Tematik Pertanahan & Kawasan Hutan")
     st.markdown("---")
 
-    # 1. MULTISELECT PEMILIHAN PETA TEMATIK
+    # 1. INISIALISASI TERKUNCI STATE MAP (CENTER & ZOOM)
+    if "map_center" not in st.session_state:
+        st.session_state["map_center"] = [-1.43, 121.44]  # Koordinat Sulteng
+    if "map_zoom" not in st.session_state:
+        st.session_state["map_zoom"] = 8  # Level Zoom Default
+
+    # 2. MULTISELECT PEMILIHAN PETA TEMATIK
     col_map_sel, col_opac = st.columns([3.5, 1.5])
 
     with col_map_sel:
@@ -60,13 +66,7 @@ def render_peta_kawasan_hutan():
         st.info("ℹ️ Silakan pilih minimal satu Peta Tematik pada menu di atas.")
         return
 
-    # 2. PANTAU POSITION & ZOOM LEVEL DARI SESSION STATE (Poin 2)
-    if "map_center" not in st.session_state:
-        st.session_state["map_center"] = [-1.43, 121.44]  # Posisi default Sulteng
-    if "map_zoom" not in st.session_state:
-        st.session_state["map_zoom"] = 8  # Zoom default
-
-    # Inisialisasi Peta Folium sesuai zoom & posisi terakhir
+    # Inisialisasi Peta Folium mengunci lokasi & zoom dari Session State
     m = folium.Map(
         location=st.session_state["map_center"],
         zoom_start=st.session_state["map_zoom"],
@@ -212,12 +212,12 @@ def render_peta_kawasan_hutan():
 
             fg_layer.add_to(m)
 
-    # 4. INJEKSI CSS LANGSUNG KE INNER HTML FOLIUM (Poin 1: Untuk Memperkecil Tooltip)
+    # 4. INJEKSI CSS PADA HTML FOLIUM UNTUK UKURAN TOOLTIP
     custom_tooltip_css = """
     <style>
     .leaflet-tooltip {
-        font-size: 10px !important;     /* Ukuran font tooltip */
-        padding: 3px 6px !important;    /* Padding bingkai luar */
+        font-size: 10px !important;
+        padding: 3px 6px !important;
         line-height: 1.2 !important;
         border-radius: 4px !important;
         box-shadow: 0 1px 4px rgba(0,0,0,0.2) !important;
@@ -226,29 +226,39 @@ def render_peta_kawasan_hutan():
     .leaflet-tooltip td, 
     .leaflet-tooltip th,
     .leaflet-tooltip span {
-        font-size: 10px !important;     /* Ukuran font teks tabel */
-        padding: 1px 3px !important;    /* Padding sel tabel */
+        font-size: 10px !important;
+        padding: 1px 3px !important;
     }
     </style>
     """
     m.get_root().html.add_child(folium.Element(custom_tooltip_css))
 
-    # 5. RENDER PETA DAN TANGKAP POSISI ZOOM DENGAN ST_FOLIUM (Poin 2)
+    # 5. RENDER PETA DAN SINKRONISASI STABILISASI ZOOM LOKASI
     st_map_data = st_folium(
         m,
         use_container_width=True,
         height=580,
-        returned_objects=["zoom", "center"],  # Merekam status zoom dan center
+        key="main_tematik_map",  # PENTING: Key unik mengunci identitas instance canvas peta
+        returned_objects=["zoom", "center"],
     )
 
-    # Simpan status zoom & center ke session state jika user menggeser/zoom peta
-    if st_map_data and st_map_data.get("zoom") is not None:
-        st.session_state["map_zoom"] = st_map_data["zoom"]
-    if st_map_data and st_map_data.get("center") is not None:
-        st.session_state["map_center"] = [
-            st_map_data["center"]["lat"],
-            st_map_data["center"]["lng"],
-        ]
+    # Memperbarui session state saat user selesai menggeser (pan) / merubah zoom
+    if st_map_data:
+        if (
+            st_map_data.get("zoom") is not None
+            and st_map_data["zoom"] != st.session_state["map_zoom"]
+        ):
+            st.session_state["map_zoom"] = st_map_data["zoom"]
+
+        if st_map_data.get("center") is not None:
+            new_lat = st_map_data["center"]["lat"]
+            new_lng = st_map_data["center"]["lng"]
+            # Toleransi pembaruan agar tidak mentrigger re-render tak terbatas
+            if (
+                abs(new_lat - st.session_state["map_center"][0]) > 0.0001
+                or abs(new_lng - st.session_state["map_center"][1]) > 0.0001
+            ):
+                st.session_state["map_center"] = [new_lat, new_lng]
 
     # 6. LEGENDA WARNA DINAMIS
     if active_legends:
@@ -278,7 +288,6 @@ def render_peta_kawasan_hutan():
         """,
         unsafe_allow_html=True,
     )
-
 # -----------------------------------------------------------------------------
 # 1. KONFIGURASI HALAMAN
 # -----------------------------------------------------------------------------
