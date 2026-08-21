@@ -6,6 +6,69 @@ import plotly.express as px
 import streamlit as st
 from datetime import datetime, date, timedelta
 from zoneinfo import ZoneInfo
+import json
+import folium
+from streamlit_folium import st_folium
+
+# -----------------------------------------------------------------------------
+# FUNGSI CACHING LOAD GEOJSON KAWASAN HUTAN (19MB)
+# -----------------------------------------------------------------------------
+@st.cache_data(ttl=86400)  # Cache disimpan selama 24 jam
+def load_geojson_hutan():
+    try:
+        with open("sk11879_comp.geojson", "r") as f:
+            return json.load(f)
+    except Exception as e:
+        st.error(f"Gagal memuat file 'sk11879_comp.geojson': {e}")
+        return None
+
+# -----------------------------------------------------------------------------
+# MODUL TAMPILAN PETA KAWASAN HUTAN
+# -----------------------------------------------------------------------------
+def render_peta_kawasan_hutan():
+    st.title("🌲 Peta Kawasan Hutan Sulawesi Tengah")
+    st.caption("Sumber Data: SK 11879/2025")
+    st.markdown("---")
+
+    with st.spinner("Memuat data kawasan hutan..."):
+        data_hutan = load_geojson_hutan()
+
+    if data_hutan is None:
+        st.warning("Data peta kawasan hutan tidak ditemukan.")
+        return
+
+    # Inisialisasi Peta Dasar (Titik Tengah Sulawesi Tengah)
+    m = folium.Map(location=[-1.43, 121.44], zoom_start=8, tiles="OpenStreetMap")
+
+    # Buat Feature Group Layer Kawasan Hutan
+    fg_hutan = folium.FeatureGroup(name="🌲 Kawasan Hutan (SK 11879)")
+
+    # Pengaturan Tooltip menggunakan field spesifik Anda
+    fields_tooltip = ["WADMKK", "FUNGSI_KWS", "FUNGSIKWS", "FID"]
+    aliases_tooltip = ["Kabupaten/Kota:", "Fungsi Kawasan:", "Kategori:", "FID:"]
+
+    folium.GeoJson(
+        data_hutan,
+        style_function=lambda x: {
+            'fillColor': '#2ca02c',  # Warna hijau kawasan hutan
+            'color': '#006400',      # Garis tepi hijau tua
+            'weight': 1,
+            'fillOpacity': 0.4
+        },
+        tooltip=folium.GeoJsonTooltip(
+            fields=fields_tooltip,
+            aliases=aliases_tooltip,
+            localize=True
+        )
+    ).add_to(fg_hutan)
+
+    fg_hutan.add_to(m)
+
+    # Tambahkan Layer Control di Pojok Kanan Atas
+    folium.LayerControl(collapsed=False).add_to(m)
+
+    # Render Peta Interaktif di Streamlit
+    st_folium(m, width="100%", height=600)
 
 # -----------------------------------------------------------------------------
 # 1. KONFIGURASI HALAMAN
@@ -1492,6 +1555,7 @@ else:
     
     # 💡 KUNCI AMAN: Deklarasikan nama menu dalam konstanta
     MENU_ISU = "✍️ Isu Strategis"
+    MENU_HUTAN = "🌲 Kawasan Hutan"
 
     # Normalisasi daftar menu_diizinkan dari secrets agar selalu cocok
     raw_menu = user.get("akses_menu", [])
@@ -1499,6 +1563,8 @@ else:
     for m in raw_menu:
         if "Isu Strategis" in m:
             menu_diizinkan.append(MENU_ISU)
+        elif "Kawasan Hutan" in m or "Hutan" in m:
+            menu_diizinkan.append(MENU_HUTAN)
         else:
             menu_diizinkan.append(m)
 
@@ -1542,8 +1608,6 @@ else:
             st.cache_data.clear()
             st.rerun()
 
-        
-
         # FILTERING DATASET
         df_f_sdm = df_sdm.copy()
         df_f_psn = df_psn.copy()
@@ -1580,11 +1644,14 @@ else:
                 selected_kec=selected_kec
             )
 
-        elif menu_pilihan == MENU_ISU:  # 👈 Menggunakan variabel MENU_ISU agar pasti match!
+        elif menu_pilihan == MENU_ISU:  # 👈 Menggunakan variabel MENU_ISU
             render_isu_strategis(df_isu_raw)
 
-        elif menu_pilihan == "🛡️ Monitoring Kakanwil":  # 👈 MENU BARU
+        elif menu_pilihan == "🛡️ Monitoring Kakanwil":
             render_monitoring_kakanwil(df_kakanwil_raw)
+
+        elif menu_pilihan == MENU_HUTAN:  # 👈 Menggunakan variabel MENU_HUTAN
+            render_peta_kawasan_hutan()
 
         # SIDEBAR BAWAH: GRAFIK REKAPITULASI
         # ... (sisa kode grafik sidebar Anda di bawah) ...
