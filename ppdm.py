@@ -44,16 +44,22 @@ def render_peta_kawasan_hutan():
     st.markdown(
         """
         <style>
-        .leaflet-tooltip {
-            font-size: 5px !important;  /* Ukuran font tooltip */
-            padding: 3px 6px !important; /* Jarak bingkai internal */
-            line-height: 1.2 !important;
-            border-radius: 4px !important;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.2) !important;
+        /* Target seluruh elemen di dalam iframe folium yang bocor atau pembungkusnya */
+        iframe {
+            font-size: 10px !important;
+        }
+        .leaflet-tooltip, 
+        .leaflet-tooltip table, 
+        .leaflet-tooltip td, 
+        .leaflet-tooltip th,
+        .leaflet-tooltip span {
+            font-size: 10px !important;  /* Ukuran huruf teks */
+            line-height: 1.1 !important;
+            padding: 2px 4px !important; /* Memperkecil padding tabel */
         }
         </style>
         """,
-        unsafe_allow_html=True,
+        unsafe_allow_html=True
     )
 
     # 💡 2. MULTISELECT PEMILIHAN PETA TEMATIK UNTUK TUMPANG-SUSUN (Poin 3)
