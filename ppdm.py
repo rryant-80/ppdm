@@ -34,15 +34,14 @@ def load_geojson_hutan():
         return None
 
 # -----------------------------------------------------------------------------
-# 2. MODUL TAMPILAN PETA TEMATIK INTERAKTIF
+# MODUL TAMPILAN PETA TEMATIK INTERAKTIF
 # -----------------------------------------------------------------------------
 def render_peta_kawasan_hutan():
     st.title("🗺️ Peta Tematik Pertanahan & Kawasan Hutan")
-    st.caption("Sumber Data: SK 11879 & Integrasi Spasial")
     st.markdown("---")
 
     with st.spinner("Memuat data spasial kawasan hutan..."):
-        data_hutan = load_geojson_hutan()  # Sekarang dipanggil dengan aman
+        data_hutan = load_geojson_hutan()
 
     if not data_hutan:
         st.warning("Data peta kawasan hutan tidak ditemukan.")
@@ -55,16 +54,34 @@ def render_peta_kawasan_hutan():
         for f in all_features
     )))
 
-    # Filter Multiselect & Transparansi
-    col_f1, col_f2 = st.columns([3, 1])
-    with col_f1:
+    # 1. PANEL KONTROL: BASEMAP (RADIO BUTTON) & FILTER GEOMETRI (MULTISELECT)
+    col_ctrl1, col_ctrl2, col_ctrl3 = st.columns([2.5, 1.5, 1])
+
+    with col_ctrl1:
         selected_fungsi = st.multiselect(
             "🌲 Filter Fungsi Kawasan Hutan (FUNGSI_KWS):",
             options=fungsi_kws_set,
-            default=fungsi_kws_set
+            default=fungsi_kws_set,
+            help="Pilih/hapus kategori fungsi kawasan yang ingin ditampilkan di peta"
         )
-    with col_f2:
+
+    with col_ctrl2:
+        basemap_choice = st.radio(
+            "🗺️ Pilihan Peta Dasar (Basemap):",
+            ["CartoDB Positron (Terang)", "CartoDB Dark Matter (Gelap)", "OpenStreetMap (Standar)"],
+            horizontal=True
+        )
+
+    with col_ctrl3:
         opacity_val = st.slider("Transparansi Layer:", 0.1, 1.0, 0.5, step=0.1)
+
+    # Pemetaan Jenis Basemap Folium
+    basemap_dict = {
+        "CartoDB Positron (Terang)": {"tiles": "CartoDB positron", "attr": "CartoDB"},
+        "CartoDB Dark Matter (Gelap)": {"tiles": "CartoDB dark_matter", "attr": "CartoDB"},
+        "OpenStreetMap (Standar)": {"tiles": "OpenStreetMap", "attr": "OpenStreetMap"}
+    }
+    selected_basemap = basemap_dict[basemap_choice]
 
     # Filter Geometri
     filtered_features = [
@@ -77,13 +94,12 @@ def render_peta_kawasan_hutan():
         "features": filtered_features
     }
 
-    # Skema Warna Berdasarkan Kategori
     color_map = {
-        "HL": "#006400",
-        "HPT": "#2ca02c",
-        "HP": "#98df8a",
-        "HPK": "#ff7f0e",
-        "KSA/KPA": "#d62728"
+        "HL": "#006400",    # Hutan Lindung
+        "HPT": "#2ca02c",   # Hutan Produksi Terbatas
+        "HP": "#98df8a",    # Hutan Produksi
+        "HPK": "#ff7f0e",   # Hutan Produksi Konversi
+        "KSA/KPA": "#d62728"# Suaka Alam / Pelestarian
     }
 
     def style_function(feature):
@@ -95,11 +111,16 @@ def render_peta_kawasan_hutan():
             'fillOpacity': opacity_val
         }
 
-    # Render Folium
-    m = folium.Map(location=[-1.43, 121.44], zoom_start=8, tiles="OpenStreetMap")
+    # 2. INISIALISASI PETA SESUAI BASEMAP RADIO BUTTON
+    m = folium.Map(
+        location=[-1.43, 121.44], 
+        zoom_start=8, 
+        tiles=selected_basemap["tiles"], 
+        attr=selected_basemap["attr"]
+    )
 
     if filtered_features:
-        fg_hutan = folium.FeatureGroup(name=f"🌲 Kawasan Hutan ({len(filtered_features)} Poligon)")
+        fg_hutan = folium.FeatureGroup(name="Kawasan Hutan")
         tooltip_layer = folium.GeoJsonTooltip(
             fields=["WADMKK", "FUNGSI_KWS", "FUNGSIKWS"],
             aliases=["Kabupaten/Kota:", "Fungsi Kawasan:", "Kategori:"],
@@ -115,8 +136,20 @@ def render_peta_kawasan_hutan():
 
         fg_hutan.add_to(m)
 
-    folium.LayerControl(collapsed=False).add_to(m)
-    st_folium(m, use_container_width=True, height=600, returned_objects=[])
+    # Render Peta Interaktif
+    st_folium(m, use_container_width=True, height=580, returned_objects=[])
+
+    # 3. KETERANGAN SUMBER DATA DI LUAR BINGKAI PETA
+    st.markdown(
+        f"""
+        <div style="font-size: 0.78rem; color: #666666; margin-top: -10px; border-top: 1px solid #e0e0e0; padding-top: 6px;">
+            📌 <b>Sumber Peta & Spasial:</b><br>
+            • <b>Peta Dasar:</b> {basemap_choice.split('(')[0].strip()} (Public Domain)<br>
+            • <b>Peta Kawasan Hutan:</b> Keputusan Menteri Lingkungan Hidup dan Kehutanan (SK 11879 / KBLA)
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
 # -----------------------------------------------------------------------------
 # 1. KONFIGURASI HALAMAN
