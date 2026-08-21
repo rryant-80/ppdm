@@ -34,7 +34,7 @@ def load_geojson_spasial(filename):
 
 
 # -----------------------------------------------------------------------------
-# MODUL TAMPILAN PETA TEMATIK INTERAKTIF (ZOOM TERKUNCI STABIL)
+# MODUL TAMPILAN PETA TEMATIK INTERAKTIF (TOOLTIP MENEMPEL DI KURSOR)
 # -----------------------------------------------------------------------------
 def render_peta_kawasan_hutan():
     st.title("🗺️ Peta Tematik Pertanahan & Kawasan Hutan")
@@ -42,9 +42,9 @@ def render_peta_kawasan_hutan():
 
     # 1. INISIALISASI TERKUNCI STATE MAP (CENTER & ZOOM)
     if "map_center" not in st.session_state:
-        st.session_state["map_center"] = [-1.43, 121.44]  # Koordinat Sulteng
+        st.session_state["map_center"] = [-1.43, 121.44]
     if "map_zoom" not in st.session_state:
-        st.session_state["map_zoom"] = 8  # Level Zoom Default
+        st.session_state["map_zoom"] = 8
 
     # 2. MULTISELECT PEMILIHAN PETA TEMATIK
     col_map_sel, col_opac = st.columns([3.5, 1.5])
@@ -66,7 +66,7 @@ def render_peta_kawasan_hutan():
         st.info("ℹ️ Silakan pilih minimal satu Peta Tematik pada menu di atas.")
         return
 
-    # Inisialisasi Peta Folium mengunci lokasi & zoom dari Session State
+    # Inisialisasi Peta Folium
     m = folium.Map(
         location=st.session_state["map_center"],
         zoom_start=st.session_state["map_zoom"],
@@ -74,7 +74,6 @@ def render_peta_kawasan_hutan():
         attr="OpenStreetMap",
     )
 
-    # Config Sumber Data
     map_configs = {
         "Peta Kawasan Hutan (SK 11879)": {
             "filename": "sk11879_comp.geojson",
@@ -89,7 +88,7 @@ def render_peta_kawasan_hutan():
             "filename": "sk6624_comp.geojson",
             "filter_field": "NOSKKWS",
             "filter_label": "📄 Filter SK 6624 (NOSKKWS):",
-            "fields": ["FUNGSIKWS_", "NOSKKWS"],
+            "fields": ["FUNGSIKWS", "NOSKKWS"],
             "aliases": ["Fungsi:", "No. SK:"],
             "state_key": "filter_sk6624",
             "base_color": "#ff7f0e",
@@ -109,7 +108,6 @@ def render_peta_kawasan_hutan():
 
         all_features = data_geojson.get("features", [])
 
-        # Opsi Unik
         opts = sorted(
             list(
                 set(
@@ -121,7 +119,6 @@ def render_peta_kawasan_hutan():
             )
         )
 
-        # Penjagaan State Filter
         if (
             cfg["state_key"] not in st.session_state
             or not st.session_state[cfg["state_key"]]
@@ -153,7 +150,6 @@ def render_peta_kawasan_hutan():
             "features": filtered_feats,
         }
 
-        # Skema Warna
         palette_colors = [
             "#2ca02c",
             "#ff7f0e",
@@ -197,11 +193,13 @@ def render_peta_kawasan_hutan():
 
         if filtered_feats:
             fg_layer = folium.FeatureGroup(name=nama_peta)
+
+            # 💡 KUNCI: sticky=True membuat tooltip menempel dan mengikuti pergerakan kursor mouse
             tooltip_layer = folium.GeoJsonTooltip(
                 fields=cfg["fields"],
                 aliases=cfg["aliases"],
                 localize=True,
-                sticky=False,
+                sticky=True,
             )
 
             folium.GeoJson(
@@ -233,16 +231,15 @@ def render_peta_kawasan_hutan():
     """
     m.get_root().html.add_child(folium.Element(custom_tooltip_css))
 
-    # 5. RENDER PETA DAN SINKRONISASI STABILISASI ZOOM LOKASI
+    # 5. RENDER PETA
     st_map_data = st_folium(
         m,
         use_container_width=True,
         height=580,
-        key="main_tematik_map",  # PENTING: Key unik mengunci identitas instance canvas peta
+        key="main_tematik_map",
         returned_objects=["zoom", "center"],
     )
 
-    # Memperbarui session state saat user selesai menggeser (pan) / merubah zoom
     if st_map_data:
         if (
             st_map_data.get("zoom") is not None
@@ -253,14 +250,13 @@ def render_peta_kawasan_hutan():
         if st_map_data.get("center") is not None:
             new_lat = st_map_data["center"]["lat"]
             new_lng = st_map_data["center"]["lng"]
-            # Toleransi pembaruan agar tidak mentrigger re-render tak terbatas
             if (
                 abs(new_lat - st.session_state["map_center"][0]) > 0.0001
                 or abs(new_lng - st.session_state["map_center"][1]) > 0.0001
             ):
                 st.session_state["map_center"] = [new_lat, new_lng]
 
-    # 6. LEGENDA WARNA DINAMIS
+    # 6. LEGENDA WARNA
     if active_legends:
         st.markdown("#### 🎨 Legenda Warna Peta Terpilih")
         leg_cols = st.columns(min(len(active_legends), 4))
