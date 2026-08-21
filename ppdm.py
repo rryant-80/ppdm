@@ -11,15 +11,14 @@ import folium
 from streamlit_folium import st_folium
 
 # -----------------------------------------------------------------------------
-# 1. FUNGSI CACHING LOAD GEOJSON (WAJIB DI ATAS AGAR TIDAK NAMEERROR)
+# FUNGSI CACHING LOAD DUA GEOJSON (SK 11879 & SK 6624)
 # -----------------------------------------------------------------------------
 @st.cache_data(ttl=86400)
-def load_geojson_hutan():
+def load_geojson_spasial(filename):
     try:
-        with open("sk11879_comp.geojson", "r", encoding="utf-8") as f:
+        with open(filename, "r", encoding="utf-8") as f:
             data = json.load(f)
             
-        # Pembersihan nilai None/NaN agar Folium rendering stabil
         if "features" in data:
             for feature in data["features"]:
                 props = feature.get("properties", {})
@@ -30,45 +29,75 @@ def load_geojson_hutan():
                         props[key] = str(val)
         return data
     except Exception as e:
-        st.error(f"Gagal memuat file 'sk11879_comp.geojson': {e}")
+        st.error(f"Gagal memuat file '{filename}': {e}")
         return None
 
 # -----------------------------------------------------------------------------
-# MODUL TAMPILAN PETA TEMATIK INTERAKTIF
+# MODUL TAMPILAN PETA TEMATIK INTERAKTIF MULTI-PETA
 # -----------------------------------------------------------------------------
 def render_peta_kawasan_hutan():
     st.title("🗺️ Peta Tematik Pertanahan & Kawasan Hutan")
     st.markdown("---")
 
-    with st.spinner("Memuat data spasial kawasan hutan..."):
-        data_hutan = load_geojson_hutan()
+    # 1. PILIH PETA AKTIF (SELECTBOX)
+    col_map_sel, col_base_sel, col_opac = st.columns([2, 2, 1])
+    
+    with col_map_sel:
+        peta_aktif = st.selectbox(
+            "🗺️ Pilih Peta Tematik:",
+            ["Peta Kawasan Hutan (SK 11879)", "Peta Kawasan Hutan (SK 6624)"]
+        )
 
-    if not data_hutan:
-        st.warning("Data peta kawasan hutan tidak ditemukan.")
+    with col_base_sel:
+        basemap_choice = st.radio(
+            "📍 Pilihan Peta Dasar (Basemap):",
+            ["CartoDB Positron (Terang)", "CartoDB Dark Matter (Gelap)", "OpenStreetMap (Standar)"],
+            horizontal=True
+        )
+
+    with col_opac:
+        opacity_val = st.slider("Transparansi Layer:", 0.1, 1.0, 0.5, step=0.1)
+
+    # 2. LOAD DATA BERDASARKAN PETA YANG DIPILIH
+    if peta_aktif == "Peta Kawasan Hutan (SK 11879)":
+        filename = "sk11879_comp.geojson"
+        filter_field = "FUNGSI_KWS"
+        filter_label = "🌲 Filter Fungsi Kawasan (FUNGSI_KWS):"
+        tooltip_fields = ["WADMKK", "FUNGSI_KWS", "FUNGSIKWS"]
+        tooltip_aliases = ["Kabupaten/Kota:", "Fungsi Kawasan:", "Kategori:"]
+    else:
+        filename = "sk6624_comp.geojson"
+        filter_field = "NOSKKWS"
+        filter_label = "📄 Filter Nomor SK (NOSKKWS):"
+        tooltip_fields = ["FUNGSIKWS", "NOSKKWS"]
+        tooltip_aliases = ["Fungsi Kawasan:", "Nomor SK Kawasan:"]
+
+    with st.spinner(f"Memuat {peta_aktif}..."):
+        data_geojson = load_geojson_spasial(filename)
+
+    if not data_geojson:
+        st.warning(f"File data '{filename}' tidak ditemukan.")
         return
 
-    # Ambil daftar unik FUNGSI_KWS
-    all_features = data_hutan.get("features", [])
-    fungsi_kws_set = sorted(list(set(
-        str(f.get("properties", {}).get("FUNGSI_KWS", "-")).strip() 
+    all_features = data_geojson.get("features", [])
+
+    # Ambil nilai unik untuk filter
+    filter_options = sorted(list(set(
+        str(f.get("properties", {}).get(filter_field, "-")).strip() 
         for f in all_features
     )))
 
-    # Filter Multiselect & Transparansi
-    col_f1, col_f2 = st.columns([3, 1])
-    with col_f1:
-        selected_fungsi = st.multiselect(
-            "🌲 Filter Fungsi Kawasan Hutan (FUNGSI_KWS):",
-            options=fungsi_kws_set,
-            default=fungsi_kws_set
-        )
-    with col_f2:
-        opacity_val = st.slider("Transparansi Layer:", 0.1, 1.0, 0.5, step=0.1)
+    # 3. FILTER MULTISELECT
+    selected_items = st.multiselect(
+        filter_label,
+        options=filter_options,
+        default=filter_options,
+        help="Pilih kategori yang ingin ditampilkan di peta"
+    )
 
-    # Filter Geometri
     filtered_features = [
         f for f in all_features 
-        if str(f.get("properties", {}).get("FUNGSI_KWS", "-")).strip() in selected_fungsi
+        if str(f.get("properties", {}).get(filter_field, "-")).strip() in selected_items
     ]
 
     filtered_geojson = {
@@ -76,31 +105,39 @@ def render_peta_kawasan_hutan():
         "features": filtered_features
     }
 
-    color_map = {
-        "HL": "#006400",
-        "HPT": "#2ca02c",
-        "HP": "#98df8a",
-        "HPK": "#ff7f0e",
-        "KSA/KPA": "#d62728"
-    }
+    # 4. PALET WARNA DINAMIS
+    palette_colors = ["#2ca02c", "#ff7f0e", "#1f77b4", "#d62728", "#9467bd", "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf"]
+    color_map = {item: palette_colors[i % len(palette_colors)] for i, item in enumerate(filter_options)}
 
     def style_function(feature):
-        f_kws = str(feature.get("properties", {}).get("FUNGSI_KWS", "")).strip()
+        val_key = str(feature.get("properties", {}).get(filter_field, "-")).strip()
         return {
-            'fillColor': color_map.get(f_kws, "#2ca02c"),
+            'fillColor': color_map.get(val_key, "#2ca02c"),
             'color': '#111111',
             'weight': 1,
             'fillOpacity': opacity_val
         }
 
-    # 1. GUNAKAN BASEMAP BERSIH (CartoDB Positron) & HAPUS ATTRIBUTION DEFAULT DALAM PETA
-    m = folium.Map(location=[-1.43, 121.44], zoom_start=8, tiles="OpenStreetMap")
+    # 5. BASEMAP CONFIG
+    basemap_dict = {
+        "CartoDB Positron (Terang)": {"tiles": "CartoDB positron", "attr": "CartoDB"},
+        "CartoDB Dark Matter (Gelap)": {"tiles": "CartoDB dark_matter", "attr": "CartoDB"},
+        "OpenStreetMap (Standar)": {"tiles": "OpenStreetMap", "attr": "OpenStreetMap"}
+    }
+    selected_basemap = basemap_dict[basemap_choice]
+
+    m = folium.Map(
+        location=[-1.43, 121.44], 
+        zoom_start=8, 
+        tiles=selected_basemap["tiles"], 
+        attr=selected_basemap["attr"]
+    )
 
     if filtered_features:
-        fg_hutan = folium.FeatureGroup(name="Kawasan Hutan")
+        fg_layer = folium.FeatureGroup(name=peta_aktif)
         tooltip_layer = folium.GeoJsonTooltip(
-            fields=["WADMKK", "FUNGSI_KWS", "FUNGSIKWS"],
-            aliases=["Kabupaten/Kota:", "Fungsi Kawasan:", "Kategori:"],
+            fields=tooltip_fields,
+            aliases=tooltip_aliases,
             localize=True,
             sticky=False
         )
@@ -109,22 +146,38 @@ def render_peta_kawasan_hutan():
             filtered_geojson,
             style_function=style_function,
             tooltip=tooltip_layer
-        ).add_to(fg_hutan)
+        ).add_to(fg_layer)
 
-        fg_hutan.add_to(m)
-
-    # NOTE: folium.LayerControl() DISENGJA TIDAK DIPANGGIL AGAR KOTAK PEMILIH PETA TERSEMBUNYI
+        fg_layer.add_to(m)
 
     # Render Peta
-    st_folium(m, use_container_width=True, height=580, returned_objects=[])
+    st_folium(m, use_container_width=True, height=550, returned_objects=[])
 
-    # 2. CATATAN SUMBER DATA DI LUAR BINGKAI PETA (RAPI DI BAWAH)
+    # 6. LEGENDA WARNA PETA
+    st.markdown("#### 🎨 Legenda Warna Peta")
+    legend_cols = st.columns(min(len(selected_items), 5) if selected_items else 1)
+    
+    for idx, item in enumerate(selected_items):
+        col_idx = idx % 5
+        color = color_map.get(item, "#2ca02c")
+        with legend_cols[col_idx]:
+            st.markdown(
+                f"""
+                <div style="display: flex; align-items: center; margin-bottom: 6px;">
+                    <div style="width: 16px; height: 16px; background-color: {color}; border-radius: 3px; margin-right: 8px; border: 1px solid #333;"></div>
+                    <span style="font-size: 0.82rem; font-weight: 600;">{item}</span>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+    # 7. CATATAN SUMBER DATA
     st.markdown(
-        """
-        <div style="font-size: 0.78rem; color: #666666; margin-top: -10px; border-top: 1px solid #e0e0e0; padding-top: 6px;">
+        f"""
+        <div style="font-size: 0.78rem; color: #666666; margin-top: 10px; border-top: 1px solid #e0e0e0; padding-top: 6px;">
             📌 <b>Sumber Peta & Spasial:</b><br>
-            • <b>Peta Dasar:</b> CartoDB Positron / OpenStreetMap Contributors (Public Domain)<br>
-            • <b>Peta Kawasan Hutan:</b> Keputusan Menteri Lingkungan Hidup dan Kehutanan (SK 11879 / KBLA)
+            • <b>Peta Dasar:</b> {basemap_choice.split('(')[0].strip()} (Public Domain)<br>
+            • <b>Layer Aktif:</b> {peta_aktif}
         </div>
         """,
         unsafe_allow_html=True
