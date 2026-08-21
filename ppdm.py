@@ -41,7 +41,7 @@ def render_peta_kawasan_hutan():
     m = folium.Map(location=[-1.43, 121.44], zoom_start=8, tiles="OpenStreetMap")
 
     # Buat Feature Group Layer Kawasan Hutan
-    fg_hutan = folium.FeatureGroup(name="🌲 Kawasan Hutan (SK 11879)")
+    fg_hutan = folium.FeatureGroup(name="🌲 Kawasan Hutan")
 
     # Pengaturan Tooltip menggunakan field spesifik Anda
     fields_tooltip = ["WADMKK", "FUNGSI_KWS", "FUNGSIKWS", "FID"]
