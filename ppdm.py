@@ -53,7 +53,7 @@ def render_peta_kawasan_hutan():
         .leaflet-tooltip td, 
         .leaflet-tooltip th,
         .leaflet-tooltip span {
-            font-size: 10px !important;  /* Ukuran huruf teks */
+            font-size: 6px !important;  /* Ukuran huruf teks */
             line-height: 1.1 !important;
             padding: 2px 4px !important; /* Memperkecil padding tabel */
         }
