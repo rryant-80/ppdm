@@ -46,14 +46,14 @@ def render_peta_kawasan_hutan():
         <style>
         /* Target seluruh elemen di dalam iframe folium yang bocor atau pembungkusnya */
         iframe {
-            font-size: 10px !important;
+            font-size: 3px !important;
         }
         .leaflet-tooltip, 
         .leaflet-tooltip table, 
         .leaflet-tooltip td, 
         .leaflet-tooltip th,
         .leaflet-tooltip span {
-            font-size: 6px !important;  /* Ukuran huruf teks */
+            font-size: 3px !important;  /* Ukuran huruf teks */
             line-height: 1.1 !important;
             padding: 2px 4px !important; /* Memperkecil padding tabel */
         }
