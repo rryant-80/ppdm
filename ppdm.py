@@ -94,12 +94,7 @@ def render_peta_kawasan_hutan():
         }
 
     # 1. GUNAKAN BASEMAP BERSIH (CartoDB Positron) & HAPUS ATTRIBUTION DEFAULT DALAM PETA
-    m = folium.Map(
-        location=[-1.43, 121.44], 
-        zoom_start=8, 
-        tiles="CartoDB positron", 
-        attr="CartoDB"
-    )
+    m = folium.Map(location=[-1.43, 121.44], zoom_start=8, tiles="OpenStreetMap")
 
     if filtered_features:
         fg_hutan = folium.FeatureGroup(name="Kawasan Hutan")
