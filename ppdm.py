@@ -19,7 +19,7 @@ def render_peta_kawasan_hutan():
     st.markdown("---")
 
     with st.spinner("Memuat data spasial kawasan hutan..."):
-        data_hutan = sk11879_comp()
+        data_hutan = load_geojson_hutan()
 
     if not data_hutan:
         st.warning("Data peta kawasan hutan tidak ditemukan.")
