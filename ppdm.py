@@ -69,7 +69,7 @@ def render_peta_kawasan_hutan():
         filename = "sk6624_comp.geojson"
         filter_field = "NOSKKWS"
         filter_label = "📄 Filter Nomor SK (NOSKKWS):"
-        tooltip_fields = ["FUNGSIKWS", "NOSKKWS"]
+        tooltip_fields = ["FUNGSIKWS_", "NOSKKWS"]
         tooltip_aliases = ["Fungsi Kawasan:", "Nomor SK Kawasan:"]
 
     with st.spinner(f"Memuat {peta_aktif}..."):
