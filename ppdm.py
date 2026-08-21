@@ -11,64 +11,74 @@ import folium
 from streamlit_folium import st_folium
 
 # -----------------------------------------------------------------------------
-# FUNGSI CACHING LOAD GEOJSON KAWASAN HUTAN (19MB)
+# FUNGSI CACHING LOAD GEOJSON KAWASAN HUTAN
 # -----------------------------------------------------------------------------
-@st.cache_data(ttl=86400)  # Cache disimpan selama 24 jam
+@st.cache_data(ttl=86400)
 def load_geojson_hutan():
     try:
-        with open("sk11879_comp.geojson", "r") as f:
-            return json.load(f)
+        with open("sk11879_comp.geojson", "r", encoding="utf-8") as f:
+            data = json.load(f)
+            
+        # Bersihkan atribut dari nilai None/NaN agar Folium tidak AssertionError saat render
+        if "features" in data:
+            for feature in data["features"]:
+                props = feature.get("properties", {})
+                for key, val in props.items():
+                    if pd.isna(val) or val is None:
+                        props[key] = "-"
+                    else:
+                        props[key] = str(val)
+        return data
     except Exception as e:
         st.error(f"Gagal memuat file 'sk11879_comp.geojson': {e}")
         return None
 
 # -----------------------------------------------------------------------------
-# MODUL TAMPILAN PETA KAWASAN HUTAN
+# MODUL TAMPILAN PETA KAWASAN HUTAN (VERSI AMAN)
 # -----------------------------------------------------------------------------
 def render_peta_kawasan_hutan():
     st.title("🌲 Peta Kawasan Hutan Sulawesi Tengah")
-    st.caption("Sumber Data: SK 11879/2025")
+    st.caption("Sumber Data: SK 11879")
     st.markdown("---")
 
     with st.spinner("Memuat data kawasan hutan..."):
         data_hutan = load_geojson_hutan()
 
-    if data_hutan is None:
-        st.warning("Data peta kawasan hutan tidak ditemukan.")
+    if not data_hutan:
+        st.warning("Data peta kawasan hutan tidak ditemukan atau gagal dibaca.")
         return
 
-    # Inisialisasi Peta Dasar (Titik Tengah Sulawesi Tengah)
+    # Inisialisasi Peta
     m = folium.Map(location=[-1.43, 121.44], zoom_start=8, tiles="OpenStreetMap")
 
-    # Buat Feature Group Layer Kawasan Hutan
-    fg_hutan = folium.FeatureGroup(name="🌲 Kawasan Hutan SK 11879/2025")
+    # Buat FeatureGroup
+    fg_hutan = folium.FeatureGroup(name="🌲 Kawasan Hutan (SK 11879)")
 
-    # Pengaturan Tooltip menggunakan field spesifik Anda
-    fields_tooltip = ["WADMKK", "FUNGSI_KWS", "FUNGSIKWS", "FID"]
-    aliases_tooltip = ["Kabupaten/Kota:", "Fungsi Kawasan:", "Kategori:", "FID:"]
+    # Tooltip dengan pengecekan aman
+    tooltip_layer = folium.GeoJsonTooltip(
+        fields=["WADMKK", "FUNGSI_KWS", "FUNGSIKWS", "FID"],
+        aliases=["Kabupaten/Kota:", "Fungsi Kawasan:", "Kategori:", "FID:"],
+        localize=True,
+        sticky=False
+    )
 
     folium.GeoJson(
         data_hutan,
         style_function=lambda x: {
-            'fillColor': '#2ca02c',  # Warna hijau kawasan hutan
-            'color': '#006400',      # Garis tepi hijau tua
+            'fillColor': '#2ca02c',
+            'color': '#006400',
             'weight': 1,
             'fillOpacity': 0.4
         },
-        tooltip=folium.GeoJsonTooltip(
-            fields=fields_tooltip,
-            aliases=aliases_tooltip,
-            localize=True
-        )
+        tooltip=tooltip_layer
     ).add_to(fg_hutan)
 
     fg_hutan.add_to(m)
-
-    # Tambahkan Layer Control di Pojok Kanan Atas
     folium.LayerControl(collapsed=False).add_to(m)
 
-    # Render Peta Interaktif di Streamlit
-    st_folium(m, width="100%", height=600)
+    # Render dengan st_folium
+    # Catatan: Gunakan width=None agar streamlit-folium otomatis menyesuaikan kontainer tanpa error
+    st_folium(m, use_container_width=True, height=600, returned_objects=[])
 
 # -----------------------------------------------------------------------------
 # 1. KONFIGURASI HALAMAN
