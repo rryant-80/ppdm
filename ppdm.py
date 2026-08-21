@@ -25,62 +25,58 @@ def render_peta_kawasan_hutan():
         st.warning("Data peta kawasan hutan tidak ditemukan.")
         return
 
-    # 1. AMBIL DAFTAR UNIK FUNGSI KAWASAN DARI GEOJSON
+    # Ambil daftar unik FUNGSI_KWS
     all_features = data_hutan.get("features", [])
     fungsi_kws_set = sorted(list(set(
         str(f.get("properties", {}).get("FUNGSI_KWS", "-")).strip() 
         for f in all_features
     )))
 
-    # 2. FILTER INTERAKTIF DI DALAM HALAMAN
+    # Filter Multiselect & Transparansi
     col_f1, col_f2 = st.columns([3, 1])
     with col_f1:
         selected_fungsi = st.multiselect(
             "🌲 Filter Fungsi Kawasan Hutan (FUNGSI_KWS):",
             options=fungsi_kws_set,
-            default=fungsi_kws_set, # Secara default menampilkan semua
-            help="Pilih/hapus kategori fungsi kawasan yang ingin ditampilkan di peta"
+            default=fungsi_kws_set
         )
     with col_f2:
         opacity_val = st.slider("Transparansi Layer:", 0.1, 1.0, 0.5, step=0.1)
 
-    # 3. FILTER FEATURES BERDASARKAN PILIHAN USER
+    # Filter Geometri
     filtered_features = [
         f for f in all_features 
         if str(f.get("properties", {}).get("FUNGSI_KWS", "-")).strip() in selected_fungsi
     ]
 
-    # Buat dictionary GeoJSON baru hasil filter
     filtered_geojson = {
         "type": "FeatureCollection",
         "features": filtered_features
     }
 
-    # 4. PALET WARNA KHUSUS UNTUK FUNGSI KAWASAN
+    # Skema Warna
     color_map = {
-        "HL": "#006400",    # Hutan Lindung (Hijau Tua)
-        "HPT": "#2ca02c",   # Hutan Produksi Terbatas (Hijau Muda)
-        "HP": "#98df8a",    # Hutan Produksi (Hijau Pucat)
-        "HPK": "#ff7f0e",   # Hutan Produksi Konversi (Oranye)
-        "KSA/KPA": "#d62728"# Suaka Alam / Pelestarian (Merah)
+        "HL": "#006400",
+        "HPT": "#2ca02c",
+        "HP": "#98df8a",
+        "HPK": "#ff7f0e",
+        "KSA/KPA": "#d62728"
     }
 
     def style_function(feature):
         f_kws = str(feature.get("properties", {}).get("FUNGSI_KWS", "")).strip()
-        fill_color = color_map.get(f_kws, "#2ca02c") # Default hijau
         return {
-            'fillColor': fill_color,
+            'fillColor': color_map.get(f_kws, "#2ca02c"),
             'color': '#111111',
             'weight': 1,
             'fillOpacity': opacity_val
         }
 
-    # 5. INISIALISASI PETA
+    # Render Folium
     m = folium.Map(location=[-1.43, 121.44], zoom_start=8, tiles="OpenStreetMap")
 
     if filtered_features:
         fg_hutan = folium.FeatureGroup(name=f"🌲 Kawasan Hutan ({len(filtered_features)} Poligon)")
-
         tooltip_layer = folium.GeoJsonTooltip(
             fields=["WADMKK", "FUNGSI_KWS", "FUNGSIKWS"],
             aliases=["Kabupaten/Kota:", "Fungsi Kawasan:", "Kategori:"],
@@ -95,12 +91,8 @@ def render_peta_kawasan_hutan():
         ).add_to(fg_hutan)
 
         fg_hutan.add_to(m)
-    else:
-        st.info("ℹ️ Tidak ada poligon kawasan hutan yang sesuai dengan filter yang dipilih.")
 
     folium.LayerControl(collapsed=False).add_to(m)
-
-    # Render Peta
     st_folium(m, use_container_width=True, height=600, returned_objects=[])
 
 # -----------------------------------------------------------------------------
