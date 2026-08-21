@@ -91,7 +91,7 @@ def render_peta_kawasan_hutan():
             "filter_field": "FUNGSI_KWS",
             "filter_label": "🌲 Filter SK 11879 (FUNGSI_KWS):",
             "fields": ["WADMKK", "FUNGSI_KWS", "FUNGSIKWS"],
-            "aliases": ["Kab/Kota:", "Fungsi Kawasan:", "Kode :"],
+            "aliases": ["Kab/Kota :", "Fungsi Kawasan :", "Kode :"],
             "state_key": "filter_sk11879",
             "base_color": "#2ca02c",
         },
