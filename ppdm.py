@@ -1553,20 +1553,24 @@ if not st.session_state.logged_in:
 else:
     user = st.session_state.user_info
     
-    # 💡 KUNCI AMAN: Deklarasikan nama menu dalam konstanta
+    # Deklarasi nama menu standar
     MENU_ISU = "✍️ Isu Strategis"
     MENU_HUTAN = "🌲 Kawasan Hutan"
 
-    # Normalisasi daftar menu_diizinkan dari secrets agar selalu cocok
     raw_menu = user.get("akses_menu", [])
     menu_diizinkan = []
+    
+    # Pemetaan menu yang lebih fleksibel
     for m in raw_menu:
         if "Isu Strategis" in m:
-            menu_diizinkan.append(MENU_ISU)
-        elif "Kawasan Hutan" in m or "Hutan" in m:
-            menu_diizinkan.append(MENU_HUTAN)
+            if MENU_ISU not in menu_diizinkan:
+                menu_diizinkan.append(MENU_ISU)
+        elif "Hutan" in m or "Kawasan" in m:  # Mengakomodasi variasi teks 'Hutan'
+            if MENU_HUTAN not in menu_diizinkan:
+                menu_diizinkan.append(MENU_HUTAN)
         else:
-            menu_diizinkan.append(m)
+            if m not in menu_diizinkan:
+                menu_diizinkan.append(m)
 
     # SIDEBAR ATAS: PROFIL USER & NAVIGASI    
     st.sidebar.markdown(f"**Pengguna:** {user['nama']}")    
@@ -1644,19 +1648,15 @@ else:
                 selected_kec=selected_kec
             )
 
-        elif menu_pilihan == MENU_ISU:  # 👈 Menggunakan variabel MENU_ISU
+        elif menu_pilihan == MENU_ISU:
             render_isu_strategis(df_isu_raw)
 
         elif menu_pilihan == "🛡️ Monitoring Kakanwil":
             render_monitoring_kakanwil(df_kakanwil_raw)
 
-        elif menu_pilihan == MENU_HUTAN:  # 👈 Menggunakan variabel MENU_HUTAN
+        elif menu_pilihan == MENU_HUTAN:
             render_peta_kawasan_hutan()
 
-        # SIDEBAR BAWAH: GRAFIK REKAPITULASI
-        # ... (sisa kode grafik sidebar Anda di bawah) ...
-
-        # SIDEBAR BAWAH: RENDER GRAFIK REKAPITULASI (AKHIR SIDEBAR)
         st.sidebar.markdown("---")
         KAB_MAP = {
             'Banggai': 'BG', 'Banggai Kepulauan': 'BK', 'Banggai Laut': 'BL',
