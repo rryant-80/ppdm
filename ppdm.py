@@ -151,15 +151,15 @@ def render_peta_kawasan_hutan():
         }
 
         palette_colors = [
-            "#2ca02c",
-            "#ff7f0e",
-            "#1f77b4",
-            "#d62728",
-            "#9467bd",
-            "#8c564b",
-            "#e377c2",
-            "#7f7f7f",
-            "#bcbd22",
+            "#e4e4e4", #APL
+            "#02ad00", #HL
+            "#ffff00", #HP
+            "#febaa9", #HPK
+            "#ad40fe", #KSA/KPA
+            "#ad40fe", #KSA/KPA
+            "#ad40fe", #KSA/KPA AIR
+            "#ad40fe", #TUBUH AIR
+            "#ad40fe", #TWA
             "#17becf",
         ]
         color_map = {
