@@ -37,7 +37,7 @@ def load_geojson_spasial(filename):
 # MODUL TAMPILAN PETA TEMATIK INTERAKTIF (TOOLTIP MENEMPEL DI KURSOR)
 # -----------------------------------------------------------------------------
 def render_peta_kawasan_hutan():
-    st.title("🗺️ Peta Tematik Pertanahan & Kawasan Hutan")
+    st.title("🗺️ Peta Tematik Pertanahan")
     st.markdown("---")
 
     # 1. INISIALISASI TERKUNCI STATE MAP (CENTER & ZOOM)
@@ -51,10 +51,10 @@ def render_peta_kawasan_hutan():
 
     with col_map_sel:
         peta_terpilih = st.multiselect(
-            "🗺️ Pilih Peta Tematik (Bisa Dipilih Lebih Dari Satu untuk Tumpang Susun):",
+            "🗺️ Pilih Peta Tematik",
             [
-                "Peta Kawasan Hutan (SK 11879)",
-                "Peta Kawasan Hutan (SK 6624)",
+                "Peta Kawasan Hutan SK.11879/2025",
+                "Peta Kawasan Hutan SK.6624/2021",
             ],
             default=["Peta Kawasan Hutan (SK 11879)"],
         )
@@ -75,7 +75,7 @@ def render_peta_kawasan_hutan():
     )
 
     map_configs = {
-        "Peta Kawasan Hutan (SK 11879)": {
+        "Peta Kawasan Hutan SK.11879/2025": {
             "filename": "sk11879_2025C.geojson",
             "filter_field": "FUNGSI_KWS",
             "filter_label": "🌲 Filter SK 11879/2025",
@@ -84,7 +84,7 @@ def render_peta_kawasan_hutan():
             "state_key": "filter_sk11879",
             "base_color": "#2ca02c",
         },
-        "Peta Kawasan Hutan (SK 6624)": {
+        "Peta Kawasan Hutan SK.6624/2021": {
             "filename": "sk6624_2021C.geojson",
             "filter_field": "NOSKKWS",
             "filter_label": "🌲 Filter SK 6624/2021",
@@ -277,9 +277,10 @@ def render_peta_kawasan_hutan():
     st.markdown(
         """
         <div style="font-size: 0.78rem; color: #666666; margin-top: 10px; border-top: 1px solid #e0e0e0; padding-top: 6px;">
-            📌 <b>Sumber Peta & Spasial:</b><br>
-            • <b>Peta Dasar:</b> OpenStreetMap (Public Domain)<br>
-            • <b>Layer Spasial:</b> Keputusan Menteri Lingkungan Hidup dan Kehutanan (SK 11879 & SK 6624)
+            📌 <b>Sumber Peta :</b><br>
+            • <b>Basemap :</b> OpenStreetMap (Public Domain)<br>
+            • <b>Kawasan Hutan :</b> Keputusan Menteri Lingkungan Hidup dan Kehutanan No. SK.6624/MENLHK-PKTL/KUH/PLA.2/10/2021
+            • <b>Kawasan Hutan :</b> Keputusan Menteri Kehutanan No. SK.11879/2025
         </div>
         """,
         unsafe_allow_html=True,
