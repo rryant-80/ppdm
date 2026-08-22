@@ -75,7 +75,7 @@ def render_peta_kawasan_hutan():
     )
 
     map_configs = {
-        "Peta Kawasan Hutan SK.11879/2025": {
+        "Peta Kawasan Hutan (SK 11879)": {
             "filename": "sk11879_2025C.geojson",
             "filter_field": "FUNGSI_KWS",
             "filter_label": "🌲 Filter SK 11879/2025",
@@ -84,7 +84,7 @@ def render_peta_kawasan_hutan():
             "state_key": "filter_sk11879",
             "base_color": "#2ca02c",
         },
-        "Peta Kawasan Hutan SK.6624/2021": {
+        "Peta Kawasan Hutan (SK 6624)": {
             "filename": "sk6624_2021C.geojson",
             "filter_field": "NOSKKWS",
             "filter_label": "🌲 Filter SK 6624/2021",
