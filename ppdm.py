@@ -78,7 +78,7 @@ def render_peta_kawasan_hutan():
         "Peta Kawasan Hutan (SK 11879)": {
             "filename": "sk11879_2025C.geojson",
             "filter_field": "FUNGSI_KWS",
-            "filter_label": "🌲 Filter SK 11879 (FUNGSI_KWS):",
+            "filter_label": "🌲 Filter SK 11879/2025",
             "fields": ["FUNGSI_KWS", "FUNGSIKWS"],
             "aliases": ["Fungsi:", "Kategori:"],
             "state_key": "filter_sk11879",
@@ -87,7 +87,7 @@ def render_peta_kawasan_hutan():
         "Peta Kawasan Hutan (SK 6624)": {
             "filename": "sk6624_2021C.geojson",
             "filter_field": "NOSKKWS",
-            "filter_label": "📄 Filter SK 6624 (NOSKKWS):",
+            "filter_label": "🌲 Filter SK 6624/2021",
             "fields": ["FUNGSIKWS_", "NOSKKWS"],
             "aliases": ["Fungsi:", "No. SK:"],
             "state_key": "filter_sk6624",
