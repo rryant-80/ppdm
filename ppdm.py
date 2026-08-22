@@ -53,8 +53,8 @@ def render_peta_kawasan_hutan():
         peta_terpilih = st.multiselect(
             "🗺️ Pilih Peta Tematik",
             [
-                "Peta Kawasan Hutan SK.11879/2025",
-                "Peta Kawasan Hutan SK.6624/2021",
+                "Peta Kawasan Hutan (SK 11879)",
+                "Peta Kawasan Hutan (SK 6624)",
             ],
             default=["Peta Kawasan Hutan (SK 11879)"],
         )
