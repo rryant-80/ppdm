@@ -157,8 +157,8 @@ def render_peta_kawasan_hutan():
             "#febaa9", #HPK
             "#ad40fe", #KSA/KPA
             "#ad40fe", #KSA/KPA
-            "#6ce6f2", #KSA/KPA AIR
-            "#6ce6f2", #TUBUH AIR
+            "#52e2f0", #KSA/KPA AIR
+            "#52e2f0", #TUBUH AIR
             "#ad40fe", #TWA
             "#17becf",
         ]
