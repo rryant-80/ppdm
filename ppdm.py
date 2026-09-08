@@ -1744,6 +1744,13 @@ def render_monitoring_kakanwil(df_kakanwil):
         # Urutkan dari % KW456 terkecil ke terbesar
         df_kw_grp = df_latest_kw.sort_values(by='pct_kw456', ascending=True).reset_index(drop=True)
 
+        # 1. CARI NILAI MINIMUM TERENDAH (PENGURANGAN BERKAS TERBANYAK/PALING BAGUS) PER TANGGAL
+        min_per_tgl_kw = {}
+        for tgl in last_5_tgl_str:
+            vals_kw = [capaian_kw_5_hari_map[k].get(tgl, 0) for k in capaian_kw_5_hari_map.keys()]
+            min_per_tgl_kw[tgl] = min(vals_kw) if vals_kw else 0
+
+        # 2. BENTUK BARIS DATA TABEL KW456
         rows_kw_html = []
         for idx, row in df_kw_grp.iterrows():
             wil_name = row['kab_clean']
@@ -1756,32 +1763,30 @@ def render_monitoring_kakanwil(df_kakanwil):
             v_tot_kw = f"{tot_kw_num:,.0f}".replace(',', '.')
             pct_kw = row['pct_kw456']
 
-            # Badging KW456
+            # Badging Total & % KW456
             badge_tot_class = "badge-green" if tot_kw_num <= 1000 else ("badge-yellow" if tot_kw_num <= 5000 else "badge-red")
             v_tot_kw_formatted = f"<span class='{badge_tot_class}'>{v_tot_kw}</span>"
 
             badge_kw_class = "badge-green" if pct_kw <= 5.0 else ("badge-yellow" if pct_kw <= 10.0 else "badge-red")
             pct_kw_formatted = f"<span class='{badge_kw_class}'>{pct_kw:.2f}%</span>"
 
-            # Cell 5 Kolom Tanggal KW456
+            # Cell 5 Kolom Tanggal KW456 Dengan Logika Warna Baru
             capaian_kw_cells_html = []
             for tgl in last_5_tgl_str:
                 cap_kw_val = capaian_kw_5_hari_map.get(wil_name, {}).get(tgl, 0)
-                max_kw_val = max_per_tgl_kw.get(tgl, 0)
+                min_kw_val = min_per_tgl_kw.get(tgl, 0)
                 
+                # Format Teks Angka
                 val_kw_str = f"+{cap_kw_val:,.0f}".replace(',', '.') if cap_kw_val > 0 else f"{cap_kw_val:,.0f}".replace(',', '.')
                 
                 if cap_kw_val == 0:
-                    # 🟢 Capaian KW456 = 0 artinya Bagus/Bersih -> Hijau Bold
-                    cell_kw_fmt = f"<span style='color: #10B981; font-weight: bold;'>0</span>"
-                elif cap_kw_val == max_kw_val and max_kw_val > 0:
-                    # 🔴 Penambahan KW456 Tertinggi (Paling Buruk) -> Merah Bold
-                    cell_kw_fmt = f"<span style='color: #EF4444; font-weight: bold;'>{val_kw_str}</span>"
-                elif cap_kw_val < 0:
-                    # Berkas berkurang (Bagus) -> Hijau Biasa
-                    cell_kw_fmt = f"<span style='color: #10B981;'>{val_kw_str}</span>"
+                    # 🔴 Angka 0 = Merah Bold
+                    cell_kw_fmt = f"<span style='color: #EF4444; font-weight: bold;'>0</span>"
+                elif cap_kw_val == min_kw_val and min_kw_val < 0:
+                    # 🟢 Min Terendah (Paling Bagus) = Hijau Bold
+                    cell_kw_fmt = f"<span style='color: #10B981; font-weight: bold;'>{val_kw_str}</span>"
                 else:
-                    # ⚪ Penambahan KW456 biasa -> Warna standar (#374151)
+                    # ⚪ Sisanya (Positif/Minus biasa) = Warna Standar BT Valid (#374151)
                     cell_kw_fmt = f"<span style='color: #374151;'>{val_kw_str}</span>"
                     
                 capaian_kw_cells_html.append(f"<td style='text-align: center;'>{cell_kw_fmt}</td>")
