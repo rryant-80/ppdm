@@ -1457,29 +1457,49 @@ def render_monitoring_kakanwil(df_kakanwil):
     # Filter baris non-kabupaten (jika ada total)
     df_clean = df[~df['kab_clean'].str.contains('Total|Jumlah|Sulawesi Tengah', case=False, na=False)].copy()
 
-    # ==========================================
-    # DASHBOARD 1: GRAFIK TREN PROGRESS PRASERTEL
-    # ==========================================
+    # =========================================================================
+    # DASHBOARD 1: GRAFIK TREN PROGRESS PRASERTEL (WARNA UNIK & KRONOLOGIS)
+    # =========================================================================
     df_line = df_clean.copy()
-    df_line['tgl_str'] = df_line[col_tgl].astype(str).str.strip()
-    df_line = df_line[df_line['tgl_str'].notna() & (df_line['tgl_str'] != '') & (df_line['tgl_str'].str.lower() != 'nan')].copy()
-
-    unique_tgls = df_line['tgl_str'].unique().tolist()
-    df_trend = df_line.groupby(['tgl_str', 'kab_clean'], as_index=False)['sertel_clean'].sum()
+    
+    # 1. Parsing Tanggal ke Datetime Agar Pengurutan Kronologis Presisi
+    df_line['tgl_dt'] = pd.to_datetime(df_line[col_tgl], format='%d/%m/%Y', errors='coerce')
+    if df_line['tgl_dt'].isna().all():
+        df_line['tgl_dt'] = pd.to_datetime(df_line[col_tgl], dayfirst=True, errors='coerce')
+        
+    df_line = df_line.dropna(subset=['tgl_dt']).sort_values(by='tgl_dt').reset_index(drop=True)
+    
+    # 2. Buat Kolom Format Pendek dd/mm Untuk Label Sumbu X
+    df_line['tgl_short'] = df_line['tgl_dt'].dt.strftime('%d/%m')
+    
+    # Agregasi Data
+    df_trend = df_line.groupby(['tgl_dt', 'tgl_short', 'kab_clean'], as_index=False)['sertel_clean'].sum()
+    df_trend = df_trend.sort_values(by='tgl_dt')
+    
+    # Urutan Kategori Sumbu X Yang Benar Secara Kronologis
+    unique_short_dates = df_trend.drop_duplicates(subset=['tgl_dt'])['tgl_short'].tolist()
+    
+    # 3. Palet Warna Kustom (13+ Warna Kontras Unik Tanpa Ada Warna Sama)
+    palet_warna_13_kab = [
+        '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', 
+        '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf',
+        '#34495e', '#e67e22', '#16a085'
+    ]
 
     fig_line = px.line(
         df_trend, 
-        x='tgl_str', 
+        x='tgl_short', 
         y='sertel_clean', 
         color='kab_clean',
         markers=True,
         title="📈 Tren Progress Prasertel",
-        category_orders={'tgl_str': unique_tgls}
+        category_orders={'tgl_short': unique_short_dates},
+        color_discrete_sequence=palet_warna_13_kab  # Menerapkan palet warna unik
     )
 
     fig_line.update_traces(
         hovertemplate="<b>Kab/Kota: %{fullData.name}</b><br>Tanggal: %{x}<br>Jml Prasertel: <b>%{y:,.0f} BT</b><extra></extra>",
-        marker=dict(size=8, line=dict(width=1.5, color='#000000'))
+        marker=dict(size=7, line=dict(width=1, color='#000000'))
     )
 
     fig_line.update_layout(
@@ -1493,7 +1513,7 @@ def render_monitoring_kakanwil(df_kakanwil):
         title=dict(text="📈 Tren Progress Prasertel", x=0, y=0.98, xanchor='left', yanchor='top', font=dict(size=15, color='#1e293b')),
         legend=dict(orientation="h", yanchor="top", y=-0.2, xanchor="center", x=0.5, title_text='', font=dict(size=11)),
         yaxis=dict(gridcolor='#f2f2f2'),
-        xaxis=dict(type='category')
+        xaxis=dict(type='category', tickangle=-45)
     )
 
     st.plotly_chart(fig_line, use_container_width=True)
