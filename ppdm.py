@@ -1649,133 +1649,160 @@ def render_monitoring_kakanwil(df_kakanwil):
     st.markdown(html_target_table, unsafe_allow_html=True)
 
 
-    # ==========================================
+    # =========================================================================
+    # PRE-PROCESSING SAFE DATA UNTUK GRAFIK TREN & TABEL KW456
+    # =========================================================================
+    # Membuat df_line yang aman dan bersih dari df_clean
+    df_line = df_clean.copy()
+    
+    # Parsing kolom tanggal
+    df_line['tgl_dt'] = pd.to_datetime(df_line[col_tgl], format='%d/%m/%Y', errors='coerce')
+    if df_line['tgl_dt'].isna().all():
+        df_line['tgl_dt'] = pd.to_datetime(df_line[col_tgl], dayfirst=True, errors='coerce')
+        
+    df_line = df_line.sort_values(by='tgl_dt').reset_index(drop=True)
+    df_line['tgl_str'] = df_line[col_tgl].astype(str).str.strip()
+
+    # Memastikan kolom total_kw456 dan kolom numerik lainnya aman dari NaN
+    if 'total_kw456' not in df_line.columns:
+        kw4_c = pd.to_numeric(df_line.get('kw4_clean', 0), errors='coerce').fillna(0)
+        kw5_c = pd.to_numeric(df_line.get('kw5_clean', 0), errors='coerce').fillna(0)
+        kw6_c = pd.to_numeric(df_line.get('kw6_clean', 0), errors='coerce').fillna(0)
+        df_line['total_kw456'] = kw4_c + kw5_c + kw6_c
+    else:
+        df_line['total_kw456'] = pd.to_numeric(df_line['total_kw456'], errors='coerce').fillna(0)
+
+    # Dapatkan daftar tanggal unik terurut secara kronologis
+    unique_tgls_kw = df_line.drop_duplicates(subset=['tgl_dt'])['tgl_str'].tolist()
+
+    # =========================================================================
     # DASHBOARD 3: GRAFIK TREN KHUSUS KW456
-    # ==========================================
+    # =========================================================================
     st.markdown("<br><hr>", unsafe_allow_html=True)
     
-    df_trend_kw = df_line.groupby(['tgl_dt', 'tgl_str', 'kab_clean'], as_index=False)['total_kw456'].sum()
-    df_trend_kw = df_trend_kw.sort_values(by='tgl_dt')
+    if not df_line.empty and 'kab_clean' in df_line.columns:
+        df_trend_kw = df_line.groupby(['tgl_dt', 'tgl_str', 'kab_clean'], as_index=False)['total_kw456'].sum()
+        df_trend_kw = df_trend_kw.sort_values(by='tgl_dt')
 
-    fig_line_kw = px.line(
-        df_trend_kw, 
-        x='tgl_str', 
-        y='total_kw456', 
-        color='kab_clean',
-        markers=True,
-        title="📈 Tren Progress KW456",
-        category_orders={'tgl_str': unique_tgls}
-    )
-
-    fig_line_kw.update_traces(
-        hovertemplate="<b>%{fullData.name}</b><br>Tgl.: %{x}<br>KW456 : <b>%{y:,.0f} Bidang</b><extra></extra>",
-        marker=dict(size=8, line=dict(width=1.5, color='#000000'))
-    )
-
-    fig_line_kw.update_layout(
-        height=480, xaxis_title="", yaxis_title="",
-        paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
-        margin=dict(l=15, r=15, t=60, b=80), separators=',.',
-        title=dict(text="📈 Tren Penyelesaian KW456", x=0, y=0.98, xanchor='left', yanchor='top', font=dict(size=15, color='#1e293b')),
-        legend=dict(orientation="h", yanchor="top", y=-0.2, xanchor="center", x=0.5, title_text='', font=dict(size=11)),
-        yaxis=dict(gridcolor='#f2f2f2'), xaxis=dict(type='category')
-    )
-
-    st.plotly_chart(fig_line_kw, use_container_width=True)
-
-
-    # ==========================================
-    # DASHBOARD 4: TABEL REKAPITULASI KW456 (5 TANGGAL TERAKHIR)
-    # ==========================================
-    st.subheader("📋 Rekapitulasi Capaian Penyelesaian KW456")
-
-    # Snapshot tanggal paling akhir per kabupaten
-    df_latest_kw = df_line.sort_values(by='tgl_dt').groupby('kab_clean', as_index=False).last()
-    df_latest_kw['pct_kw456'] = (df_latest_kw['total_kw456'] / df_latest_kw['btvalid_clean'].replace(0, 1)) * 100.0
-
-    # DELTA CAPAIAN KW456 5 TANGGAL TERAKHIR
-    capaian_kw_5_hari_map = {kab: {} for kab in df_latest_kw['kab_clean']}
-
-    for i in range(1, len(last_6_tgl_str)):
-        t_curr = last_6_tgl_str[i]
-        t_prev = last_6_tgl_str[i-1]
-        
-        if t_curr in last_5_tgl_str:
-            grp_curr_kw = df_line[df_line['tgl_str'] == t_curr].groupby('kab_clean')['total_kw456'].sum()
-            grp_prev_kw = df_line[df_line['tgl_str'] == t_prev].groupby('kab_clean')['total_kw456'].sum()
-            
-            for k_name in capaian_kw_5_hari_map.keys():
-                delta_kw = grp_curr_kw.get(k_name, 0) - grp_prev_kw.get(k_name, 0)
-                capaian_kw_5_hari_map[k_name][t_curr] = delta_kw
-
-    # CARI NILAI TERTINGGI (MAX PENAMBAHAN BEBAN) PER TANGGAL UNTUK KW456
-    max_per_tgl_kw = {}
-    for tgl in last_5_tgl_str:
-        vals_kw = [capaian_kw_5_hari_map[k].get(tgl, 0) for k in capaian_kw_5_hari_map.keys()]
-        max_per_tgl_kw[tgl] = max(vals_kw) if vals_kw else 0
-
-    # Urutkan dari % KW456 terkecil ke terbesar
-    df_kw_grp = df_latest_kw.sort_values(by='pct_kw456', ascending=True).reset_index(drop=True)
-
-    rows_kw_html = []
-    for idx, row in df_kw_grp.iterrows():
-        wil_name = row['kab_clean']
-        bt_val = f"{row['btvalid_clean']:,.0f}".replace(',', '.')
-        v_kw4 = f"{row['kw4_clean']:,.0f}".replace(',', '.')
-        v_kw5 = f"{row['kw5_clean']:,.0f}".replace(',', '.')
-        v_kw6 = f"{row['kw6_clean']:,.0f}".replace(',', '.')
-        
-        tot_kw_num = row['total_kw456']
-        v_tot_kw = f"{tot_kw_num:,.0f}".replace(',', '.')
-        pct_kw = row['pct_kw456']
-
-        # Badging KW456
-        badge_tot_class = "badge-green" if tot_kw_num <= 1000 else ("badge-yellow" if tot_kw_num <= 5000 else "badge-red")
-        v_tot_kw_formatted = f"<span class='{badge_tot_class}'>{v_tot_kw}</span>"
-
-        badge_kw_class = "badge-green" if pct_kw <= 5.0 else ("badge-yellow" if pct_kw <= 10.0 else "badge-red")
-        pct_kw_formatted = f"<span class='{badge_kw_class}'>{pct_kw:.2f}%</span>"
-
-        # Cell 5 Kolom Tanggal KW456
-        capaian_kw_cells_html = []
-        for tgl in last_5_tgl_str:
-            cap_kw_val = capaian_kw_5_hari_map.get(wil_name, {}).get(tgl, 0)
-            max_kw_val = max_per_tgl_kw.get(tgl, 0)
-            
-            val_kw_str = f"+{cap_kw_val:,.0f}".replace(',', '.') if cap_kw_val > 0 else f"{cap_kw_val:,.0f}".replace(',', '.')
-            
-            if cap_kw_val == 0:
-                # 🟢 Capaian KW456 = 0 artinya Bagus/Bersih -> Hijau Bold
-                cell_kw_fmt = f"<span style='color: #10B981; font-weight: bold;'>0</span>"
-            elif cap_kw_val == max_kw_val and max_kw_val > 0:
-                # 🔴 Penambahan KW456 Tertinggi (Paling Buruk) -> Merah Bold
-                cell_kw_fmt = f"<span style='color: #EF4444; font-weight: bold;'>{val_kw_str}</span>"
-            elif cap_kw_val < 0:
-                # Berkas berkurang (Bagus) -> Hijau Biasa
-                cell_kw_fmt = f"<span style='color: #10B981;'>{val_kw_str}</span>"
-            else:
-                # ⚪ Penambahan KW456 biasa -> Warna standar (#374151)
-                cell_kw_fmt = f"<span style='color: #374151;'>{val_kw_str}</span>"
-                
-            capaian_kw_cells_html.append(f"<td style='text-align: center;'>{cell_kw_fmt}</td>")
-
-        td_5_capaian_kw_str = "".join(capaian_kw_cells_html)
-
-        rows_kw_html.append(
-            f"<tr>"
-            f"<td style='text-align: center; font-weight: bold; width: 40px;'>{idx+1}</td>"
-            f"<td style='text-align: left; font-weight: 600;'>{wil_name}</td>"
-            f"<td style='text-align: center; color: #374151;'>{bt_val}</td>"
-            f"<td style='text-align: center; color: #374151;'>{v_kw4}</td>"
-            f"<td style='text-align: center; color: #374151;'>{v_kw5}</td>"
-            f"<td style='text-align: center; color: #374151;'>{v_kw6}</td>"
-            f"<td style='text-align: center;'>{v_tot_kw_formatted}</td>"
-            f"<td style='text-align: center;'>{pct_kw_formatted}</td>"
-            f"{td_5_capaian_kw_str}"
-            f"</tr>"
+        fig_line_kw = px.line(
+            df_trend_kw, 
+            x='tgl_str', 
+            y='total_kw456', 
+            color='kab_clean',
+            markers=True,
+            title="📈 Tren Progress KW456",
+            category_orders={'tgl_str': unique_tgls_kw}
         )
 
-    html_kw_table = f"""
+        fig_line_kw.update_traces(
+            hovertemplate="<b>%{fullData.name}</b><br>Tgl.: %{x}<br>KW456 : <b>%{y:,.0f} Bidang</b><extra></extra>",
+            marker=dict(size=8, line=dict(width=1.5, color='#000000'))
+        )
+
+        fig_line_kw.update_layout(
+            height=480, xaxis_title="", yaxis_title="",
+            paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+            margin=dict(l=15, r=15, t=60, b=80), separators=',.',
+            title=dict(text="📈 Tren Penyelesaian KW456", x=0, y=0.98, xanchor='left', yanchor='top', font=dict(size=15, color='#1e293b')),
+            legend=dict(orientation="h", yanchor="top", y=-0.2, xanchor="center", x=0.5, title_text='', font=dict(size=11)),
+            yaxis=dict(gridcolor='#f2f2f2'), xaxis=dict(type='category')
+        )
+
+        st.plotly_chart(fig_line_kw, use_container_width=True)
+
+    # =========================================================================
+    # DASHBOARD 4: TABEL REKAPITULASI KW456 (5 TANGGAL TERAKHIR)
+    # =========================================================================
+    st.subheader("📋 Rekapitulasi Capaian Penyelesaian KW456")
+
+    if not df_line.empty and 'kab_clean' in df_line.columns:
+        # Snapshot tanggal paling akhir per kabupaten
+        df_latest_kw = df_line.sort_values(by='tgl_dt').groupby('kab_clean', as_index=False).last()
+        df_latest_kw['pct_kw456'] = (df_latest_kw['total_kw456'] / df_latest_kw['btvalid_clean'].replace(0, 1)) * 100.0
+
+        # DELTA CAPAIAN KW456 5 TANGGAL TERAKHIR
+        capaian_kw_5_hari_map = {kab: {} for kab in df_latest_kw['kab_clean']}
+
+        for i in range(1, len(last_6_tgl_str)):
+            t_curr = last_6_tgl_str[i]
+            t_prev = last_6_tgl_str[i-1]
+            
+            if t_curr in last_5_tgl_str:
+                grp_curr_kw = df_line[df_line['tgl_str'] == t_curr].groupby('kab_clean')['total_kw456'].sum()
+                grp_prev_kw = df_line[df_line['tgl_str'] == t_prev].groupby('kab_clean')['total_kw456'].sum()
+                
+                for k_name in capaian_kw_5_hari_map.keys():
+                    delta_kw = grp_curr_kw.get(k_name, 0) - grp_prev_kw.get(k_name, 0)
+                    capaian_kw_5_hari_map[k_name][t_curr] = delta_kw
+
+        # CARI NILAI TERTINGGI (MAX PENAMBAHAN BEBAN) PER TANGGAL UNTUK KW456
+        max_per_tgl_kw = {}
+        for tgl in last_5_tgl_str:
+            vals_kw = [capaian_kw_5_hari_map[k].get(tgl, 0) for k in capaian_kw_5_hari_map.keys()]
+            max_per_tgl_kw[tgl] = max(vals_kw) if vals_kw else 0
+
+        # Urutkan dari % KW456 terkecil ke terbesar
+        df_kw_grp = df_latest_kw.sort_values(by='pct_kw456', ascending=True).reset_index(drop=True)
+
+        rows_kw_html = []
+        for idx, row in df_kw_grp.iterrows():
+            wil_name = row['kab_clean']
+            bt_val = f"{row['btvalid_clean']:,.0f}".replace(',', '.')
+            v_kw4 = f"{row['kw4_clean']:,.0f}".replace(',', '.')
+            v_kw5 = f"{row['kw5_clean']:,.0f}".replace(',', '.')
+            v_kw6 = f"{row['kw6_clean']:,.0f}".replace(',', '.')
+            
+            tot_kw_num = row['total_kw456']
+            v_tot_kw = f"{tot_kw_num:,.0f}".replace(',', '.')
+            pct_kw = row['pct_kw456']
+
+            # Badging KW456
+            badge_tot_class = "badge-green" if tot_kw_num <= 1000 else ("badge-yellow" if tot_kw_num <= 5000 else "badge-red")
+            v_tot_kw_formatted = f"<span class='{badge_tot_class}'>{v_tot_kw}</span>"
+
+            badge_kw_class = "badge-green" if pct_kw <= 5.0 else ("badge-yellow" if pct_kw <= 10.0 else "badge-red")
+            pct_kw_formatted = f"<span class='{badge_kw_class}'>{pct_kw:.2f}%</span>"
+
+            # Cell 5 Kolom Tanggal KW456
+            capaian_kw_cells_html = []
+            for tgl in last_5_tgl_str:
+                cap_kw_val = capaian_kw_5_hari_map.get(wil_name, {}).get(tgl, 0)
+                max_kw_val = max_per_tgl_kw.get(tgl, 0)
+                
+                val_kw_str = f"+{cap_kw_val:,.0f}".replace(',', '.') if cap_kw_val > 0 else f"{cap_kw_val:,.0f}".replace(',', '.')
+                
+                if cap_kw_val == 0:
+                    # 🟢 Capaian KW456 = 0 artinya Bagus/Bersih -> Hijau Bold
+                    cell_kw_fmt = f"<span style='color: #10B981; font-weight: bold;'>0</span>"
+                elif cap_kw_val == max_kw_val and max_kw_val > 0:
+                    # 🔴 Penambahan KW456 Tertinggi (Paling Buruk) -> Merah Bold
+                    cell_kw_fmt = f"<span style='color: #EF4444; font-weight: bold;'>{val_kw_str}</span>"
+                elif cap_kw_val < 0:
+                    # Berkas berkurang (Bagus) -> Hijau Biasa
+                    cell_kw_fmt = f"<span style='color: #10B981;'>{val_kw_str}</span>"
+                else:
+                    # ⚪ Penambahan KW456 biasa -> Warna standar (#374151)
+                    cell_kw_fmt = f"<span style='color: #374151;'>{val_kw_str}</span>"
+                    
+                capaian_kw_cells_html.append(f"<td style='text-align: center;'>{cell_kw_fmt}</td>")
+
+            td_5_capaian_kw_str = "".join(capaian_kw_cells_html)
+
+            rows_kw_html.append(
+                f"<tr>"
+                f"<td style='text-align: center; font-weight: bold; width: 40px;'>{idx+1}</td>"
+                f"<td style='text-align: left; font-weight: 600;'>{wil_name}</td>"
+                f"<td style='text-align: center; color: #374151;'>{bt_val}</td>"
+                f"<td style='text-align: center; color: #374151;'>{v_kw4}</td>"
+                f"<td style='text-align: center; color: #374151;'>{v_kw5}</td>"
+                f"<td style='text-align: center; color: #374151;'>{v_kw6}</td>"
+                f"<td style='text-align: center;'>{v_tot_kw_formatted}</td>"
+                f"<td style='text-align: center;'>{pct_kw_formatted}</td>"
+                f"{td_5_capaian_kw_str}"
+                f"</tr>"
+            )
+
+        html_kw_table = f"""
 <div class="target-table-container">
 <table class="target-table">
 <thead>
@@ -1794,7 +1821,7 @@ def render_monitoring_kakanwil(df_kakanwil):
 <tbody>{"".join(rows_kw_html)}</tbody>
 </table></div>"""
 
-    st.markdown(html_kw_table, unsafe_allow_html=True)
+        st.markdown(html_kw_table, unsafe_allow_html=True)
 
 # -----------------------------------------------------------------------------
 # 4. FUNGSI AUTENTIKASI (LOGIN & LOGOUT)
