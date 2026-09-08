@@ -1696,27 +1696,45 @@ def render_monitoring_kakanwil(df_kakanwil):
     unique_tgls_kw = df_line.drop_duplicates(subset=['tgl_dt'])['tgl_str'].tolist()
 
     # =========================================================================
-    # DASHBOARD 3: GRAFIK TREN KHUSUS KW456
+    # DASHBOARD 3: GRAFIK TREN KHUSUS KW456 (WARNA UNIK & FORMAT dd/mm)
     # =========================================================================
     st.markdown("<br><hr>", unsafe_allow_html=True)
     
     if not df_line.empty and 'kab_clean' in df_line.columns:
-        df_trend_kw = df_line.groupby(['tgl_dt', 'tgl_str', 'kab_clean'], as_index=False)['total_kw456'].sum()
+        # 1. Pastikan pengurutan kronologis berdasarkan datetime
+        df_line_kw = df_line.dropna(subset=['tgl_dt']).sort_values(by='tgl_dt').copy()
+        
+        # 2. Buat kolom format tanggal pendek dd/mm
+        df_line_kw['tgl_short'] = df_line_kw['tgl_dt'].dt.strftime('%d/%m')
+        
+        # 3. Agregasi data berdasarkan tanggal pendek & kabupaten
+        df_trend_kw = df_line_kw.groupby(['tgl_dt', 'tgl_short', 'kab_clean'], as_index=False)['total_kw456'].sum()
         df_trend_kw = df_trend_kw.sort_values(by='tgl_dt')
+
+        # Dapatkan urutan tanggal unik secara kronologis
+        unique_short_kw = df_trend_kw.drop_duplicates(subset=['tgl_dt'])['tgl_short'].tolist()
+
+        # Palet 13 warna kontras unik (tidak ada yang sama)
+        palet_warna_13_kw = [
+            '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', 
+            '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf',
+            '#34495e', '#e67e22', '#16a085'
+        ]
 
         fig_line_kw = px.line(
             df_trend_kw, 
-            x='tgl_str', 
+            x='tgl_short', 
             y='total_kw456', 
             color='kab_clean',
             markers=True,
             title="📈 Tren Progress KW456",
-            category_orders={'tgl_str': unique_tgls_kw}
+            category_orders={'tgl_short': unique_short_kw},
+            color_discrete_sequence=palet_warna_13_kw  # Menerapkan warna garis yang unik
         )
 
         fig_line_kw.update_traces(
             hovertemplate="<b>%{fullData.name}</b><br>Tgl.: %{x}<br>KW456 : <b>%{y:,.0f} Bidang</b><extra></extra>",
-            marker=dict(size=8, line=dict(width=1.5, color='#000000'))
+            marker=dict(size=7, line=dict(width=1, color='#000000'))
         )
 
         fig_line_kw.update_layout(
@@ -1725,7 +1743,8 @@ def render_monitoring_kakanwil(df_kakanwil):
             margin=dict(l=15, r=15, t=60, b=80), separators=',.',
             title=dict(text="📈 Tren Penyelesaian KW456", x=0, y=0.98, xanchor='left', yanchor='top', font=dict(size=15, color='#1e293b')),
             legend=dict(orientation="h", yanchor="top", y=-0.2, xanchor="center", x=0.5, title_text='', font=dict(size=11)),
-            yaxis=dict(gridcolor='#f2f2f2'), xaxis=dict(type='category')
+            yaxis=dict(gridcolor='#f2f2f2'), 
+            xaxis=dict(type='category', tickangle=-45)
         )
 
         st.plotly_chart(fig_line_kw, use_container_width=True)
