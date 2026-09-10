@@ -1518,7 +1518,7 @@ def render_monitoring_kakanwil(df_kakanwil):
 
     st.plotly_chart(fig_line, use_container_width=True)
 
-# =========================================================================
+    # =========================================================================
     # DASHBOARD 2: TABEL TARGET HARIAN PRASERTEL MENUJU 70% (5 TANGGAL TERAKHIR)
     # =========================================================================
     st.markdown("<br>", unsafe_allow_html=True)
@@ -1527,7 +1527,6 @@ def render_monitoring_kakanwil(df_kakanwil):
     today = datetime.now().date()
     end_date = date(2026, 12, 31)
     sisa_hari_kerja = np.busday_count(today, end_date + timedelta(days=1)) if today < end_date else 1
-    st.info(f"📅 **{sisa_hari_kerja} hari kerja** menuju Tgl. 31 Desember 2026")
 
     # Parsing tanggal kronologis untuk seluruh dataset
     df_clean['tgl_dt'] = pd.to_datetime(df_clean[col_tgl], format='%d/%m/%Y', errors='coerce')
@@ -1539,6 +1538,23 @@ def render_monitoring_kakanwil(df_kakanwil):
 
     # Snapshot tanggal terbaru untuk target harian
     df_latest_by_kab = df_sorted.groupby('kab_clean', as_index=False).last()
+    
+    # 💡 Perhitungan Total Provinsi untuk Header Info Box
+    tot_bt_valid_prov = df_latest_by_kab['btvalid_clean'].sum()
+    tot_prasertel_prov = df_latest_by_kab['sertel_clean'].sum()
+    pct_prasertel_prov = (tot_prasertel_prov / tot_bt_valid_prov * 100.0) if tot_bt_valid_prov > 0 else 0.0
+
+    tot_bt_fmt = f"{tot_bt_valid_prov:,.0f}".replace(',', '.')
+    tot_sertel_fmt = f"{tot_prasertel_prov:,.0f}".replace(',', '.')
+
+    # 💡 Informasi Ringkasan dengan Ikon Menarik
+    st.info(
+        f"🎯 **Target:** {tot_bt_fmt} BT &nbsp;|&nbsp; "
+        f"🚀 **Realisasi:** {tot_sertel_fmt} BT &nbsp;|&nbsp; "
+        f"📊 **% Total Prasertel:** {pct_prasertel_prov:.2f}% &nbsp;|&nbsp; "
+        f"📅 **{sisa_hari_kerja} hari kerja** menuju Tgl. 31 Desember 2026"
+    )
+
     df_latest_by_kab['pct_saat_ini'] = (df_latest_by_kab['sertel_clean'] / df_latest_by_kab['btvalid_clean'].replace(0, 1)) * 100.0
     df_latest_by_kab['target_bt_70'] = df_latest_by_kab['btvalid_clean'] * 0.70
     df_latest_by_kab['sisa_bt_kejar'] = (df_latest_by_kab['target_bt_70'] - df_latest_by_kab['sertel_clean']).apply(lambda x: max(0, x))
@@ -1578,11 +1594,14 @@ def render_monitoring_kakanwil(df_kakanwil):
                 delta = grp_curr.get(k_name, 0) - grp_prev.get(k_name, 0)
                 capaian_5_hari_map[k_name][t_curr] = delta
 
-    # CARI NILAI TERTINGGI (MAX) PER TANGGAL UNTUK HIGHLIGHT PRASERTEL
-    max_per_tgl_prasertel = {}
+    # 💡 CARI TOP 3 NILAI TERTINGGI PER TANGGAL UNTUK HIGHLIGHT HIJAU TEBAL
+    top3_per_tgl_prasertel = {}
     for tgl in last_5_tgl_str:
         vals = [capaian_5_hari_map[k].get(tgl, 0) for k in capaian_5_hari_map.keys()]
-        max_per_tgl_prasertel[tgl] = max(vals) if vals else 0
+        positive_vals = [v for v in vals if v > 0]
+        # Ambil hingga 3 nilai unik terbesar yang > 0
+        top3_vals = sorted(list(set(positive_vals)), reverse=True)[:3]
+        top3_per_tgl_prasertel[tgl] = top3_vals
 
     # 3. URUTKAN KABUPATEN BERDASARKAN PERSENTASE PRASERTEL TERTINGGI
     df_target_grp = df_latest_by_kab.sort_values(by='pct_saat_ini', ascending=False).reset_index(drop=True)
@@ -1605,7 +1624,7 @@ def render_monitoring_kakanwil(df_kakanwil):
         capaian_cells_html = []
         for tgl in last_5_tgl_str:
             cap_val = capaian_5_hari_map.get(wil_name, {}).get(tgl, 0)
-            max_val = max_per_tgl_prasertel.get(tgl, 0)
+            top3_vals = top3_per_tgl_prasertel.get(tgl, [])
             
             # Format Angka: +X, -X, atau 0
             val_str = f"+{cap_val:,.0f}".replace(',', '.') if cap_val > 0 else f"{cap_val:,.0f}".replace(',', '.')
@@ -1613,14 +1632,11 @@ def render_monitoring_kakanwil(df_kakanwil):
             if cap_val == 0:
                 # 🔴 Capaian 0 = Merah Bold
                 cell_fmt = f"<span style='color: #EF4444; font-weight: bold;'>0</span>"
-            elif cap_val == max_val and max_val > 0:
-                # 🟢 Capaian Tertinggi = Hijau Bold
+            elif cap_val in top3_vals:
+                # 🟢 3 Capaian Tertinggi (>0) = Hijau Bold
                 cell_fmt = f"<span style='color: #10B981; font-weight: bold;'>{val_str}</span>"
-            elif cap_val < 0:
-                # Minus = Merah Biasa
-                cell_fmt = f"<span style='color: #EF4444;'>{val_str}</span>"
             else:
-                # ⚪ Positif biasa = Warna sama dengan kolom BT Valid (#374151)
+                # ⚪ Positif Biasa / Minus = Warna Standar Teks (#374151)
                 cell_fmt = f"<span style='color: #374151;'>{val_str}</span>"
                 
             capaian_cells_html.append(f"<td style='text-align: center;'>{cell_fmt}</td>")
@@ -1667,7 +1683,6 @@ def render_monitoring_kakanwil(df_kakanwil):
 </table></div>"""
 
     st.markdown(html_target_table, unsafe_allow_html=True)
-
 
     # =========================================================================
     # PRE-PROCESSING SAFE DATA UNTUK GRAFIK TREN & TABEL KW456
