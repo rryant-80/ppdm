@@ -1522,7 +1522,7 @@ def render_monitoring_kakanwil(df_kakanwil):
     # DASHBOARD 2: TABEL TARGET HARIAN PRASERTEL MENUJU 70% (5 TANGGAL TERAKHIR)
     # =========================================================================
     st.markdown("<br>", unsafe_allow_html=True)
-    st.subheader("🎯 Target Harian Prasertel Menuju 70% (Desember 2026)")
+    st.subheader("🎯 Target Harian Pra-Sertel Sulawesi Tengah menuju 70% (Desember 2026)")
 
     today = datetime.now().date()
     end_date = date(2026, 12, 31)
