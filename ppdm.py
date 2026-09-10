@@ -1182,7 +1182,7 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
             st.plotly_chart(fig_line, use_container_width=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
-    st.subheader("🎯 Target Harian Prasertel Menuju 70% (Desember 2026)")
+    st.subheader("🎯 Target Harian Prasertel Sulawesi Tengah menuju 70% (Desember 2026)")
 
     today = datetime.now().date()
     end_date = date(2026, 12, 31)
