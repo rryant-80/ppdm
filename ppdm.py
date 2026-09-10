@@ -1525,7 +1525,7 @@ def render_monitoring_kakanwil(df_kakanwil):
     today_str = today.strftime('%d/%m/%Y')
 
     st.markdown("<br>", unsafe_allow_html=True)
-    st.subheader(f"🎯 Target Harian Pra-Sertel Sulawesi Tengah, Tgl. {today_str}")
+    st.subheader(f"Target Harian Pra-Sertel Sulawesi Tengah, Tgl. {today_str}")
 
     today = datetime.now().date()
     end_date = date(2026, 12, 31)
