@@ -1550,7 +1550,7 @@ def render_monitoring_kakanwil(df_kakanwil):
     # 💡 Informasi Ringkasan dengan Ikon Menarik
     st.info(
         f"🎯 **Target:** {tot_bt_fmt} BT &nbsp;|&nbsp; "
-        f"🚀 **Realisasi:** {tot_sertel_fmt} BT (**{pct_prasertel_prov:.2f}%**) &nbsp;|&nbsp; "
+        f"🚀 **Realisasi:** {tot_sertel_fmt} BT (**{pct_prasertel_prov:.2f} %**) &nbsp;|&nbsp; "
         f"📅 **{sisa_hari_kerja} hari kerja** menuju 70% Tgl. 31 Desember 2026"
     )
 
