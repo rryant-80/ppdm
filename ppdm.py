@@ -1522,7 +1522,7 @@ def render_monitoring_kakanwil(df_kakanwil):
     # DASHBOARD 2: TABEL TARGET HARIAN PRASERTEL MENUJU 70% (5 TANGGAL TERAKHIR)
     # =========================================================================
     st.markdown("<br>", unsafe_allow_html=True)
-    st.subheader("🎯 Target Harian Pra-Sertel Sulawesi Tengah menuju 70%")
+    st.subheader("🎯 Target Harian Pra-Sertel Sulawesi Tengah")
 
     today = datetime.now().date()
     end_date = date(2026, 12, 31)
@@ -1550,9 +1550,8 @@ def render_monitoring_kakanwil(df_kakanwil):
     # 💡 Informasi Ringkasan dengan Ikon Menarik
     st.info(
         f"🎯 **Target:** {tot_bt_fmt} BT &nbsp;|&nbsp; "
-        f"🚀 **Realisasi:** {tot_sertel_fmt} BT &nbsp;|&nbsp; "
-        f"📊 **% Total Prasertel:** {pct_prasertel_prov:.2f}% &nbsp;|&nbsp; "
-        f"📅 **{sisa_hari_kerja} hari kerja** menuju Tgl. 31 Desember 2026"
+        f"🚀 **Realisasi:** {tot_sertel_fmt} BT (**{pct_prasertel_prov:.2f}%**) &nbsp;|&nbsp; "
+        f"📅 **{sisa_hari_kerja} hari kerja** menuju 70% Tgl. 31 Desember 2026"
     )
 
     df_latest_by_kab['pct_saat_ini'] = (df_latest_by_kab['sertel_clean'] / df_latest_by_kab['btvalid_clean'].replace(0, 1)) * 100.0
