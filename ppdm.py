@@ -474,7 +474,7 @@ def render_profil_anggaran(df_filtered_sdm):
                     st.progress(min(max(p_info['persen'] / 100.0, 0.0), 1.0))
                     html_realisasi = f"""
                     <div style="text-align: right; line-height: 1.2; margin-top: 2px; font-size: 0.70rem; color: #555555;">
-                        Realisasi: <b style="font-size: 0.5rem; color: #00CC96;">{fmt_pct(p_info['persen'])}%</b> (Rp {fmt_idr(p_info['realisasi'])})
+                        Realisasi: <b style="font-size: 0.3rem; color: #00CC96;">{fmt_pct(p_info['persen'])}%</b> (Rp {fmt_idr(p_info['realisasi'])})
                     </div>
                     """
                     st.markdown(html_realisasi, unsafe_allow_html=True)
@@ -674,7 +674,10 @@ def render_psn_2026(df_filtered_psn):
     # 3. TABEL REALISASI PTSL (PBT & SHAT)
     # -----------------------------------------------------------------------------
     st.markdown("<br><hr>", unsafe_allow_html=True)
-    st.subheader("📋 Realisasi PTSL (PBT & SHAT)")
+    
+    # 💡 Tanggal Hari Ini (Today) untuk Judul Subheader
+    today_ptsl_str = datetime.now().date().strftime('%d/%m/%Y')
+    st.subheader(f"📋 Realisasi PTSL (PBT & SHAT), Tgl. {today_ptsl_str}")
 
     # Hitung total provinsi untuk header info box
     tot_tgt_pbt = df_rekap['target_pbt'].sum()
@@ -682,7 +685,6 @@ def render_psn_2026(df_filtered_psn):
     pct_tot_pbt = (tot_real_pbt / tot_tgt_pbt * 100.0) if tot_tgt_pbt > 0 else 0.0
 
     tot_tgt_shat = df_rekap['target_shat'].sum()
-    # Menentukan nilai Siap Diserahkan (menggunakan siap_serah, atau fallback k1)
     df_rekap['val_siap_serah'] = df_rekap['siap_serah'] if df_rekap['siap_serah'].sum() > 0 else df_rekap['k1']
     tot_real_shat = df_rekap['val_siap_serah'].sum()
     pct_tot_shat = (tot_real_shat / tot_tgt_shat * 100.0) if tot_tgt_shat > 0 else 0.0
@@ -697,12 +699,8 @@ def render_psn_2026(df_filtered_psn):
 
     # Kalkulasi persentase per baris kabupaten
     df_ptsl = df_rekap.copy()
-    
-    # Total PBT = baru + k4 + repo
     df_ptsl['tot_pbt_real'] = df_ptsl['realisasi_baru'] + df_ptsl['realisasi_k4'] + df_ptsl['realisasi_repo']
     df_ptsl['pct_pbt_total'] = np.where(df_ptsl['target_pbt'] > 0, (df_ptsl['tot_pbt_real'] / df_ptsl['target_pbt']) * 100.0, 0.0)
-    
-    # SHAT % = siap diserahkan / target SHAT
     df_ptsl['pct_shat_total'] = np.where(df_ptsl['target_shat'] > 0, (df_ptsl['val_siap_serah'] / df_ptsl['target_shat']) * 100.0, 0.0)
 
     # Urutkan berdasarkan capaian % SHAT terbesar ke terkecil
@@ -723,13 +721,13 @@ def render_psn_2026(df_filtered_psn):
         tgt_pbt_str = fmt_decimal(tgt_pbt)
         pct_pbt_str = fmt_decimal(pct_pbt)
         
-        p_baru_pct = f"<br><span style='font-size:0.72rem; color:#6B7280;'>({fmt_decimal((v_baru/tgt_pbt*100) if tgt_pbt>0 else 0)}%)</span>" if tgt_pbt>0 else ""
-        p_k4_pct = f"<br><span style='font-size:0.72rem; color:#6B7280;'>({fmt_decimal((v_k4/tgt_pbt*100) if tgt_pbt>0 else 0)}%)</span>" if tgt_pbt>0 else ""
-        p_repo_pct = f"<br><span style='font-size:0.72rem; color:#6B7280;'>({fmt_decimal((v_repo/tgt_pbt*100) if tgt_pbt>0 else 0)}%)</span>" if tgt_pbt>0 else ""
+        p_baru_pct = f"<br><span style='font-size:0.4rem; color:#6B7280;'>({fmt_decimal((v_baru/tgt_pbt*100) if tgt_pbt>0 else 0)}%)</span>" if tgt_pbt>0 else ""
+        p_k4_pct = f"<br><span style='font-size:0.4rem; color:#6B7280;'>({fmt_decimal((v_k4/tgt_pbt*100) if tgt_pbt>0 else 0)}%)</span>" if tgt_pbt>0 else ""
+        p_repo_pct = f"<br><span style='font-size:0.4rem; color:#6B7280;'>({fmt_decimal((v_repo/tgt_pbt*100) if tgt_pbt>0 else 0)}%)</span>" if tgt_pbt>0 else ""
 
-        str_baru = f"{fmt_decimal(v_baru)}{p_baru_pct}"
-        str_k4 = f"{fmt_decimal(v_k4)}{p_k4_pct}"
-        str_repo = f"{fmt_decimal(v_repo)}{p_repo_pct}"
+        str_baru = f"<span class='txt-black-bold'>{fmt_decimal(v_baru)}</span>{p_baru_pct}"
+        str_k4 = f"<span class='txt-black-bold'>{fmt_decimal(v_k4)}</span>{p_k4_pct}"
+        str_repo = f"<span class='txt-black-bold'>{fmt_decimal(v_repo)}</span>{p_repo_pct}"
 
         # SHAT Fields
         tgt_shat = row['target_shat']
@@ -744,17 +742,17 @@ def render_psn_2026(df_filtered_psn):
         tgt_shat_str = fmt_idr(tgt_shat)
         pct_shat_str = fmt_decimal(pct_shat)
 
-        s_pul_pct = f"<br><span style='font-size:0.72rem; color:#6B7280;'>({fmt_decimal((v_puldadis/tgt_shat*100) if tgt_shat>0 else 0)}%)</span>" if tgt_shat>0 else ""
-        s_ber_pct = f"<br><span style='font-size:0.72rem; color:#6B7280;'>({fmt_decimal((v_berkas/tgt_shat*100) if tgt_shat>0 else 0)}%)</span>" if tgt_shat>0 else ""
-        s_pot_pct = f"<br><span style='font-size:0.72rem; color:#6B7280;'>({fmt_decimal((v_potensi/tgt_shat*100) if tgt_shat>0 else 0)}%)</span>" if tgt_shat>0 else ""
-        s_k1_pct = f"<br><span style='font-size:0.72rem; color:#6B7280;'>({fmt_decimal((v_k1/tgt_shat*100) if tgt_shat>0 else 0)}%)</span>" if tgt_shat>0 else ""
-        s_srh_pct = f"<br><span style='font-size:0.72rem; color:#6B7280;'>({fmt_decimal((v_serah/tgt_shat*100) if tgt_shat>0 else 0)}%)</span>" if tgt_shat>0 else ""
+        s_pul_pct = f"<br><span style='font-size:0.4rem; color:#6B7280;'>({fmt_decimal((v_puldadis/tgt_shat*100) if tgt_shat>0 else 0)}%)</span>" if tgt_shat>0 else ""
+        s_ber_pct = f"<br><span style='font-size:0.4rem; color:#6B7280;'>({fmt_decimal((v_berkas/tgt_shat*100) if tgt_shat>0 else 0)}%)</span>" if tgt_shat>0 else ""
+        s_pot_pct = f"<br><span style='font-size:0.4rem; color:#6B7280;'>({fmt_decimal((v_potensi/tgt_shat*100) if tgt_shat>0 else 0)}%)</span>" if tgt_shat>0 else ""
+        s_k1_pct = f"<br><span style='font-size:0.4rem; color:#6B7280;'>({fmt_decimal((v_k1/tgt_shat*100) if tgt_shat>0 else 0)}%)</span>" if tgt_shat>0 else ""
+        s_srh_pct = f"<br><span style='font-size:0.4rem; color:#6B7280;'>({fmt_decimal((v_serah/tgt_shat*100) if tgt_shat>0 else 0)}%)</span>" if tgt_shat>0 else ""
 
-        str_pul = f"{fmt_idr(v_puldadis)}{s_pul_pct}"
-        str_ber = f"{fmt_idr(v_berkas)}{s_ber_pct}"
-        str_pot = f"{fmt_idr(v_potensi)}{s_pot_pct}"
-        str_k1 = f"{fmt_idr(v_k1)}{s_k1_pct}"
-        str_srh = f"{fmt_idr(v_serah)}{s_srh_pct}"
+        str_pul = f"<span class='txt-black-bold'>{fmt_idr(v_puldadis)}</span>{s_pul_pct}"
+        str_ber = f"<span class='txt-black-bold'>{fmt_idr(v_berkas)}</span>{s_ber_pct}"
+        str_pot = f"<span class='txt-black-bold'>{fmt_idr(v_potensi)}</span>{s_pot_pct}"
+        str_k1 = f"<span class='txt-black-bold'>{fmt_idr(v_k1)}</span>{s_k1_pct}"
+        str_srh = f"<span class='txt-black-bold'>{fmt_idr(v_serah)}</span>{s_srh_pct}"
 
         # Badge warna persentase
         badge_pbt_cls = "badge-green" if pct_pbt >= 100.0 else ("badge-yellow" if pct_pbt >= 50.0 else "badge-red")
@@ -764,28 +762,35 @@ def render_psn_2026(df_filtered_psn):
             f"<tr>"
             f"<td style='text-align: center; font-weight: bold; width: 40px;'>{idx+1}</td>"
             f"<td style='text-align: left; font-weight: 600;'>{kab_name}</td>"
-            f"<td style='text-align: center;'>{tgt_pbt_str}</td>"
+            f"<td style='text-align: center;' class='col-tgt-green'>{tgt_pbt_str}</td>"
             f"<td style='text-align: center;'>{str_baru}</td>"
             f"<td style='text-align: center;'>{str_k4}</td>"
             f"<td style='text-align: center;'>{str_repo}</td>"
-            f"<td style='text-align: center;'><span class='{badge_pbt_cls}'>{pct_pbt_str}%</span></td>"
-            f"<td style='text-align: center;'>{tgt_shat_str}</td>"
+            f"<td style='text-align: center;' class='group-border-right'><span class='{badge_pbt_cls}'>{pct_pbt_str}%</span></td>"
+            f"<td style='text-align: center;' class='col-tgt-green'>{tgt_shat_str}</td>"
             f"<td style='text-align: center;'>{str_pul}</td>"
             f"<td style='text-align: center;'>{str_ber}</td>"
             f"<td style='text-align: center;'>{str_pot}</td>"
             f"<td style='text-align: center;'>{str_k1}</td>"
             f"<td style='text-align: center;'>{str_srh}</td>"
-            f"<td style='text-align: center;'><span class='{badge_shat_cls}'>{pct_shat_str}%</span></td>"
+            f"<td style='text-align: center;' class='group-border-right'><span class='{badge_shat_cls}'>{pct_shat_str}%</span></td>"
             f"</tr>"
         )
 
     html_ptsl_table = f"""<style>
-.ptsl-table-container {{ width: 100%; border: 1px solid #E5E7EB; border-radius: 10px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); margin-top: 10px; overflow-x: auto; }}
+.ptsl-table-container {{ width: 100%; border: 2px solid #0F172A; border-radius: 10px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); margin-top: 10px; overflow-x: auto; }}
 .ptsl-table {{ width: 100%; border-collapse: collapse; font-family: system-ui, -apple-system, sans-serif; font-size: 0.83rem; }}
 .ptsl-table th {{ background-color: #1E293B; color: #FFFFFF; font-weight: 700; padding: 10px 6px; text-align: center; border-bottom: 2px solid #0F172A; white-space: nowrap; }}
 .ptsl-table th.th-left {{ text-align: left !important; }}
-.ptsl-table td {{ padding: 8px 6px; border-bottom: 1px solid #F1F5F9; vertical-align: middle; white-space: nowrap; line-height: 1.15; }}
+.ptsl-table th.col-tgt-hdr {{ background-color: #065F46 !important; color: #FFFFFF !important; font-weight: 800; }}
+.ptsl-table td {{ padding: 8px 6px; border-bottom: 1px solid #E2E8F0; vertical-align: middle; white-space: nowrap; line-height: 1.15; }}
 .ptsl-table tr:nth-child(even) {{ background-color: #F8FAFC; }}
+
+/* Styling Khusus */
+.col-tgt-green {{ color: #065F46 !important; font-weight: 800 !important; font-size: 0.88rem; }}
+.txt-black-bold {{ color: #000000 !important; font-weight: 700 !important; }}
+.group-border-right {{ border-right: 3px solid #0F172A !important; }}
+
 .badge-red {{ background-color: #FEE2E2; color: #991B1B; padding: 3px 8px; border-radius: 6px; font-weight: 700; display: inline-block; }}
 .badge-yellow {{ background-color: #FEF3C7; color: #92400E; padding: 3px 8px; border-radius: 6px; font-weight: 700; display: inline-block; }}
 .badge-green {{ background-color: #D1FAE5; color: #065F46; padding: 3px 8px; border-radius: 6px; font-weight: 700; display: inline-block; }}
@@ -796,18 +801,18 @@ def render_psn_2026(df_filtered_psn):
 <tr>
     <th>No</th>
     <th class="th-left">Kabupaten / Kota</th>
-    <th>Target PBT (Ha)</th>
+    <th class="col-tgt-hdr">Target PBT (Ha)</th>
     <th>Real. Baru</th>
     <th>Real. K4</th>
     <th>Real. Repo</th>
-    <th>% PBT</th>
-    <th>Target SHAT (Bdg)</th>
+    <th class="group-border-right">% PBT</th>
+    <th class="col-tgt-hdr">Target SHAT (Bdg)</th>
     <th>Puldadis</th>
     <th>Pemberkasan</th>
     <th>Potensi</th>
     <th>K1</th>
     <th>Siap Serah</th>
-    <th>% SHAT</th>
+    <th class="group-border-right">% SHAT</th>
 </tr>
 </thead>
 <tbody>{"".join(rows_ptsl_html)}</tbody>
