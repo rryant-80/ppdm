@@ -724,10 +724,12 @@ def render_psn_2026(df_filtered_psn):
         p_baru_pct = f"<br><span style='font-size:0.6rem; color:#6B7280;'>({fmt_decimal((v_baru/tgt_pbt*100) if tgt_pbt>0 else 0)}%)</span>" if tgt_pbt>0 else ""
         p_k4_pct = f"<br><span style='font-size:0.6rem; color:#6B7280;'>({fmt_decimal((v_k4/tgt_pbt*100) if tgt_pbt>0 else 0)}%)</span>" if tgt_pbt>0 else ""
         p_repo_pct = f"<br><span style='font-size:0.6rem; color:#6B7280;'>({fmt_decimal((v_repo/tgt_pbt*100) if tgt_pbt>0 else 0)}%)</span>" if tgt_pbt>0 else ""
+        s_srh_pct = f"<br><span style='font-size:0.6rem; color:#6B7280;'>({fmt_decimal((v_serah/tgt_shat*100) if tgt_shat>0 else 0)}%)</span>" if tgt_shat>0 else ""
 
         str_baru = f"<span class='txt-black-bold'>{fmt_decimal(v_baru)}</span>{p_baru_pct}"
         str_k4 = f"<span class='txt-black-bold'>{fmt_decimal(v_k4)}</span>{p_k4_pct}"
         str_repo = f"<span class='txt-black-bold'>{fmt_decimal(v_repo)}</span>{p_repo_pct}"
+        str_srh = f"<span class='txt-black-bold'>{fmt_idr(v_serah)}</span>{s_srh_pct}"
 
         # SHAT Fields
         tgt_shat = row['target_shat']
