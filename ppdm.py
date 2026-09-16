@@ -474,7 +474,7 @@ def render_profil_anggaran(df_filtered_sdm):
                     st.progress(min(max(p_info['persen'] / 100.0, 0.0), 1.0))
                     html_realisasi = f"""
                     <div style="text-align: right; line-height: 1.2; margin-top: 2px; font-size: 0.70rem; color: #555555;">
-                        Realisasi: <b style="font-size: 0.72rem; color: #00CC96;">{fmt_pct(p_info['persen'])}%</b> (Rp {fmt_idr(p_info['realisasi'])})
+                        Realisasi: <b style="font-size: 0.5rem; color: #00CC96;">{fmt_pct(p_info['persen'])}%</b> (Rp {fmt_idr(p_info['realisasi'])})
                     </div>
                     """
                     st.markdown(html_realisasi, unsafe_allow_html=True)
