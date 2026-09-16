@@ -521,7 +521,7 @@ def render_psn_2026(df_filtered_psn):
         return f"{parts[0].replace(',', '.')},{parts[1]}"
 
     # -----------------------------------------------------------------------------
-    # 1. PERSIAPAN DATA (MENGGUNAKAN NAMA LENGKAP KABUPATEN)
+    # 1. PERSIAPAN DATA
     # -----------------------------------------------------------------------------
     df = df_filtered_psn.copy()
     if 'kabupaten_kota' not in df.columns:
@@ -541,9 +541,10 @@ def render_psn_2026(df_filtered_psn):
         df[col] = df[col].apply(clean_pbt_decimal_field) if col in df.columns else 0.0
 
     cols_to_clean = integer_cols + pbt_real_cols
-    
-    # 💡 DIUBAH: Groupby menggunakan 'kabupaten_kota' agar nama lengkap tersimpan
     df_rekap = df.groupby('kabupaten_kota')[cols_to_clean].sum().reset_index()
+
+    # Filter baris non-kabupaten jika ada total provinsi bawaan dataset
+    df_rekap = df_rekap[~df_rekap['kabupaten_kota'].str.contains('Total|Jumlah|Sulawesi Tengah', case=False, na=False)].copy()
 
     # -----------------------------------------------------------------------------
     # 2. FUNGSI RENDER GRAFIK PSN
@@ -554,23 +555,19 @@ def render_psn_2026(df_filtered_psn):
             fig_empty = px.bar(title=f"{title} (Tidak ada target aktif)")
             fig_empty.update_layout(height=310, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', margin=dict(l=10, r=10, t=30, b=10))
             return fig_empty
-    
+        
         # --- LOGIKA PENGURUTAN (TERBESAR KE TERKECIL) ---
         if sort_metric:
             if isinstance(sort_metric, list):
-                # Jika berupa list (misal PBT), jumlahkan indikatornya dulu lalu hitung total %
                 df_valid['_sum_real'] = df_valid[sort_metric].sum(axis=1)
                 df_valid['_sort_val'] = (df_valid['_sum_real'] / df_valid[target_col]) * 100
             else:
-                # Jika kolom tunggal
                 df_valid['_sort_val'] = (df_valid[sort_metric] / df_valid[target_col]) * 100
             
-            # Urutkan secara descending (terbesar ke terkecil)
             df_valid = df_valid.sort_values(by='_sort_val', ascending=False)
         
-        # Ambil daftar kabupaten yang sudah terurut
         sorted_kabs = df_valid['kabupaten_kota'].tolist()
-    
+        
         long_rows = []
         for _, row in df_valid.iterrows():
             kab = row['kabupaten_kota']
@@ -591,7 +588,7 @@ def render_psn_2026(df_filtered_psn):
             df_long, x='Kab/Kota', y='Persentase', color='Indikator',
             barmode='relative' if is_stacked else 'group', title=title,
             color_discrete_sequence=color_sequence, 
-            category_orders={'Kab/Kota': sorted_kabs},  # Penguncian urutan sumbu-X
+            category_orders={'Kab/Kota': sorted_kabs},
             custom_data=['Real_Fmt', 'Target_Fmt', 'Pct_Fmt']
         )
         fig.update_traces(
@@ -607,20 +604,20 @@ def render_psn_2026(df_filtered_psn):
             yaxis=dict(gridcolor='#c4c4c4', tickfont=dict(size=9)), 
             xaxis=dict(
                 showgrid=False, 
-                tickfont=dict(size=10),  # Ukuran font label sumbu X (diperbesar ke 10pt)
+                tickfont=dict(size=10), 
                 tickangle=-30
             )
         )
         return fig
     
-    # --- PEMANGGILAN GRAFIK DENGAN PARAMETER SORTING ---
+    # --- RENDER 4 GRAFIK UTAMA ---
     card_wrapper_start = "<div style='background-color: #dbdbdb; border-radius: 10px; padding: 6px 10px 4px 10px; margin-bottom: 8px; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);'>"
     card_wrapper_end = "</div>"
     
     row1_col1, row1_col2 = st.columns(2)
     row2_col1, row2_col2 = st.columns(2)
     
-    # 1. Realisasi PBT (Urut berdasarkan akumulasi 3 indikator)
+    # 1. Realisasi PBT
     with row1_col1:
         st.markdown(card_wrapper_start, unsafe_allow_html=True)
         fig_pbt = create_psn_chart(
@@ -633,7 +630,7 @@ def render_psn_2026(df_filtered_psn):
         st.plotly_chart(fig_pbt, use_container_width=True)
         st.markdown(card_wrapper_end, unsafe_allow_html=True)
     
-    # 2. Realisasi SHAT (Urut berdasarkan % Sertipikat PTSL / siap_serah)
+    # 2. Realisasi SHAT
     with row1_col2:
         st.markdown(card_wrapper_start, unsafe_allow_html=True)
         fig_shat = create_psn_chart(
@@ -646,7 +643,7 @@ def render_psn_2026(df_filtered_psn):
         st.plotly_chart(fig_shat, use_container_width=True)
         st.markdown(card_wrapper_end, unsafe_allow_html=True)
     
-    # 3. Realisasi Redistribusi (Urut berdasarkan % Sertipikat Redis)
+    # 3. Realisasi Redistribusi
     with row2_col1:
         st.markdown(card_wrapper_start, unsafe_allow_html=True)
         fig_redis = create_psn_chart(
@@ -659,7 +656,7 @@ def render_psn_2026(df_filtered_psn):
         st.plotly_chart(fig_redis, use_container_width=True)
         st.markdown(card_wrapper_end, unsafe_allow_html=True)
     
-    # 4. Realisasi Lintor (Urut berdasarkan % Sertipikat Lintor)
+    # 4. Realisasi Lintor
     with row2_col2:
         st.markdown(card_wrapper_start, unsafe_allow_html=True)
         lintor_serah_col = 'lintor_serah' if 'lintor_serah' in df_rekap.columns and df_rekap['lintor_serah'].sum() > 0 else 'lintor_sertipikat'
@@ -672,6 +669,151 @@ def render_psn_2026(df_filtered_psn):
         )
         st.plotly_chart(fig_lintor, use_container_width=True)
         st.markdown(card_wrapper_end, unsafe_allow_html=True)
+
+    # -----------------------------------------------------------------------------
+    # 3. TABEL REALISASI PTSL (PBT & SHAT)
+    # -----------------------------------------------------------------------------
+    st.markdown("<br><hr>", unsafe_allow_html=True)
+    st.subheader("📋 Realisasi PTSL (PBT & SHAT)")
+
+    # Hitung total provinsi untuk header info box
+    tot_tgt_pbt = df_rekap['target_pbt'].sum()
+    tot_real_pbt = df_rekap['realisasi_baru'].sum() + df_rekap['realisasi_k4'].sum() + df_rekap['realisasi_repo'].sum()
+    pct_tot_pbt = (tot_real_pbt / tot_tgt_pbt * 100.0) if tot_tgt_pbt > 0 else 0.0
+
+    tot_tgt_shat = df_rekap['target_shat'].sum()
+    # Menentukan nilai Siap Diserahkan (menggunakan siap_serah, atau fallback k1)
+    df_rekap['val_siap_serah'] = df_rekap['siap_serah'] if df_rekap['siap_serah'].sum() > 0 else df_rekap['k1']
+    tot_real_shat = df_rekap['val_siap_serah'].sum()
+    pct_tot_shat = (tot_real_shat / tot_tgt_shat * 100.0) if tot_tgt_shat > 0 else 0.0
+
+    # Tampilkan info header ringkasan
+    st.info(
+        f"📐 **Target PBT:** {fmt_decimal(tot_tgt_pbt)} Ha &nbsp;|&nbsp; "
+        f"🚀 **Real. PBT:** {fmt_decimal(tot_real_pbt)} Ha (**{fmt_decimal(pct_tot_pbt)}%**) &nbsp;&nbsp;||&nbsp;&nbsp; "
+        f"🏠 **Target SHAT:** {fmt_idr(tot_tgt_shat)} Bdg &nbsp;|&nbsp; "
+        f"🚀 **Real. SHAT (Siap Serah):** {fmt_idr(tot_real_shat)} Bdg (**{fmt_decimal(pct_tot_shat)}%**)"
+    )
+
+    # Kalkulasi persentase per baris kabupaten
+    df_ptsl = df_rekap.copy()
+    
+    # Total PBT = baru + k4 + repo
+    df_ptsl['tot_pbt_real'] = df_ptsl['realisasi_baru'] + df_ptsl['realisasi_k4'] + df_ptsl['realisasi_repo']
+    df_ptsl['pct_pbt_total'] = np.where(df_ptsl['target_pbt'] > 0, (df_ptsl['tot_pbt_real'] / df_ptsl['target_pbt']) * 100.0, 0.0)
+    
+    # SHAT % = siap diserahkan / target SHAT
+    df_ptsl['pct_shat_total'] = np.where(df_ptsl['target_shat'] > 0, (df_ptsl['val_siap_serah'] / df_ptsl['target_shat']) * 100.0, 0.0)
+
+    # Urutkan berdasarkan capaian % SHAT terbesar ke terkecil
+    df_ptsl_sorted = df_ptsl.sort_values(by='pct_shat_total', ascending=False).reset_index(drop=True)
+
+    rows_ptsl_html = []
+    for idx, row in df_ptsl_sorted.iterrows():
+        kab_name = row['kabupaten_kota']
+        
+        # PBT Fields
+        tgt_pbt = row['target_pbt']
+        v_baru = row['realisasi_baru']
+        v_k4 = row['realisasi_k4']
+        v_repo = row['realisasi_repo']
+        pct_pbt = row['pct_pbt_total']
+
+        # Formatter PBT
+        tgt_pbt_str = fmt_decimal(tgt_pbt)
+        pct_pbt_str = fmt_decimal(pct_pbt)
+        
+        p_baru_pct = f"<br><span style='font-size:0.72rem; color:#6B7280;'>({fmt_decimal((v_baru/tgt_pbt*100) if tgt_pbt>0 else 0)}%)</span>" if tgt_pbt>0 else ""
+        p_k4_pct = f"<br><span style='font-size:0.72rem; color:#6B7280;'>({fmt_decimal((v_k4/tgt_pbt*100) if tgt_pbt>0 else 0)}%)</span>" if tgt_pbt>0 else ""
+        p_repo_pct = f"<br><span style='font-size:0.72rem; color:#6B7280;'>({fmt_decimal((v_repo/tgt_pbt*100) if tgt_pbt>0 else 0)}%)</span>" if tgt_pbt>0 else ""
+
+        str_baru = f"{fmt_decimal(v_baru)}{p_baru_pct}"
+        str_k4 = f"{fmt_decimal(v_k4)}{p_k4_pct}"
+        str_repo = f"{fmt_decimal(v_repo)}{p_repo_pct}"
+
+        # SHAT Fields
+        tgt_shat = row['target_shat']
+        v_puldadis = row['puldadis']
+        v_berkas = row['berkas']
+        v_potensi = row['potensi']
+        v_k1 = row['k1']
+        v_serah = row['val_siap_serah']
+        pct_shat = row['pct_shat_total']
+
+        # Formatter SHAT
+        tgt_shat_str = fmt_idr(tgt_shat)
+        pct_shat_str = fmt_decimal(pct_shat)
+
+        s_pul_pct = f"<br><span style='font-size:0.72rem; color:#6B7280;'>({fmt_decimal((v_puldadis/tgt_shat*100) if tgt_shat>0 else 0)}%)</span>" if tgt_shat>0 else ""
+        s_ber_pct = f"<br><span style='font-size:0.72rem; color:#6B7280;'>({fmt_decimal((v_berkas/tgt_shat*100) if tgt_shat>0 else 0)}%)</span>" if tgt_shat>0 else ""
+        s_pot_pct = f"<br><span style='font-size:0.72rem; color:#6B7280;'>({fmt_decimal((v_potensi/tgt_shat*100) if tgt_shat>0 else 0)}%)</span>" if tgt_shat>0 else ""
+        s_k1_pct = f"<br><span style='font-size:0.72rem; color:#6B7280;'>({fmt_decimal((v_k1/tgt_shat*100) if tgt_shat>0 else 0)}%)</span>" if tgt_shat>0 else ""
+        s_srh_pct = f"<br><span style='font-size:0.72rem; color:#6B7280;'>({fmt_decimal((v_serah/tgt_shat*100) if tgt_shat>0 else 0)}%)</span>" if tgt_shat>0 else ""
+
+        str_pul = f"{fmt_idr(v_puldadis)}{s_pul_pct}"
+        str_ber = f"{fmt_idr(v_berkas)}{s_ber_pct}"
+        str_pot = f"{fmt_idr(v_potensi)}{s_pot_pct}"
+        str_k1 = f"{fmt_idr(v_k1)}{s_k1_pct}"
+        str_srh = f"{fmt_idr(v_serah)}{s_srh_pct}"
+
+        # Badge warna persentase
+        badge_pbt_cls = "badge-green" if pct_pbt >= 100.0 else ("badge-yellow" if pct_pbt >= 50.0 else "badge-red")
+        badge_shat_cls = "badge-green" if pct_shat >= 100.0 else ("badge-yellow" if pct_shat >= 50.0 else "badge-red")
+
+        rows_ptsl_html.append(
+            f"<tr>"
+            f"<td style='text-align: center; font-weight: bold; width: 40px;'>{idx+1}</td>"
+            f"<td style='text-align: left; font-weight: 600;'>{kab_name}</td>"
+            f"<td style='text-align: center;'>{tgt_pbt_str}</td>"
+            f"<td style='text-align: center;'>{str_baru}</td>"
+            f"<td style='text-align: center;'>{str_k4}</td>"
+            f"<td style='text-align: center;'>{str_repo}</td>"
+            f"<td style='text-align: center;'><span class='{badge_pbt_cls}'>{pct_pbt_str}%</span></td>"
+            f"<td style='text-align: center;'>{tgt_shat_str}</td>"
+            f"<td style='text-align: center;'>{str_pul}</td>"
+            f"<td style='text-align: center;'>{str_ber}</td>"
+            f"<td style='text-align: center;'>{str_pot}</td>"
+            f"<td style='text-align: center;'>{str_k1}</td>"
+            f"<td style='text-align: center;'>{str_srh}</td>"
+            f"<td style='text-align: center;'><span class='{badge_shat_cls}'>{pct_shat_str}%</span></td>"
+            f"</tr>"
+        )
+
+    html_ptsl_table = f"""<style>
+.ptsl-table-container {{ width: 100%; border: 1px solid #E5E7EB; border-radius: 10px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); margin-top: 10px; overflow-x: auto; }}
+.ptsl-table {{ width: 100%; border-collapse: collapse; font-family: system-ui, -apple-system, sans-serif; font-size: 0.83rem; }}
+.ptsl-table th {{ background-color: #1E293B; color: #FFFFFF; font-weight: 700; padding: 10px 6px; text-align: center; border-bottom: 2px solid #0F172A; white-space: nowrap; }}
+.ptsl-table th.th-left {{ text-align: left !important; }}
+.ptsl-table td {{ padding: 8px 6px; border-bottom: 1px solid #F1F5F9; vertical-align: middle; white-space: nowrap; line-height: 1.15; }}
+.ptsl-table tr:nth-child(even) {{ background-color: #F8FAFC; }}
+.badge-red {{ background-color: #FEE2E2; color: #991B1B; padding: 3px 8px; border-radius: 6px; font-weight: 700; display: inline-block; }}
+.badge-yellow {{ background-color: #FEF3C7; color: #92400E; padding: 3px 8px; border-radius: 6px; font-weight: 700; display: inline-block; }}
+.badge-green {{ background-color: #D1FAE5; color: #065F46; padding: 3px 8px; border-radius: 6px; font-weight: 700; display: inline-block; }}
+</style>
+<div class="ptsl-table-container">
+<table class="ptsl-table">
+<thead>
+<tr>
+    <th>No</th>
+    <th class="th-left">Kabupaten / Kota</th>
+    <th>Target PBT (Ha)</th>
+    <th>Real. Baru</th>
+    <th>Real. K4</th>
+    <th>Real. Repo</th>
+    <th>% PBT</th>
+    <th>Target SHAT (Bdg)</th>
+    <th>Puldadis</th>
+    <th>Pemberkasan</th>
+    <th>Potensi</th>
+    <th>K1</th>
+    <th>Siap Serah</th>
+    <th>% SHAT</th>
+</tr>
+</thead>
+<tbody>{"".join(rows_ptsl_html)}</tbody>
+</table></div>"""
+
+    st.markdown(html_ptsl_table, unsafe_allow_html=True)
 
 def render_layanan_pertanahan(df_filtered_layanan):
     st.markdown("### 🚨 Berkas Tunggakan PDDM")
