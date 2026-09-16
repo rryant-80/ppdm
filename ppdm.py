@@ -721,17 +721,13 @@ def render_psn_2026(df_filtered_psn):
         tgt_pbt_str = fmt_decimal(tgt_pbt)
         pct_pbt_str = fmt_decimal(pct_pbt)
         
-        s_pul_pct = f"<br><span style='font-size:0.4rem; color:#6B7280;'>({fmt_decimal((v_puldadis/tgt_shat*100) if tgt_shat>0 else 0)}%)</span>" if tgt_shat>0 else ""
-        s_ber_pct = f"<br><span style='font-size:0.4rem; color:#6B7280;'>({fmt_decimal((v_berkas/tgt_shat*100) if tgt_shat>0 else 0)}%)</span>" if tgt_shat>0 else ""
-        s_pot_pct = f"<br><span style='font-size:0.4rem; color:#6B7280;'>({fmt_decimal((v_potensi/tgt_shat*100) if tgt_shat>0 else 0)}%)</span>" if tgt_shat>0 else ""
-        s_k1_pct = f"<br><span style='font-size:0.4rem; color:#6B7280;'>({fmt_decimal((v_k1/tgt_shat*100) if tgt_shat>0 else 0)}%)</span>" if tgt_shat>0 else ""
-        s_srh_pct = f"<br><span style='font-size:0.4rem; color:#6B7280;'>({fmt_decimal((v_serah/tgt_shat*100) if tgt_shat>0 else 0)}%)</span>" if tgt_shat>0 else ""
+        p_baru_pct = f"<br><span style='font-size:0.4rem; color:#6B7280;'>({fmt_decimal((v_baru/tgt_pbt*100) if tgt_pbt>0 else 0)}%)</span>" if tgt_pbt>0 else ""
+        p_k4_pct = f"<br><span style='font-size:0.4rem; color:#6B7280;'>({fmt_decimal((v_k4/tgt_pbt*100) if tgt_pbt>0 else 0)}%)</span>" if tgt_pbt>0 else ""
+        p_repo_pct = f"<br><span style='font-size:0.4rem; color:#6B7280;'>({fmt_decimal((v_repo/tgt_pbt*100) if tgt_pbt>0 else 0)}%)</span>" if tgt_pbt>0 else ""
 
-        str_pul = f"<span class='txt-black-bold'>{fmt_idr(v_puldadis)}</span>{s_pul_pct}"
-        str_ber = f"<span class='txt-black-bold'>{fmt_idr(v_berkas)}</span>{s_ber_pct}"
-        str_pot = f"<span class='txt-black-bold'>{fmt_idr(v_potensi)}</span>{s_pot_pct}"
-        str_k1 = f"<span class='txt-black-bold'>{fmt_idr(v_k1)}</span>{s_k1_pct}"
-        str_srh = f"<span class='txt-black-bold'>{fmt_idr(v_serah)}</span>{s_srh_pct}"
+        str_baru = f"<span class='txt-black-bold'>{fmt_decimal(v_baru)}</span>{p_baru_pct}"
+        str_k4 = f"<span class='txt-black-bold'>{fmt_decimal(v_k4)}</span>{p_k4_pct}"
+        str_repo = f"<span class='txt-black-bold'>{fmt_decimal(v_repo)}</span>{p_repo_pct}"
 
         # SHAT Fields
         tgt_shat = row['target_shat']
@@ -746,16 +742,18 @@ def render_psn_2026(df_filtered_psn):
         tgt_shat_str = fmt_idr(tgt_shat)
         pct_shat_str = fmt_decimal(pct_shat)
 
-        s_pul_pct = f"<br><span style='font-size:0.6rem; color:#6B7280;'>({fmt_decimal((v_puldadis/tgt_shat*100) if tgt_shat>0 else 0)}%)</span>" if tgt_shat>0 else ""
-        s_ber_pct = f"<br><span style='font-size:0.6rem; color:#6B7280;'>({fmt_decimal((v_berkas/tgt_shat*100) if tgt_shat>0 else 0)}%)</span>" if tgt_shat>0 else ""
-        s_pot_pct = f"<br><span style='font-size:0.6rem; color:#6B7280;'>({fmt_decimal((v_potensi/tgt_shat*100) if tgt_shat>0 else 0)}%)</span>" if tgt_shat>0 else ""
-        s_k1_pct = f"<br><span style='font-size:0.6rem; color:#6B7280;'>({fmt_decimal((v_k1/tgt_shat*100) if tgt_shat>0 else 0)}%)</span>" if tgt_shat>0 else ""
+        s_pul_pct = f"<br><span style='font-size:0.4rem; color:#6B7280;'>({fmt_decimal((v_puldadis/tgt_shat*100) if tgt_shat>0 else 0)}%)</span>" if tgt_shat>0 else ""
+        s_ber_pct = f"<br><span style='font-size:0.4rem; color:#6B7280;'>({fmt_decimal((v_berkas/tgt_shat*100) if tgt_shat>0 else 0)}%)</span>" if tgt_shat>0 else ""
+        s_pot_pct = f"<br><span style='font-size:0.4rem; color:#6B7280;'>({fmt_decimal((v_potensi/tgt_shat*100) if tgt_shat>0 else 0)}%)</span>" if tgt_shat>0 else ""
+        s_k1_pct = f"<br><span style='font-size:0.4rem; color:#6B7280;'>({fmt_decimal((v_k1/tgt_shat*100) if tgt_shat>0 else 0)}%)</span>" if tgt_shat>0 else ""
+        s_srh_pct = f"<br><span style='font-size:0.4rem; color:#6B7280;'>({fmt_decimal((v_serah/tgt_shat*100) if tgt_shat>0 else 0)}%)</span>" if tgt_shat>0 else ""
 
         str_pul = f"<span class='txt-black-bold'>{fmt_idr(v_puldadis)}</span>{s_pul_pct}"
         str_ber = f"<span class='txt-black-bold'>{fmt_idr(v_berkas)}</span>{s_ber_pct}"
         str_pot = f"<span class='txt-black-bold'>{fmt_idr(v_potensi)}</span>{s_pot_pct}"
         str_k1 = f"<span class='txt-black-bold'>{fmt_idr(v_k1)}</span>{s_k1_pct}"
-        
+        str_srh = f"<span class='txt-black-bold'>{fmt_idr(v_serah)}</span>{s_srh_pct}"
+
         # Badge warna persentase
         badge_pbt_cls = "badge-green" if pct_pbt >= 100.0 else ("badge-yellow" if pct_pbt >= 50.0 else "badge-red")
         badge_shat_cls = "badge-green" if pct_shat >= 100.0 else ("badge-yellow" if pct_shat >= 50.0 else "badge-red")
