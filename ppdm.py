@@ -751,8 +751,7 @@ def render_psn_2026(df_filtered_psn):
         str_ber = f"<span class='txt-black-bold'>{fmt_idr(v_berkas)}</span>{s_ber_pct}"
         str_pot = f"<span class='txt-black-bold'>{fmt_idr(v_potensi)}</span>{s_pot_pct}"
         str_k1 = f"<span class='txt-black-bold'>{fmt_idr(v_k1)}</span>{s_k1_pct}"
-        str_srh = f"<span class='txt-black-bold'>{fmt_idr(v_serah)}</span>{s_srh_pct}"
-
+        
         # Badge warna persentase
         badge_pbt_cls = "badge-green" if pct_pbt >= 100.0 else ("badge-yellow" if pct_pbt >= 50.0 else "badge-red")
         badge_shat_cls = "badge-green" if pct_shat >= 100.0 else ("badge-yellow" if pct_shat >= 50.0 else "badge-red")
