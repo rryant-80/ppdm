@@ -746,7 +746,6 @@ def render_psn_2026(df_filtered_psn):
         s_ber_pct = f"<br><span style='font-size:0.6rem; color:#6B7280;'>({fmt_decimal((v_berkas/tgt_shat*100) if tgt_shat>0 else 0)}%)</span>" if tgt_shat>0 else ""
         s_pot_pct = f"<br><span style='font-size:0.6rem; color:#6B7280;'>({fmt_decimal((v_potensi/tgt_shat*100) if tgt_shat>0 else 0)}%)</span>" if tgt_shat>0 else ""
         s_k1_pct = f"<br><span style='font-size:0.6rem; color:#6B7280;'>({fmt_decimal((v_k1/tgt_shat*100) if tgt_shat>0 else 0)}%)</span>" if tgt_shat>0 else ""
-        s_srh_pct = f"<br><span style='font-size:0.6rem; color:#6B7280;'>({fmt_decimal((v_serah/tgt_shat*100) if tgt_shat>0 else 0)}%)</span>" if tgt_shat>0 else ""
 
         str_pul = f"<span class='txt-black-bold'>{fmt_idr(v_puldadis)}</span>{s_pul_pct}"
         str_ber = f"<span class='txt-black-bold'>{fmt_idr(v_berkas)}</span>{s_ber_pct}"
