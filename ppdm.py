@@ -675,7 +675,6 @@ def render_psn_2026(df_filtered_psn):
     # -----------------------------------------------------------------------------
     st.markdown("<br><hr>", unsafe_allow_html=True)
     
-    # 💡 Tanggal Hari Ini (Today) untuk Judul Subheader
     today_ptsl_str = datetime.now().date().strftime('%d/%m/%Y')
     st.subheader(f"📋 Realisasi PTSL (PBT & SHAT), Tgl. {today_ptsl_str}")
 
@@ -721,9 +720,9 @@ def render_psn_2026(df_filtered_psn):
         tgt_pbt_str = fmt_decimal(tgt_pbt)
         pct_pbt_str = fmt_decimal(pct_pbt)
         
-        p_baru_pct = f"<br><span style='font-size:0.4rem; color:#6B7280;'>({fmt_decimal((v_baru/tgt_pbt*100) if tgt_pbt>0 else 0)}%)</span>" if tgt_pbt>0 else ""
-        p_k4_pct = f"<br><span style='font-size:0.4rem; color:#6B7280;'>({fmt_decimal((v_k4/tgt_pbt*100) if tgt_pbt>0 else 0)}%)</span>" if tgt_pbt>0 else ""
-        p_repo_pct = f"<br><span style='font-size:0.4rem; color:#6B7280;'>({fmt_decimal((v_repo/tgt_pbt*100) if tgt_pbt>0 else 0)}%)</span>" if tgt_pbt>0 else ""
+        p_baru_pct = f"<br><span style='font-size:0.6rem; color:#6B7280;'>({fmt_decimal((v_baru/tgt_pbt*100) if tgt_pbt>0 else 0)}%)</span>" if tgt_pbt>0 else ""
+        p_k4_pct = f"<br><span style='font-size:0.6rem; color:#6B7280;'>({fmt_decimal((v_k4/tgt_pbt*100) if tgt_pbt>0 else 0)}%)</span>" if tgt_pbt>0 else ""
+        p_repo_pct = f"<br><span style='font-size:0.6rem; color:#6B7280;'>({fmt_decimal((v_repo/tgt_pbt*100) if tgt_pbt>0 else 0)}%)</span>" if tgt_pbt>0 else ""
 
         str_baru = f"<span class='txt-black-bold'>{fmt_decimal(v_baru)}</span>{p_baru_pct}"
         str_k4 = f"<span class='txt-black-bold'>{fmt_decimal(v_k4)}</span>{p_k4_pct}"
@@ -742,17 +741,17 @@ def render_psn_2026(df_filtered_psn):
         tgt_shat_str = fmt_idr(tgt_shat)
         pct_shat_str = fmt_decimal(pct_shat)
 
-        s_pul_pct = f"<br><span style='font-size:0.4rem; color:#6B7280;'>({fmt_decimal((v_puldadis/tgt_shat*100) if tgt_shat>0 else 0)}%)</span>" if tgt_shat>0 else ""
-        s_ber_pct = f"<br><span style='font-size:0.4rem; color:#6B7280;'>({fmt_decimal((v_berkas/tgt_shat*100) if tgt_shat>0 else 0)}%)</span>" if tgt_shat>0 else ""
-        s_pot_pct = f"<br><span style='font-size:0.4rem; color:#6B7280;'>({fmt_decimal((v_potensi/tgt_shat*100) if tgt_shat>0 else 0)}%)</span>" if tgt_shat>0 else ""
-        s_k1_pct = f"<br><span style='font-size:0.4rem; color:#6B7280;'>({fmt_decimal((v_k1/tgt_shat*100) if tgt_shat>0 else 0)}%)</span>" if tgt_shat>0 else ""
-        s_srh_pct = f"<br><span style='font-size:0.4rem; color:#6B7280;'>({fmt_decimal((v_serah/tgt_shat*100) if tgt_shat>0 else 0)}%)</span>" if tgt_shat>0 else ""
+        s_pul_pct = f"<br><span style='font-size:0.6rem; color:#6B7280;'>({fmt_decimal((v_puldadis/tgt_shat*100) if tgt_shat>0 else 0)}%)</span>" if tgt_shat>0 else ""
+        s_ber_pct = f"<br><span style='font-size:0.6rem; color:#6B7280;'>({fmt_decimal((v_berkas/tgt_shat*100) if tgt_shat>0 else 0)}%)</span>" if tgt_shat>0 else ""
+        s_pot_pct = f"<br><span style='font-size:0.6rem; color:#6B7280;'>({fmt_decimal((v_potensi/tgt_shat*100) if tgt_shat>0 else 0)}%)</span>" if tgt_shat>0 else ""
+        s_k1_pct = f"<br><span style='font-size:0.6rem; color:#6B7280;'>({fmt_decimal((v_k1/tgt_shat*100) if tgt_shat>0 else 0)}%)</span>" if tgt_shat>0 else ""
 
         str_pul = f"<span class='txt-black-bold'>{fmt_idr(v_puldadis)}</span>{s_pul_pct}"
         str_ber = f"<span class='txt-black-bold'>{fmt_idr(v_berkas)}</span>{s_ber_pct}"
         str_pot = f"<span class='txt-black-bold'>{fmt_idr(v_potensi)}</span>{s_pot_pct}"
         str_k1 = f"<span class='txt-black-bold'>{fmt_idr(v_k1)}</span>{s_k1_pct}"
-        str_srh = f"<span class='txt-black-bold'>{fmt_idr(v_serah)}</span>{s_srh_pct}"
+        # 💡 % Siap Serah Dihilangkan
+        str_srh = f"<span class='txt-black-bold'>{fmt_idr(v_serah)}</span>"
 
         # Badge warna persentase
         badge_pbt_cls = "badge-green" if pct_pbt >= 100.0 else ("badge-yellow" if pct_pbt >= 50.0 else "badge-red")
@@ -762,34 +761,39 @@ def render_psn_2026(df_filtered_psn):
             f"<tr>"
             f"<td style='text-align: center; font-weight: bold; width: 40px;'>{idx+1}</td>"
             f"<td style='text-align: left; font-weight: 600;'>{kab_name}</td>"
-            f"<td style='text-align: center;' class='col-tgt-green'>{tgt_pbt_str}</td>"
+            f"<td style='text-align: center;' class='col-tgt-blue'>{tgt_pbt_str}</td>"
             f"<td style='text-align: center;'>{str_baru}</td>"
             f"<td style='text-align: center;'>{str_k4}</td>"
             f"<td style='text-align: center;'>{str_repo}</td>"
             f"<td style='text-align: center;' class='group-border-right'><span class='{badge_pbt_cls}'>{pct_pbt_str}%</span></td>"
-            f"<td style='text-align: center;' class='col-tgt-green'>{tgt_shat_str}</td>"
+            f"<td style='text-align: center;' class='col-tgt-blue'>{tgt_shat_str}</td>"
             f"<td style='text-align: center;'>{str_pul}</td>"
             f"<td style='text-align: center;'>{str_ber}</td>"
             f"<td style='text-align: center;'>{str_pot}</td>"
             f"<td style='text-align: center;'>{str_k1}</td>"
             f"<td style='text-align: center;'>{str_srh}</td>"
-            f"<td style='text-align: center;' class='group-border-right'><span class='{badge_shat_cls}'>{pct_shat_str}%</span></td>"
+            f"<td style='text-align: center;'><span class='{badge_shat_cls}'>{pct_shat_str}%</span></td>"
             f"</tr>"
         )
 
     html_ptsl_table = f"""<style>
-.ptsl-table-container {{ width: 100%; border: 2px solid #0F172A; border-radius: 10px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); margin-top: 10px; overflow-x: auto; }}
+.ptsl-table-container {{ width: 100%; border: 1px solid #CBD5E1; border-radius: 10px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); margin-top: 10px; overflow-x: auto; }}
 .ptsl-table {{ width: 100%; border-collapse: collapse; font-family: system-ui, -apple-system, sans-serif; font-size: 0.83rem; }}
 .ptsl-table th {{ background-color: #1E293B; color: #FFFFFF; font-weight: 700; padding: 10px 6px; text-align: center; border-bottom: 2px solid #0F172A; white-space: nowrap; }}
 .ptsl-table th.th-left {{ text-align: left !important; }}
-.ptsl-table th.col-tgt-hdr {{ background-color: #065F46 !important; color: #FFFFFF !important; font-weight: 800; }}
+
+/* 💡 Header Target Biru Windows */
+.ptsl-table th.col-tgt-hdr {{ background-color: #0078D4 !important; color: #FFFFFF !important; font-weight: 800; }}
+
 .ptsl-table td {{ padding: 8px 6px; border-bottom: 1px solid #E2E8F0; vertical-align: middle; white-space: nowrap; line-height: 1.15; }}
 .ptsl-table tr:nth-child(even) {{ background-color: #F8FAFC; }}
 
-/* Styling Khusus */
-.col-tgt-green {{ color: #065F46 !important; font-weight: 800 !important; font-size: 0.88rem; }}
+/* 💡 Styling Khusus */
+.col-tgt-blue {{ color: #0078D4 !important; font-weight: 800 !important; font-size: 0.88rem; }}
 .txt-black-bold {{ color: #000000 !important; font-weight: 700 !important; }}
-.group-border-right {{ border-right: 3px solid #0F172A !important; }}
+
+/* 💡 Pemisah Kelompok (Hanya di tengah antar kelompok) */
+.group-border-right {{ border-right: 2px solid #1E293B !important; }}
 
 .badge-red {{ background-color: #FEE2E2; color: #991B1B; padding: 3px 8px; border-radius: 6px; font-weight: 700; display: inline-block; }}
 .badge-yellow {{ background-color: #FEF3C7; color: #92400E; padding: 3px 8px; border-radius: 6px; font-weight: 700; display: inline-block; }}
@@ -812,7 +816,7 @@ def render_psn_2026(df_filtered_psn):
     <th>Potensi</th>
     <th>K1</th>
     <th>Siap Serah</th>
-    <th class="group-border-right">% SHAT</th>
+    <th>% SHAT</th>
 </tr>
 </thead>
 <tbody>{"".join(rows_ptsl_html)}</tbody>
