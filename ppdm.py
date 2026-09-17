@@ -752,7 +752,9 @@ def render_psn_2026(df_filtered_psn):
         str_ber = fmt_shat_cell(v_berkas, tgt_shat)
         str_pot = f"<span class='txt-black-bold'>{fmt_idr(v_potensi)}</span>" # Potensi tetap warna normal
         str_k1 = fmt_shat_cell(v_k1, tgt_shat)
-        str_srh = f"<span class='txt-black-bold'>{fmt_idr(v_serah)}</span>"
+        
+        # 💡 FIX: Kolom Siap Diserahkan sekarang juga berwarna merah jika < Target SHAT
+        str_srh = fmt_shat_cell(v_serah, tgt_shat)
 
         # 💡 THRESHOLD WARNA BADGE BARU: Hijau > 80%, Kuning 70-80%, Merah < 70%
         badge_pbt_cls = "badge-green" if pct_pbt > 80.0 else ("badge-yellow" if pct_pbt >= 70.0 else "badge-red")
