@@ -684,23 +684,25 @@ def render_psn_2026(df_filtered_psn):
     pct_tot_pbt = (tot_real_pbt / tot_tgt_pbt * 100.0) if tot_tgt_pbt > 0 else 0.0
 
     tot_tgt_shat = df_rekap['target_shat'].sum()
-    df_rekap['val_siap_serah'] = df_rekap['siap_serah'] if df_rekap['siap_serah'].sum() > 0 else df_rekap['k1']
-    tot_real_shat = df_rekap['val_siap_serah'].sum()
-    pct_tot_shat = (tot_real_shat / tot_tgt_shat * 100.0) if tot_tgt_shat > 0 else 0.0
+    tot_real_k1 = df_rekap['k1'].sum()
+    tot_real_serah = df_rekap['siap_serah'].sum() if df_rekap['siap_serah'].sum() > 0 else tot_real_k1
+    pct_tot_shat = (tot_real_k1 / tot_tgt_shat * 100.0) if tot_tgt_shat > 0 else 0.0
 
     # Tampilkan info header ringkasan
     st.info(
         f"📐 **Target PBT:** {fmt_decimal(tot_tgt_pbt)} Ha &nbsp;|&nbsp; "
         f"🚀 **Real. PBT:** {fmt_decimal(tot_real_pbt)} Ha (**{fmt_decimal(pct_tot_pbt)}%**) &nbsp;&nbsp;||&nbsp;&nbsp; "
         f"🏠 **Target SHAT:** {fmt_idr(tot_tgt_shat)} Bdg &nbsp;|&nbsp; "
-        f"🚀 **Real. SHAT (Siap Serah):** {fmt_idr(tot_real_shat)} Bdg (**{fmt_decimal(pct_tot_shat)}%**)"
+        f"🚀 **Real. K1 (SHAT):** {fmt_idr(tot_real_k1)} Bdg (**{fmt_decimal(pct_tot_shat)}%**)"
     )
 
     # Kalkulasi persentase per baris kabupaten
     df_ptsl = df_rekap.copy()
     df_ptsl['tot_pbt_real'] = df_ptsl['realisasi_baru'] + df_ptsl['realisasi_k4'] + df_ptsl['realisasi_repo']
     df_ptsl['pct_pbt_total'] = np.where(df_ptsl['target_pbt'] > 0, (df_ptsl['tot_pbt_real'] / df_ptsl['target_pbt']) * 100.0, 0.0)
-    df_ptsl['pct_shat_total'] = np.where(df_ptsl['target_shat'] > 0, (df_ptsl['val_siap_serah'] / df_ptsl['target_shat']) * 100.0, 0.0)
+    
+    # 💡 FIX: % SHAT diambil dari K1 / Target SHAT
+    df_ptsl['pct_shat_total'] = np.where(df_ptsl['target_shat'] > 0, (df_ptsl['k1'] / df_ptsl['target_shat']) * 100.0, 0.0)
 
     # Urutkan berdasarkan capaian % SHAT terbesar ke terkecil
     df_ptsl_sorted = df_ptsl.sort_values(by='pct_shat_total', ascending=False).reset_index(drop=True)
@@ -709,53 +711,52 @@ def render_psn_2026(df_filtered_psn):
     for idx, row in df_ptsl_sorted.iterrows():
         kab_name = row['kabupaten_kota']
         
-        # PBT Fields
+        # --- PBT FIELDS (TETAP SAMA SEPERTI GAMBAR) ---
         tgt_pbt = row['target_pbt']
         v_baru = row['realisasi_baru']
         v_k4 = row['realisasi_k4']
         v_repo = row['realisasi_repo']
         pct_pbt = row['pct_pbt_total']
 
-        # Formatter PBT
         tgt_pbt_str = fmt_decimal(tgt_pbt)
         pct_pbt_str = fmt_decimal(pct_pbt)
         
-        p_baru_pct = f"<br><span style='font-size:0.6rem; color:#000000;'>({fmt_decimal((v_baru/tgt_pbt*100) if tgt_pbt>0 else 0)}%)</span>" if tgt_pbt>0 else ""
-        p_k4_pct = f"<br><span style='font-size:0.6rem; color:#000000;'>({fmt_decimal((v_k4/tgt_pbt*100) if tgt_pbt>0 else 0)}%)</span>" if tgt_pbt>0 else ""
-        p_repo_pct = f"<br><span style='font-size:0.6rem; color:#000000;'>({fmt_decimal((v_repo/tgt_pbt*100) if tgt_pbt>0 else 0)}%)</span>" if tgt_pbt>0 else ""
+        p_baru_pct = f"<br><span style='font-size:0.4rem; color:#6B7280;'>({fmt_decimal((v_baru/tgt_pbt*100) if tgt_pbt>0 else 0)}%)</span>" if tgt_pbt>0 else ""
+        p_k4_pct = f"<br><span style='font-size:0.4rem; color:#6B7280;'>({fmt_decimal((v_k4/tgt_pbt*100) if tgt_pbt>0 else 0)}%)</span>" if tgt_pbt>0 else ""
+        p_repo_pct = f"<br><span style='font-size:0.4rem; color:#6B7280;'>({fmt_decimal((v_repo/tgt_pbt*100) if tgt_pbt>0 else 0)}%)</span>" if tgt_pbt>0 else ""
 
         str_baru = f"<span class='txt-black-bold'>{fmt_decimal(v_baru)}</span>{p_baru_pct}"
         str_k4 = f"<span class='txt-black-bold'>{fmt_decimal(v_k4)}</span>{p_k4_pct}"
         str_repo = f"<span class='txt-black-bold'>{fmt_decimal(v_repo)}</span>{p_repo_pct}"
 
-        # SHAT Fields
+        # --- SHAT FIELDS (LOGIKA BARU TANPA %, MERAH JIKA < TARGET) ---
         tgt_shat = row['target_shat']
         v_puldadis = row['puldadis']
         v_berkas = row['berkas']
         v_potensi = row['potensi']
         v_k1 = row['k1']
-        v_serah = row['val_siap_serah']
+        v_serah = row['siap_serah'] if row['siap_serah'] > 0 else v_k1
         pct_shat = row['pct_shat_total']
 
-        # Formatter SHAT
         tgt_shat_str = fmt_idr(tgt_shat)
         pct_shat_str = fmt_decimal(pct_shat)
 
-        s_pul_pct = f"<br><span style='font-size:0.6rem; color:#000000;'>({fmt_decimal((v_puldadis/tgt_shat*100) if tgt_shat>0 else 0)}%)</span>" if tgt_shat>0 else ""
-        s_ber_pct = f"<br><span style='font-size:0.6rem; color:#000000;'>({fmt_decimal((v_berkas/tgt_shat*100) if tgt_shat>0 else 0)}%)</span>" if tgt_shat>0 else ""
-        s_pot_pct = f"<br><span style='font-size:0.6rem; color:#000000;'>({fmt_decimal((v_potensi/tgt_shat*100) if tgt_shat>0 else 0)}%)</span>" if tgt_shat>0 else ""
-        s_k1_pct = f"<br><span style='font-size:0.6rem; color:#000000;'>({fmt_decimal((v_k1/tgt_shat*100) if tgt_shat>0 else 0)}%)</span>" if tgt_shat>0 else ""
+        # Helper fungsi format angka SHAT (Merah bold jika belum capai target)
+        def fmt_shat_cell(val, target):
+            val_str = fmt_idr(val)
+            if target > 0 and val < target:
+                return f"<span class='txt-red-bold'>{val_str}</span>"
+            return f"<span class='txt-black-bold'>{val_str}</span>"
 
-        str_pul = f"<span class='txt-black-bold'>{fmt_idr(v_puldadis)}</span>{s_pul_pct}"
-        str_ber = f"<span class='txt-black-bold'>{fmt_idr(v_berkas)}</span>{s_ber_pct}"
-        str_pot = f"<span class='txt-black-bold'>{fmt_idr(v_potensi)}</span>{s_pot_pct}"
-        str_k1 = f"<span class='txt-black-bold'>{fmt_idr(v_k1)}</span>{s_k1_pct}"
-        # 💡 % Siap Serah Dihilangkan
+        str_pul = fmt_shat_cell(v_puldadis, tgt_shat)
+        str_ber = fmt_shat_cell(v_berkas, tgt_shat)
+        str_pot = f"<span class='txt-black-bold'>{fmt_idr(v_potensi)}</span>" # Potensi tetap warna normal
+        str_k1 = fmt_shat_cell(v_k1, tgt_shat)
         str_srh = f"<span class='txt-black-bold'>{fmt_idr(v_serah)}</span>"
 
-        # Badge warna persentase
-        badge_pbt_cls = "badge-green" if pct_pbt >= 100.0 else ("badge-yellow" if pct_pbt >= 50.0 else "badge-red")
-        badge_shat_cls = "badge-green" if pct_shat >= 100.0 else ("badge-yellow" if pct_shat >= 50.0 else "badge-red")
+        # 💡 THRESHOLD WARNA BADGE BARU: Hijau > 80%, Kuning 70-80%, Merah < 70%
+        badge_pbt_cls = "badge-green" if pct_pbt > 80.0 else ("badge-yellow" if pct_pbt >= 70.0 else "badge-red")
+        badge_shat_cls = "badge-green" if pct_shat > 80.0 else ("badge-yellow" if pct_shat >= 70.0 else "badge-red")
 
         rows_ptsl_html.append(
             f"<tr>"
@@ -782,19 +783,21 @@ def render_psn_2026(df_filtered_psn):
 .ptsl-table th {{ background-color: #1E293B; color: #FFFFFF; font-weight: 700; padding: 10px 6px; text-align: center; border-bottom: 2px solid #0F172A; white-space: nowrap; }}
 .ptsl-table th.th-left {{ text-align: left !important; }}
 
-/* 💡 Header Target Biru Windows */
+/* Header Target Biru Windows */
 .ptsl-table th.col-tgt-hdr {{ background-color: #0078D4 !important; color: #FFFFFF !important; font-weight: 800; }}
 
 .ptsl-table td {{ padding: 8px 6px; border-bottom: 1px solid #E2E8F0; vertical-align: middle; white-space: nowrap; line-height: 1.15; }}
 .ptsl-table tr:nth-child(even) {{ background-color: #F8FAFC; }}
 
-/* 💡 Styling Khusus */
+/* Class Warna Teks */
 .col-tgt-blue {{ color: #0078D4 !important; font-weight: 800 !important; font-size: 0.88rem; }}
 .txt-black-bold {{ color: #000000 !important; font-weight: 700 !important; }}
+.txt-red-bold {{ color: #EF4444 !important; font-weight: 700 !important; }}
 
-/* 💡 Pemisah Kelompok (Hanya di tengah antar kelompok) */
+/* Pemisah Kelompok (Hanya di tengah antar kelompok) */
 .group-border-right {{ border-right: 2px solid #1E293B !important; }}
 
+/* Class Badge Status */
 .badge-red {{ background-color: #FEE2E2; color: #991B1B; padding: 3px 8px; border-radius: 6px; font-weight: 700; display: inline-block; }}
 .badge-yellow {{ background-color: #FEF3C7; color: #92400E; padding: 3px 8px; border-radius: 6px; font-weight: 700; display: inline-block; }}
 .badge-green {{ background-color: #D1FAE5; color: #065F46; padding: 3px 8px; border-radius: 6px; font-weight: 700; display: inline-block; }}
@@ -806,9 +809,9 @@ def render_psn_2026(df_filtered_psn):
     <th>No</th>
     <th class="th-left">Kabupaten / Kota</th>
     <th class="col-tgt-hdr">Target PBT (Ha)</th>
-    <th>Bidang Baru</th>
-    <th>Pemetaan K4</th>
-    <th>Reposisi</th>
+    <th>Real. Baru</th>
+    <th>Real. K4</th>
+    <th>Real. Repo</th>
     <th class="group-border-right">% PBT</th>
     <th class="col-tgt-hdr">Target SHAT (Bdg)</th>
     <th>Puldadis</th>
