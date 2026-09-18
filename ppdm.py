@@ -811,9 +811,9 @@ def render_psn_2026(df_filtered_psn):
     <th>No</th>
     <th class="th-left">Kabupaten / Kota</th>
     <th class="col-tgt-hdr">Target PBT (Ha)</th>
-    <th>Real. Baru</th>
-    <th>Real. K4</th>
-    <th>Real. Repo</th>
+    <th>Biodang Baru</th>
+    <th>Pemetaan K4</th>
+    <th>Reposisi</th>
     <th class="group-border-right">% PBT</th>
     <th class="col-tgt-hdr">Target SHAT (Bdg)</th>
     <th>Puldadis</th>
