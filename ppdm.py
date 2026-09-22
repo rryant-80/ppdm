@@ -1772,7 +1772,9 @@ def render_monitoring_kakanwil(df_kakanwil):
     with col_right:
         c2, c3 = st.columns([2.2, 1.8])
 
-        # KELOMPOK 2: TABEL DETIL CAPAIAN
+        # -------------------------------------------------------------------------
+        # KELOMPOK 2: TABEL DETIL CAPAIAN (SEJAJAR & LEBIH RAPAT)
+        # -------------------------------------------------------------------------
         with c2:
             st.markdown("<div class='card-box'>", unsafe_allow_html=True)
             st.markdown("<div class='card-title'>📊 Detil Capaian Prasertel Kantah</div>", unsafe_allow_html=True)
@@ -1798,8 +1800,9 @@ def render_monitoring_kakanwil(df_kakanwil):
                     f"</tr>"
                 )
 
+            # Table CSS diperrapat (padding 3px 4px) agar presisi sejajar
             html_detil = f"""
-            <table class='mini-table'>
+            <table class='mini-table' style='margin-top: 2px;'>
             <thead>
                 <tr>
                     <th style='text-align:left;'>Kabupaten / Kota</th>
@@ -1814,10 +1817,12 @@ def render_monitoring_kakanwil(df_kakanwil):
             st.markdown(html_detil, unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
 
-        # KELOMPOK 3: GRAFIK STACKED
+        # -------------------------------------------------------------------------
+        # KELOMPOK 3: GRAFIK STACKED (LABEL SUMBU X DAHILANGKAN)
+        # -------------------------------------------------------------------------
         with c3:
             st.markdown("<div class='card-box'>", unsafe_allow_html=True)
-            st.markdown("<div class='card-header-badge'>📈 Grafik Capaian Prasertel & Potensi</div>", unsafe_allow_html=True)
+            st.markdown("<div class='card-title'>📈 Grafik Capaian Prasertel & Potensi</div>", unsafe_allow_html=True)
             
             fig_stack = bg.Figure()
             fig_stack.add_trace(bg.Bar(
@@ -1839,19 +1844,27 @@ def render_monitoring_kakanwil(df_kakanwil):
 
             fig_stack.update_layout(
                 barmode='stack',
-                height=385,
-                margin=dict(l=0, r=0, t=5, b=35),
+                height=355,
+                margin=dict(l=0, r=0, t=5, b=10),
                 legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(size=8.5)),
-                xaxis=dict(tickangle=-40, tickfont=dict(size=7.5), categoryorder='array', categoryarray=df_latest_sorted['kab_clean'].tolist()),
-                yaxis=dict(showgrid=True, gridcolor='#F1F5F9', ticksuffix='%', tickfont=dict(size=8)),
+                # 💡 HILANGKAN LABEL KABUPATEN PADA SUMBU X
+                xaxis=dict(
+                    showticklabels=False, 
+                    title_text="", 
+                    categoryorder='array', 
+                    categoryarray=df_latest_sorted['kab_clean'].tolist()
+                ),
+                yaxis=dict(showgrid=True, gridcolor='#F1F5F9', ticksuffix='%', tickfont=dict(size=8), title_text=""),
                 paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)'
             )
             st.plotly_chart(fig_stack, use_container_width=True, config={'displayModeBar': False})
             st.markdown("</div>", unsafe_allow_html=True)
 
-        # KELOMPOK 4: TREN PERSENTASE PROGRESS PRASERTEL
+        # -------------------------------------------------------------------------
+        # KELOMPOK 4: TREN PERSENTASE (HILANGKAN pct_prasertel DAN tgl_short)
+        # -------------------------------------------------------------------------
         st.markdown("<div class='card-box'>", unsafe_allow_html=True)
-        st.markdown("<div class='card-header-badge'>📉 Tren Persentase Progress Prasertel</div>", unsafe_allow_html=True)
+        st.markdown("<div class='card-title'>📉 Tren Persentase Progress Prasertel</div>", unsafe_allow_html=True)
 
         df_line = df_clean.copy()
         df_line['tgl_short'] = df_line['tgl_dt'].dt.strftime('%d/%m')
@@ -1867,14 +1880,19 @@ def render_monitoring_kakanwil(df_kakanwil):
         fig_line = px.line(
             df_trend, x='tgl_short', y='pct_prasertel', color='kab_clean',
             markers=True, category_orders={'tgl_short': unique_short_dates, 'kab_clean': all_kabs},
-            color_discrete_map=color_map
+            color_discrete_map=color_map,
+            # 💡 HILANGKAN JUDUL KOLOM DARI SKELETON
+            labels={'tgl_short': '', 'pct_prasertel': '', 'kab_clean': ''}
         )
         fig_line.update_traces(hovertemplate="<b>%{fullData.name}</b><br>Tgl: %{x}<br>Progress: <b>%{y:.2f}%</b><extra></extra>", marker=dict(size=5))
+        
         fig_line.update_layout(
-            height=210, margin=dict(l=10, r=10, t=5, b=35),
+            height=200, 
+            margin=dict(l=10, r=10, t=5, b=30),
             legend=dict(orientation="h", yanchor="top", y=-0.25, xanchor="center", x=0.5, font=dict(size=8), title_text=''),
-            yaxis=dict(gridcolor='#F1F5F9', ticksuffix='%', tickfont=dict(size=8)),
-            xaxis=dict(type='category', tickangle=-30, tickfont=dict(size=8)),
+            # 💡 MEMBERSIHKAN JUDUL SUMBU X & Y
+            yaxis=dict(gridcolor='#F1F5F9', ticksuffix='%', tickfont=dict(size=8), title_text=""),
+            xaxis=dict(type='category', tickangle=-30, tickfont=dict(size=8), title_text=""),
             paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)'
         )
         st.plotly_chart(fig_line, use_container_width=True, config={'displayModeBar': False})
