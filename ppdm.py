@@ -1907,11 +1907,7 @@ def render_monitoring_kakanwil(df_kakanwil):
             fig_g = bg.Figure(bg.Indicator(
                 mode = "gauge",
                 value = val_pct,
-                # 💡 TEKS PERINGKAT/PERSENTASE DIPOSISIKAN TEPAT DI ATAS PUNCAK TENGAH ARC
-                title = {
-                    'text': f"<b style='font-size:13px; color:{bar_color};'>{pct_str}</b>", 
-                    'font': {'size': 10}
-                },
+                title = {'text': "", 'font': {'size': 1}},
                 gauge = {
                     'axis': {
                         'range': [0, 100], 
@@ -1926,7 +1922,15 @@ def render_monitoring_kakanwil(df_kakanwil):
                 }
             ))
 
-            # 💡 ANGKACHAPAIAN HARIAN DI DALAM ARC GAUGE (Bebas dari teks lain)
+            # 💡 1. TEKS PERSENTASE (19,6%) DIPOSISIKAN TEPAT DI ATAS BUSUR GAUGE (GARIS MERAH)
+            fig_g.add_annotation(
+                x=0.5, y=0.88,
+                text=f"<b style='font-size:12px; color:{bar_color};'>{pct_str}</b>",
+                showarrow=False,
+                xref="paper", yref="paper"
+            )
+
+            # 💡 2. TEKS CAPAIAN HARIAN (+915 BT) DIPOSISIKAN DI DALAM AREA GAUGE
             fig_g.add_annotation(
                 x=0.5, y=0.18,
                 text=f"<b style='font-size:13px; color:{bar_color};'>{capaian_str}</b>",
@@ -1934,7 +1938,7 @@ def render_monitoring_kakanwil(df_kakanwil):
                 xref="paper", yref="paper"
             )
 
-            fig_g.update_layout(height=110, margin=dict(l=8, r=8, t=25, b=5), paper_bgcolor='rgba(0,0,0,0)')
+            fig_g.update_layout(height=115, margin=dict(l=8, r=8, t=10, b=5), paper_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(fig_g, use_container_width=True, config={'displayModeBar': False})
             
             # TEKS BAWAH: Nama Kabupaten/Kota
