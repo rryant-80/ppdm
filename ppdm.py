@@ -1697,10 +1697,9 @@ def render_monitoring_kakanwil(df_kakanwil):
         st.markdown("<div class='card-box'>", unsafe_allow_html=True)
         st.markdown("<div class='card-title'>📍 Peta & Skala Capaian Prasertel</div>", unsafe_allow_html=True)
         
-        # Peta lokal github sejajar skrip
         img_path = "peta_sulteng.png"
         if os.path.exists(img_path):
-            st.image(img_path, use_column_width=True)
+            st.image(img_path, use_container_width=True)
         else:
             st.caption("Peta Sulteng (`peta_sulteng.png`)")
 
