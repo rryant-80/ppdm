@@ -1661,28 +1661,25 @@ def render_monitoring_kakanwil(df_kakanwil):
     all_kabs = df_latest_sorted['kab_clean'].tolist()
     color_map = {kab: palet_13[i % len(palet_13)] for i, kab in enumerate(all_kabs)}
 
-    # 💡 CSS Khusus Bingkai Luar dan Header Box Bingkai Kelompok
+    # 💡 CSS Khusus: OUTLINE BINGKAI TUNGGAL MEMBUNGKUS SETIAP KELOMPOK
     st.markdown("""
     <style>
     .card-box {
-        border: 2px solid #000000 !important;
-        border-radius: 12px;
-        padding: 10px 12px;
-        background-color: #FFFFFF;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.06);
-        margin-bottom: 12px;
-        position: relative;
+        border: 1.5px solid #CBD5E1 !important;
+        border-radius: 12px !important;
+        padding: 12px 14px !important;
+        background-color: #FFFFFF !important;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04) !important;
+        margin-bottom: 12px !important;
     }
-    .card-header-badge {
-        border: 1.8px solid #000000;
-        border-radius: 20px;
-        padding: 3px 14px;
-        background-color: #FFFFFF;
-        display: inline-block;
-        font-size: 0.82rem;
-        font-weight: 700;
-        color: #000000;
-        margin-bottom: 10px;
+    .card-title {
+        font-size: 0.95rem !important;
+        font-weight: 700 !important;
+        color: #0F172A !important;
+        margin-bottom: 12px !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 6px !important;
     }
     .mini-table {
         width: 100%;
@@ -1690,14 +1687,15 @@ def render_monitoring_kakanwil(df_kakanwil):
         font-size: 0.72rem;
     }
     .mini-table th {
-        background-color: #F1F5F9;
-        padding: 5px 6px;
+        background-color: #F8FAFC;
+        padding: 6px 6px;
         text-align: center;
         font-weight: 700;
         border-bottom: 1.5px solid #000000;
+        color: #0F172A;
     }
     .mini-table td {
-        padding: 4px 5px;
+        padding: 5px 5px;
         border-bottom: 1px solid #F1F5F9;
         text-align: center;
     }
@@ -1775,9 +1773,9 @@ def render_monitoring_kakanwil(df_kakanwil):
         c2, c3 = st.columns([2.2, 1.8])
 
         # KELOMPOK 2: TABEL DETIL CAPAIAN
-        with c2:
+        th c2:
             st.markdown("<div class='card-box'>", unsafe_allow_html=True)
-            st.markdown("<div class='card-header-badge'>📊 Detil Capaian Prasertel Kantah</div>", unsafe_allow_html=True)
+            st.markdown("<div class='card-title'>📊 Detil Capaian Prasertel Kantah</div>", unsafe_allow_html=True)
             
             rows_detil = []
             for _, r in df_latest_sorted.iterrows():
