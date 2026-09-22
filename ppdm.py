@@ -1900,16 +1900,18 @@ def render_monitoring_kakanwil(df_kakanwil):
             val_capaian = row_data['capaian_harian'] 
             val_tgt_harian = row_data['target_harian'] 
 
-            # 💡 WARNA GAUGE: Hijau jika > 70%, Jingga jika <= 70%
+            # WARNA GAUGE: Hijau jika > 70%, Jingga jika <= 70%
             bar_color = "#10B981" if val_pct > 70.0 else "#F59E0B"
             capaian_str = f"+{val_capaian:,.0f} BT" if val_capaian > 0 else f"{val_capaian:,.0f} BT"
+            pct_str = f"{val_pct:.1f}%".replace('.', ',')
 
             fig_g = bg.Figure(bg.Indicator(
                 mode = "gauge",
                 value = val_pct,
                 title = {
-                    'text': f"<span style='font-size:8.5px; color:#64748B;'>Target Harian: {val_tgt_harian:,.0f} BT</span>", 
-                    'font': {'size': 8.5}
+                    # 💡 TEKS ATAS GAUGE: Menampilkan Nilai Persentase Capaian (misal: 47,2%)
+                    'text': f"<b style='font-size:12px; color:{bar_color};'>{pct_str}</b><br><span style='font-size:8px; color:#64748B;'>Target Harian: {val_tgt_harian:,.0f} BT</span>", 
+                    'font': {'size': 9}
                 },
                 gauge = {
                     'axis': {
@@ -1917,9 +1919,9 @@ def render_monitoring_kakanwil(df_kakanwil):
                         'tickwidth': 1, 
                         'tickcolor': "#CBD5E1", 
                         'ticksuffix': "%",
-                        # 💡 MENGUBAH TULISAN 50% MENJADI "% Capaian Prasertel"
-                        'tickvals': [0, 50, 100],
-                        'ticktext': ['0%', '% Capaian Prasertel', '100%']
+                        # Mengatur tickmarks agar bersih tanpa teks bertumpuk di puncak arc
+                        'tickvals': [0, 100],
+                        'ticktext': ['0%', '100%']
                     },
                     'bar': {'color': bar_color},
                     'bgcolor': "#F1F5F9",
@@ -1927,17 +1929,18 @@ def render_monitoring_kakanwil(df_kakanwil):
                 }
             ))
 
+            # Angka Capaian Harian di Tengah Arc Gauge
             fig_g.add_annotation(
-                x=0.5, y=0.22,
+                x=0.5, y=0.20,
                 text=f"<b style='font-size:13px; color:{bar_color};'>{capaian_str}</b>",
                 showarrow=False,
                 xref="paper", yref="paper"
             )
 
-            fig_g.update_layout(height=120, margin=dict(l=8, r=8, t=20, b=5), paper_bgcolor='rgba(0,0,0,0)')
+            fig_g.update_layout(height=115, margin=dict(l=8, r=8, t=25, b=5), paper_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(fig_g, use_container_width=True, config={'displayModeBar': False})
             
-            # 💡 TEKS BAWAH: MENAMPILKAN NAMA KABUPATEN
+            # TEKS BAWAH: Nama Kabupaten/Kota
             st.markdown(f"<div style='text-align:center; font-size:0.75rem; font-weight:700; margin-top:-18px; color:#0F172A;'>{k_name}</div>", unsafe_allow_html=True)
 
     # Render 3 Capaian Harian Tertinggi
