@@ -2005,8 +2005,8 @@ def render_monitoring_kakanwil(df_kakanwil):
 
     fig_line = px.line(
         df_trend, 
-        x='tgl_short', 
-        y='pct_prasertel', 
+        x='', 
+        y='', 
         color='kab_clean',
         markers=True,
         title="📈 Tren Persentase Progress Prasertel",
