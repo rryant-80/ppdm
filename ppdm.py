@@ -1564,7 +1564,7 @@ def render_isu_strategis(df_isu):
                             st.error(f"❌ Gagal mengirim tanggapan: {e}")
         st.markdown("<br>", unsafe_allow_html=True)
 def render_monitoring_kakanwil(df_kakanwil):
-    st.markdown("<h2 style='margin-bottom:0;'>🛡️ Monitoring Prasertel & KW456</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='margin-bottom:10px;'>🛡️ Monitoring Prasertel & KW456</h2>", unsafe_allow_html=True)
 
     if df_kakanwil is None or df_kakanwil.empty:
         st.warning("Data Monitoring Kakanwil (GID 806976086) tidak ditemukan atau kosong.")
@@ -1616,7 +1616,7 @@ def render_monitoring_kakanwil(df_kakanwil):
     # 1. Snapshot Tanggal Terakhir
     df_latest = df_sorted.groupby('kab_clean', as_index=False).last()
     
-    # Hitung Persentase % Saat Ini & % Potensi: ((btel - sertel_kab) / sertel_kab) * 100
+    # Hitung Persentase % Saat Ini & % Potensi
     df_latest['pct_saat_ini'] = np.where(df_latest['btvalid_clean'] > 0, (df_latest['sertel_clean'] / df_latest['btvalid_clean']) * 100.0, 0.0)
     df_latest['pct_potensi'] = np.where(df_latest['sertel_clean'] > 0, ((df_latest['btel_clean'] - df_latest['sertel_clean']) / df_latest['sertel_clean']) * 100.0, 0.0)
 
@@ -1648,6 +1648,15 @@ def render_monitoring_kakanwil(df_kakanwil):
     # Urutkan berdasarkan % Saat Ini tertinggi ke terendah
     df_latest_sorted = df_latest.sort_values(by='pct_saat_ini', ascending=False).reset_index(drop=True)
 
+    # 💡 SISTEM PEMETAAN WARNA KONSISTEN UTK 13 KABUPATEN
+    palet_13 = [
+        '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', 
+        '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf',
+        '#34495e', '#e67e22', '#16a085'
+    ]
+    all_kabs = df_latest_sorted['kab_clean'].tolist()
+    color_map = {kab: palet_13[i % len(palet_13)] for i, kab in enumerate(all_kabs)}
+
     # CSS Khusus Container Card Abu-abu
     st.markdown("""
     <style>
@@ -1657,7 +1666,7 @@ def render_monitoring_kakanwil(df_kakanwil):
         padding: 8px 10px;
         background-color: #FFFFFF;
         box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-        margin-bottom: 6px;
+        margin-bottom: 8px;
     }
     .card-title {
         font-size: 0.82rem;
@@ -1686,32 +1695,32 @@ def render_monitoring_kakanwil(df_kakanwil):
     """, unsafe_allow_html=True)
 
     # =========================================================================
-    # BARIS ATAS: KELOMPOK 1, KELOMPOK 2, KELOMPOK 3 (3 KOLOM SEJAJAR)
+    # TATA LETAK UTAMA: 2 KOLOM BESAR (KIRI: KELOMPOK 1, KANAN: KELOMPOK 2, 3, 4)
     # =========================================================================
-    c1, c2, c3 = st.columns([1.1, 1.8, 1.8])
+    col_left, col_right = st.columns([1.1, 3.2])
 
     # -------------------------------------------------------------------------
-    # KELOMPOK 1: PETA + SKALA BAR CAPAIAN PRASERTEL
+    # KELOMPOK 1: PETA + SKALA BAR CAPAIAN PRASERTEL (SINKRON WARNA TREN)
     # -------------------------------------------------------------------------
-    with c1:
+    with col_left:
         st.markdown("<div class='card-box'>", unsafe_allow_html=True)
         st.markdown("<div class='card-title'>📍 Peta & Skala Capaian Prasertel</div>", unsafe_allow_html=True)
         
-        # Peta lokal github sejajar skrip
         img_path = "peta_sulteng.png"
         if os.path.exists(img_path):
             st.image(img_path, use_container_width=True)
         else:
             st.caption("Peta Sulteng (`peta_sulteng.png`)")
 
-        # Horizontal Bar Progress Prasertel (Sorted)
+        # Bar warna disesuaikan persis dengan garis grafik tren tiap kabupaten
         fig_bar_k1 = px.bar(
             df_latest_sorted,
             y='kab_clean',
             x='pct_saat_ini',
+            color='kab_clean',
+            color_discrete_map=color_map,
             orientation='h',
-            text=df_latest_sorted['pct_saat_ini'].apply(lambda x: f"{x:.1f}%"),
-            color_discrete_sequence=['#10B981']
+            text=df_latest_sorted['pct_saat_ini'].apply(lambda x: f"{x:.1f}%")
         )
         fig_bar_k1.update_traces(
             textposition='outside',
@@ -1719,159 +1728,138 @@ def render_monitoring_kakanwil(df_kakanwil):
             marker_line_width=0
         )
 
-        # Batas rentang sumbu X yang aman
-        max_pct_val = float(df_latest_sorted['pct_saat_ini'].max()) if not df_latest_sorted.empty else 100.0
-        x_limit = float(max(max_pct_val * 1.18, 100.0))
-
-        # Pastikan list kategori terbalik dengan aman untuk sumbu Y
         kabs_reversed = df_latest_sorted['kab_clean'].tolist()[::-1]
-        
         max_pct_val = float(df_latest_sorted['pct_saat_ini'].max()) if not df_latest_sorted.empty else 100.0
         x_limit = float(max(max_pct_val * 1.2, 100.0))
 
         fig_bar_k1.update_layout(
-            height=230,
+            height=320,
+            showlegend=False,
             margin=dict(l=0, r=30, t=5, b=0),
-            xaxis=dict(
-                visible=False,
-                range=[0.0, x_limit]
-            ),
-            yaxis=dict(
-                title="",
-                tickfont=dict(size=8.5),
-                categoryorder='array',
-                categoryarray=kabs_reversed
-            ),
-            paper_bgcolor='rgba(0,0,0,0)',
-            plot_bgcolor='rgba(0,0,0,0)'
+            xaxis=dict(visible=False, range=[0.0, x_limit]),
+            yaxis=dict(title="", tickfont=dict(size=8.5), categoryorder='array', categoryarray=kabs_reversed),
+            paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)'
         )
         st.plotly_chart(fig_bar_k1, use_container_width=True, config={'displayModeBar': False})
         st.markdown("</div>", unsafe_allow_html=True)
 
     # -------------------------------------------------------------------------
-    # KELOMPOK 2: TABEL DETIL CAPAIAN PRASERTEL
+    # AREA KANAN: KELOMPOK 2, 3, DAN KELOMPOK 4 (DI BAWAH TABEL & STACKED)
     # -------------------------------------------------------------------------
-    with c2:
-        st.markdown("<div class='card-box'>", unsafe_allow_html=True)
-        st.markdown("<div class='card-title'>📊 Detil Capaian Prasertel Kantah</div>", unsafe_allow_html=True)
-        
-        rows_detil = []
-        for _, r in df_latest_sorted.iterrows():
-            k_name = r['kab_clean']
-            sertel_fmt = f"{r['sertel_clean']:,.0f}".replace(',', '.')
-            bt_fmt = f"{r['btvalid_clean']:,.0f}".replace(',', '.')
-            
-            c_hr = r['capaian_harian']
-            c_hr_str = f"+{c_hr:,.0f}".replace(',', '.') if c_hr > 0 else (f"{c_hr:,.0f}".replace(',', '.') if c_hr < 0 else "0")
-            c_hr_color = "#10B981" if c_hr > 0 else ("#EF4444" if c_hr < 0 else "#6B7280")
-            
-            tgt_hr_str = f"{r['target_harian']:,.0f}".replace(',', '.')
+    with col_right:
+        # Baris Atas Kanan: Kelompok 2 & Kelompok 3
+        c2, c3 = st.columns(2)
 
-            rows_detil.append(
-                f"<tr>"
-                f"<td style='text-align:left; font-weight:600;'>{k_name}</td>"
-                f"<td>{sertel_fmt}</td>"
-                f"<td>{bt_fmt}</td>"
-                f"<td style='color:{c_hr_color}; font-weight:bold;'>{c_hr_str}</td>"
-                f"<td style='font-weight:bold; color:#1E3A8A;'>{tgt_hr_str}</td>"
-                f"</tr>"
+        # KELOMPOK 2: TABEL DETIL CAPAIAN
+        with c2:
+            st.markdown("<div class='card-box'>", unsafe_allow_html=True)
+            st.markdown("<div class='card-title'>📊 Detil Capaian Prasertel Kantah</div>", unsafe_allow_html=True)
+            
+            rows_detil = []
+            for _, r in df_latest_sorted.iterrows():
+                k_name = r['kab_clean']
+                sertel_fmt = f"{r['sertel_clean']:,.0f}".replace(',', '.')
+                bt_fmt = f"{r['btvalid_clean']:,.0f}".replace(',', '.')
+                
+                c_hr = r['capaian_harian']
+                c_hr_str = f"+{c_hr:,.0f}".replace(',', '.') if c_hr > 0 else (f"{c_hr:,.0f}".replace(',', '.') if c_hr < 0 else "0")
+                c_hr_color = "#10B981" if c_hr > 0 else ("#EF4444" if c_hr < 0 else "#6B7280")
+                tgt_hr_str = f"{r['target_harian']:,.0f}".replace(',', '.')
+
+                rows_detil.append(
+                    f"<tr>"
+                    f"<td style='text-align:left; font-weight:600;'>{k_name}</td>"
+                    f"<td>{sertel_fmt}</td>"
+                    f"<td>{bt_fmt}</td>"
+                    f"<td style='color:{c_hr_color}; font-weight:bold;'>{c_hr_str}</td>"
+                    f"<td style='font-weight:bold; color:#1E3A8A;'>{tgt_hr_str}</td>"
+                    f"</tr>"
+                )
+
+            html_detil = f"""
+            <div style='max-height: 220px; overflow-y: auto;'>
+            <table class='mini-table'>
+            <thead>
+                <tr>
+                    <th style='text-align:left;'>Kabupaten / Kota</th>
+                    <th>Prasertel</th>
+                    <th>BT Valid</th>
+                    <th>Capaian Harian</th>
+                    <th>Target Harian</th>
+                </tr>
+            </thead>
+            <tbody>{"".join(rows_detil)}</tbody>
+            </table></div>"""
+            st.markdown(html_detil, unsafe_allow_html=True)
+            st.markdown("</div>", unsafe_allow_html=True)
+
+        # KELOMPOK 3: GRAFIK STACKED
+        with c3:
+            st.markdown("<div class='card-box'>", unsafe_allow_html=True)
+            st.markdown("<div class='card-title'>📈 Grafik Capaian Prasertel & Potensi</div>", unsafe_allow_html=True)
+            
+            fig_stack = bg.Figure()
+            fig_stack.add_trace(bg.Bar(
+                x=df_latest_sorted['kab_clean'],
+                y=df_latest_sorted['pct_saat_ini'],
+                name='% Saat Ini',
+                marker_color='#10B981',
+                text=df_latest_sorted['pct_saat_ini'].apply(lambda x: f"{x:.0f}%"),
+                textposition='inside'
+            ))
+            fig_stack.add_trace(bg.Bar(
+                x=df_latest_sorted['kab_clean'],
+                y=df_latest_sorted['pct_potensi'],
+                name='Potensi',
+                marker_color='#F59E0B',
+                text=df_latest_sorted['pct_potensi'].apply(lambda x: f"{x:.0f}%" if x>0 else ""),
+                textposition='inside'
+            ))
+
+            fig_stack.update_layout(
+                barmode='stack',
+                height=220,
+                margin=dict(l=0, r=0, t=5, b=35),
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(size=8.5)),
+                xaxis=dict(tickangle=-40, tickfont=dict(size=7.5), categoryorder='array', categoryarray=df_latest_sorted['kab_clean'].tolist()),
+                yaxis=dict(showgrid=True, gridcolor='#F1F5F9', ticksuffix='%', tickfont=dict(size=8)),
+                paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)'
             )
+            st.plotly_chart(fig_stack, use_container_width=True, config={'displayModeBar': False})
+            st.markdown("</div>", unsafe_allow_html=True)
 
-        html_detil = f"""
-        <div style='max-height: 310px; overflow-y: auto;'>
-        <table class='mini-table'>
-        <thead>
-            <tr>
-                <th style='text-align:left;'>Kabupaten / Kota</th>
-                <th>Prasertel</th>
-                <th>BT Valid</th>
-                <th>Capaian Harian</th>
-                <th>Target Harian</th>
-            </tr>
-        </thead>
-        <tbody>{"".join(rows_detil)}</tbody>
-        </table></div>"""
-        st.markdown(html_detil, unsafe_allow_html=True)
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    # -------------------------------------------------------------------------
-    # KELOMPOK 3: GRAFIK STACKED (% SAAT INI + POTENSI)
-    # -------------------------------------------------------------------------
-    with c3:
+        # -------------------------------------------------------------------------
+        # KELOMPOK 4: TREN PERSENTASE PROGRESS PRASERTEL (SEJAJAR DI BAWAH C2 & C3)
+        # -------------------------------------------------------------------------
         st.markdown("<div class='card-box'>", unsafe_allow_html=True)
-        st.markdown("<div class='card-title'>📈 Grafik Capaian Prasertel & Potensi</div>", unsafe_allow_html=True)
-        
-        fig_stack = bg.Figure()
-        # Stack 1: % Saat Ini (Hijau)
-        fig_stack.add_trace(bg.Bar(
-            x=df_latest_sorted['kab_clean'],
-            y=df_latest_sorted['pct_saat_ini'],
-            name='% Saat Ini',
-            marker_color='#10B981',
-            text=df_latest_sorted['pct_saat_ini'].apply(lambda x: f"{x:.0f}%"),
-            textposition='inside'
-        ))
-        # Stack 2: Potensi (Jingga)
-        fig_stack.add_trace(bg.Bar(
-            x=df_latest_sorted['kab_clean'],
-            y=df_latest_sorted['pct_potensi'],
-            name='Potensi',
-            marker_color='#F59E0B',
-            text=df_latest_sorted['pct_potensi'].apply(lambda x: f"{x:.0f}%" if x>0 else ""),
-            textposition='inside'
-        ))
+        st.markdown("<div class='card-title'>📉 Tren Persentase Progress Prasertel</div>", unsafe_allow_html=True)
 
-        fig_stack.update_layout(
-            barmode='stack',
-            height=295,
-            margin=dict(l=0, r=0, t=10, b=45),
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(size=9)),
-            xaxis=dict(tickangle=-40, tickfont=dict(size=8), categoryorder='array', categoryarray=df_latest_sorted['kab_clean'].tolist()),
-            yaxis=dict(showgrid=True, gridcolor='#F1F5F9', ticksuffix='%', tickfont=dict(size=8)),
+        df_line = df_clean.copy()
+        df_line['tgl_short'] = df_line['tgl_dt'].dt.strftime('%d/%m')
+        
+        df_trend = df_line.groupby(['tgl_dt', 'tgl_short', 'kab_clean'], as_index=False).agg({
+            'sertel_clean': 'sum', 'btvalid_clean': 'sum'
+        })
+        df_trend['pct_prasertel'] = np.where(df_trend['btvalid_clean'] > 0, (df_trend['sertel_clean'] / df_trend['btvalid_clean']) * 100.0, 0.0)
+        df_trend = df_trend.sort_values(by='tgl_dt')
+
+        unique_short_dates = df_trend.drop_duplicates(subset=['tgl_dt'])['tgl_short'].tolist()
+
+        fig_line = px.line(
+            df_trend, x='tgl_short', y='pct_prasertel', color='kab_clean',
+            markers=True, category_orders={'tgl_short': unique_short_dates, 'kab_clean': all_kabs},
+            color_discrete_map=color_map
+        )
+        fig_line.update_traces(hovertemplate="<b>%{fullData.name}</b><br>Tgl: %{x}<br>Progress: <b>%{y:.2f}%</b><extra></extra>", marker=dict(size=5))
+        fig_line.update_layout(
+            height=200, margin=dict(l=10, r=10, t=5, b=35),
+            legend=dict(orientation="h", yanchor="top", y=-0.25, xanchor="center", x=0.5, font=dict(size=8), title_text=''),
+            yaxis=dict(gridcolor='#F1F5F9', ticksuffix='%', tickfont=dict(size=8)),
+            xaxis=dict(type='category', tickangle=-30, tickfont=dict(size=8)),
             paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)'
         )
-        st.plotly_chart(fig_stack, use_container_width=True, config={'displayModeBar': False})
+        st.plotly_chart(fig_line, use_container_width=True, config={'displayModeBar': False})
         st.markdown("</div>", unsafe_allow_html=True)
-
-    # =========================================================================
-    # KELOMPOK 4: TREN CAPAIAN HARIAN PRASERTEL (PENUH)
-    # =========================================================================
-    st.markdown("<div class='card-box'>", unsafe_allow_html=True)
-    st.markdown("<div class='card-title'>📉 Tren Persentase Progress Prasertel</div>", unsafe_allow_html=True)
-
-    df_line = df_clean.copy()
-    df_line['tgl_short'] = df_line['tgl_dt'].dt.strftime('%d/%m')
-    
-    df_trend = df_line.groupby(['tgl_dt', 'tgl_short', 'kab_clean'], as_index=False).agg({
-        'sertel_clean': 'sum', 'btvalid_clean': 'sum'
-    })
-    df_trend['pct_prasertel'] = np.where(df_trend['btvalid_clean'] > 0, (df_trend['sertel_clean'] / df_trend['btvalid_clean']) * 100.0, 0.0)
-    df_trend = df_trend.sort_values(by='tgl_dt')
-
-    unique_short_dates = df_trend.drop_duplicates(subset=['tgl_dt'])['tgl_short'].tolist()
-    kab_order = df_latest_sorted['kab_clean'].tolist()
-
-    palet_warna_13_kab = [
-        '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', 
-        '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf',
-        '#34495e', '#e67e22', '#16a085'
-    ]
-
-    fig_line = px.line(
-        df_trend, x='tgl_short', y='pct_prasertel', color='kab_clean',
-        markers=True, category_orders={'tgl_short': unique_short_dates, 'kab_clean': kab_order},
-        color_discrete_sequence=palet_warna_13_kab
-    )
-    fig_line.update_traces(hovertemplate="<b>%{fullData.name}</b><br>Tgl: %{x}<br>Progress: <b>%{y:.2f}%</b><extra></extra>", marker=dict(size=5))
-    fig_line.update_layout(
-        height=210, margin=dict(l=10, r=10, t=10, b=40),
-        legend=dict(orientation="h", yanchor="top", y=-0.25, xanchor="center", x=0.5, font=dict(size=8.5), title_text=''),
-        yaxis=dict(gridcolor='#F1F5F9', ticksuffix='%', tickfont=dict(size=8)),
-        xaxis=dict(type='category', tickangle=-30, tickfont=dict(size=8.5)),
-        paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)'
-    )
-    st.plotly_chart(fig_line, use_container_width=True, config={'displayModeBar': False})
-    st.markdown("</div>", unsafe_allow_html=True)
 
     # =========================================================================
     # KELOMPOK 5: 3 KANTAH CAPAIAN HARIAN TERTINGGI & TERENDAH
@@ -1879,7 +1867,6 @@ def render_monitoring_kakanwil(df_kakanwil):
     st.markdown("<div class='card-box'>", unsafe_allow_html=True)
     st.markdown("<div class='card-title'>🏆 3 Kantah Capaian Harian Tertinggi & Terendah</div>", unsafe_allow_html=True)
 
-    # Sorting Capaian Harian
     df_top_3 = df_latest.sort_values(by='capaian_harian', ascending=False).head(3)
     df_bottom_3 = df_latest.sort_values(by='capaian_harian', ascending=True).head(3)
 
@@ -1895,8 +1882,8 @@ def render_monitoring_kakanwil(df_kakanwil):
             fig_g = bg.Figure(bg.Indicator(
                 mode = "gauge+number",
                 value = val_act,
-                title = {'text': f"<b style='font-size:10px; color:#10B981;'>{k_name}</b><br><span style='font-size:8px; color:#64748B;'>Target: {val_tgt:,.0f} BT</span>", 'font': {'size': 9}},
-                number = {'font': {'size': 14, 'color': '#10B981'}, 'suffix': " BT"},
+                title = {'text': f"<b style='font-size:10px; color:#10B981;'>{k_name}</b><br><span style='font-size:8px; color:#64748B;'>Target Harian: {val_tgt:,.0f} BT</span>", 'font': {'size': 9}},
+                number = {'font': {'size': 13, 'color': '#10B981'}, 'suffix': " BT"},
                 gauge = {
                     'axis': {'range': [0, max(val_tgt, val_act, 1)*1.2], 'tickwidth': 1, 'tickcolor': "#CBD5E1"},
                     'bar': {'color': "#10B981"},
@@ -1904,9 +1891,9 @@ def render_monitoring_kakanwil(df_kakanwil):
                     'borderwidth': 0,
                 }
             ))
-            fig_g.update_layout(height=110, margin=dict(l=10, r=10, t=25, b=5), paper_bgcolor='rgba(0,0,0,0)')
+            fig_g.update_layout(height=110, margin=dict(l=8, r=8, t=25, b=5), paper_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(fig_g, use_container_width=True, config={'displayModeBar': False})
-            st.markdown(f"<div style='text-align:center; font-size:0.68rem; margin-top:-15px; color:#334155;'><b>Target Actual</b>: {val_act:,.0f}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='text-align:center; font-size:0.68rem; margin-top:-15px; color:#334155;'><b>Actual</b>: {val_act:,.0f} BT</div>", unsafe_allow_html=True)
 
     # 3 Grafik Capaian Terendah (Warna Jingga #F59E0B)
     for idx, (_, r) in enumerate(df_bottom_3.iterrows()):
@@ -1918,8 +1905,8 @@ def render_monitoring_kakanwil(df_kakanwil):
             fig_g = bg.Figure(bg.Indicator(
                 mode = "gauge+number",
                 value = val_act,
-                title = {'text': f"<b style='font-size:10px; color:#F59E0B;'>{k_name}</b><br><span style='font-size:8px; color:#64748B;'>Target: {val_tgt:,.0f} BT</span>", 'font': {'size': 9}},
-                number = {'font': {'size': 14, 'color': '#F59E0B'}, 'suffix': " BT"},
+                title = {'text': f"<b style='font-size:10px; color:#F59E0B;'>{k_name}</b><br><span style='font-size:8px; color:#64748B;'>Target Harian: {val_tgt:,.0f} BT</span>", 'font': {'size': 9}},
+                number = {'font': {'size': 13, 'color': '#F59E0B'}, 'suffix': " BT"},
                 gauge = {
                     'axis': {'range': [0, max(val_tgt, abs(val_act), 1)*1.2], 'tickwidth': 1, 'tickcolor': "#CBD5E1"},
                     'bar': {'color': "#F59E0B"},
@@ -1927,9 +1914,9 @@ def render_monitoring_kakanwil(df_kakanwil):
                     'borderwidth': 0,
                 }
             ))
-            fig_g.update_layout(height=110, margin=dict(l=10, r=10, t=25, b=5), paper_bgcolor='rgba(0,0,0,0)')
+            fig_g.update_layout(height=110, margin=dict(l=8, r=8, t=25, b=5), paper_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(fig_g, use_container_width=True, config={'displayModeBar': False})
-            st.markdown(f"<div style='text-align:center; font-size:0.68rem; margin-top:-15px; color:#334155;'><b>Target Actual</b>: {val_act:,.0f}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='text-align:center; font-size:0.68rem; margin-top:-15px; color:#334155;'><b>Actual</b>: {val_act:,.0f} BT</div>", unsafe_allow_html=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
     # =========================================================================
