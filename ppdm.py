@@ -1898,7 +1898,6 @@ def render_monitoring_kakanwil(df_kakanwil):
             k_name = row_data['kab_clean']
             val_pct = row_data['pct_saat_ini'] 
             val_capaian = row_data['capaian_harian'] 
-            val_tgt_harian = row_data['target_harian'] 
 
             # WARNA GAUGE: Hijau jika > 70%, Jingga jika <= 70%
             bar_color = "#10B981" if val_pct > 70.0 else "#F59E0B"
@@ -1908,18 +1907,16 @@ def render_monitoring_kakanwil(df_kakanwil):
             fig_g = bg.Figure(bg.Indicator(
                 mode = "gauge",
                 value = val_pct,
+                # 💡 TEKS PERINGKAT/PERSENTASE DIPOSISIKAN TEPAT DI ATAS PUNCAK TENGAH ARC
                 title = {
-                    # 💡 TEKS ATAS GAUGE: Menampilkan Nilai Persentase Capaian (misal: 47,2%)
-                    'text': f"<b style='font-size:12px; color:{bar_color};'>{pct_str}</b><br><span style='font-size:8px; color:#64748B;'>Target Harian: {val_tgt_harian:,.0f} BT</span>", 
-                    'font': {'size': 9}
+                    'text': f"<b style='font-size:13px; color:{bar_color};'>{pct_str}</b>", 
+                    'font': {'size': 10}
                 },
                 gauge = {
                     'axis': {
                         'range': [0, 100], 
                         'tickwidth': 1, 
                         'tickcolor': "#CBD5E1", 
-                        'ticksuffix': "%",
-                        # Mengatur tickmarks agar bersih tanpa teks bertumpuk di puncak arc
                         'tickvals': [0, 100],
                         'ticktext': ['0%', '100%']
                     },
@@ -1929,15 +1926,15 @@ def render_monitoring_kakanwil(df_kakanwil):
                 }
             ))
 
-            # Angka Capaian Harian di Tengah Arc Gauge
+            # 💡 ANGKACHAPAIAN HARIAN DI DALAM ARC GAUGE (Bebas dari teks lain)
             fig_g.add_annotation(
-                x=0.5, y=0.20,
+                x=0.5, y=0.18,
                 text=f"<b style='font-size:13px; color:{bar_color};'>{capaian_str}</b>",
                 showarrow=False,
                 xref="paper", yref="paper"
             )
 
-            fig_g.update_layout(height=115, margin=dict(l=8, r=8, t=25, b=5), paper_bgcolor='rgba(0,0,0,0)')
+            fig_g.update_layout(height=110, margin=dict(l=8, r=8, t=25, b=5), paper_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(fig_g, use_container_width=True, config={'displayModeBar': False})
             
             # TEKS BAWAH: Nama Kabupaten/Kota
