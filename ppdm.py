@@ -1697,6 +1697,7 @@ def render_monitoring_kakanwil(df_kakanwil):
         st.markdown("<div class='card-box'>", unsafe_allow_html=True)
         st.markdown("<div class='card-title'>📍 Peta & Skala Capaian Prasertel</div>", unsafe_allow_html=True)
         
+        # Peta lokal github sejajar skrip
         img_path = "peta_sulteng.png"
         if os.path.exists(img_path):
             st.image(img_path, use_container_width=True)
@@ -1717,10 +1718,15 @@ def render_monitoring_kakanwil(df_kakanwil):
             textfont=dict(size=9, color='#0F172A'),
             marker_line_width=0
         )
+
+        # Batas rentang sumbu X yang aman
+        max_pct_val = float(df_latest_sorted['pct_saat_ini'].max()) if not df_latest_sorted.empty else 100.0
+        x_limit = float(max(max_pct_val * 1.18, 100.0))
+
         fig_bar_k1.update_layout(
             height=230,
             margin=dict(l=0, r=25, t=5, b=0),
-            xaxis=dict(showticklabels=False, showgrid=False, range=[0, max(df_latest_sorted['pct_saat_ini'].max()*1.18, 100)]),
+            xaxis=dict(showticklabels=False, showgrid=False, range=[0.0, x_limit]),
             yaxis=dict(title="", autorange="reverse", tickfont=dict(size=8.5)),
             paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)'
         )
