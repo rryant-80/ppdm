@@ -1773,7 +1773,7 @@ def render_monitoring_kakanwil(df_kakanwil):
         c2, c3 = st.columns([2.2, 1.8])
 
         # KELOMPOK 2: TABEL DETIL CAPAIAN
-        th c2:
+        with c2:
             st.markdown("<div class='card-box'>", unsafe_allow_html=True)
             st.markdown("<div class='card-title'>📊 Detil Capaian Prasertel Kantah</div>", unsafe_allow_html=True)
             
