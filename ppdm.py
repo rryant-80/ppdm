@@ -3,6 +3,8 @@ import requests
 import pandas as pd
 import numpy as np
 import plotly.express as px
+import plotly.graph_objects as bg
+import os
 import streamlit as st
 from datetime import datetime, date, timedelta
 from zoneinfo import ZoneInfo
@@ -1561,9 +1563,8 @@ def render_isu_strategis(df_isu):
                         except Exception as e:
                             st.error(f"❌ Gagal mengirim tanggapan: {e}")
         st.markdown("<br>", unsafe_allow_html=True)
-
 def render_monitoring_kakanwil(df_kakanwil):
-    st.title("🛡️ Monitoring Prasertel & KW456")    
+    st.markdown("<h2 style='margin-bottom:0;'>🛡️ Monitoring Prasertel & KW456</h2>", unsafe_allow_html=True)
 
     if df_kakanwil is None or df_kakanwil.empty:
         st.warning("Data Monitoring Kakanwil (GID 806976086) tidak ditemukan atau kosong.")
@@ -1572,54 +1573,345 @@ def render_monitoring_kakanwil(df_kakanwil):
     df = df_kakanwil.copy()
     df.columns = [str(c).strip().lower() for c in df.columns]
 
-    # Parser angka murni
+    # Helper parser angka
     def parse_num(val):
-        if pd.isna(val) or val is None:
-            return 0
-        if isinstance(val, (int, np.integer)):
-            return int(val)
-        if isinstance(val, (float, np.floating)):
-            return int(round(val))
-            
-        s = str(val).strip()
-        if not s or s.lower() in ['nan', 'none', 'null', '']:
-            return 0
-            
-        s = s.replace('Rp', '').replace('%', '').strip()
-        s = s.replace('.', '').replace(',', '')
-        try:
-            return int(s)
-        except ValueError:
-            try:
-                return int(float(s))
-            except ValueError:
-                return 0
+        if pd.isna(val) or val is None: return 0
+        if isinstance(val, (int, np.integer)): return int(val)
+        if isinstance(val, (float, np.floating)): return int(round(val))
+        s = str(val).strip().replace('Rp', '').replace('%', '').replace('.', '').replace(',', '')
+        try: return int(s)
+        except ValueError: return 0
 
-    # Pastikan kolom-kolom utama ada dan dibersihkan
+    # Identifikasi Nama Kolom utama
     col_tgl = 'tgl_kab' if 'tgl_kab' in df.columns else next((c for c in df.columns if 'tgl' in c), 'tgl_kab')
     col_kab = 'kabupaten_kota' if 'kabupaten_kota' in df.columns else next((c for c in df.columns if 'kab' in c), 'kabupaten_kota')
     col_sertel = 'sertel_kab' if 'sertel_kab' in df.columns else next((c for c in df.columns if 'sertel' in c), 'sertel_kab')
     col_btvalid = 'btvalid_kab' if 'btvalid_kab' in df.columns else next((c for c in df.columns if 'btvalid' in c or 'bt' in c), 'btvalid_kab')
+    col_btel = 'btel' if 'btel' in df.columns else next((c for c in df.columns if 'btel' in c), 'btel')
 
-    # Identifikasi kolom KW4, KW5, KW6
     col_kw4 = 'jml_kw4' if 'jml_kw4' in df.columns else next((c for c in df.columns if 'kw4' in c), 'jml_kw4')
     col_kw5 = 'jml_kw5' if 'jml_kw5' in df.columns else next((c for c in df.columns if 'kw5' in c), 'jml_kw5')
     col_kw6 = 'jml_kw6' if 'jml_kw6' in df.columns else next((c for c in df.columns if 'kw6' in c), 'jml_kw6')
 
-    # Parsing & pembersihan nilai numerik
+    # Pembersihan data numerik
     df['sertel_clean'] = df[col_sertel].apply(parse_num)
     df['btvalid_clean'] = df[col_btvalid].apply(parse_num)
+    df['btel_clean'] = df[col_btel].apply(parse_num) if col_btel in df.columns else 0
     df['kw4_clean'] = df[col_kw4].apply(parse_num) if col_kw4 in df.columns else 0
     df['kw5_clean'] = df[col_kw5].apply(parse_num) if col_kw5 in df.columns else 0
     df['kw6_clean'] = df[col_kw6].apply(parse_num) if col_kw6 in df.columns else 0
-    
-    # Penjumlahan total KW456 per baris
     df['total_kw456'] = df['kw4_clean'] + df['kw5_clean'] + df['kw6_clean']
     df['kab_clean'] = df[col_kab].astype(str).str.strip()
 
-    # Filter baris non-kabupaten (jika ada total)
+    # Filter baris non-kabupaten
     df_clean = df[~df['kab_clean'].str.contains('Total|Jumlah|Sulawesi Tengah', case=False, na=False)].copy()
 
+    # Datetime Parsing & Pengurutan Kronologis
+    df_clean['tgl_dt'] = pd.to_datetime(df_clean[col_tgl], format='%d/%m/%Y', errors='coerce')
+    if df_clean['tgl_dt'].isna().all():
+        df_clean['tgl_dt'] = pd.to_datetime(df_clean[col_tgl], dayfirst=True, errors='coerce')
+    
+    df_sorted = df_clean.sort_values(by='tgl_dt').reset_index(drop=True)
+
+    # 1. Snapshot Tanggal Terakhir
+    df_latest = df_sorted.groupby('kab_clean', as_index=False).last()
+    
+    # Hitung Persentase & Potensi: ((btel - sertel_kab) / sertel_kab) * 100
+    df_latest['pct_saat_ini'] = np.where(df_latest['btvalid_clean'] > 0, (df_latest['sertel_clean'] / df_latest['btvalid_clean']) * 100.0, 0.0)
+    df_latest['pct_potensi'] = np.where(df_latest['sertel_clean'] > 0, ((df_latest['btel_clean'] - df_latest['sertel_clean']) / df_latest['sertel_clean']) * 100.0, 0.0)
+
+    # Hitung Delta Capaian Harian (Tanggal Terakhir vs Tanggal Sebelumnya)
+    unique_dates = df_sorted.drop_duplicates(subset=['tgl_dt'])[col_tgl].astype(str).str.strip().tolist()
+    capaian_harian_map = {}
+    if len(unique_dates) >= 2:
+        t_latest = unique_dates[-1]
+        t_prev = unique_dates[-2]
+        grp_latest = df_sorted[df_sorted[col_tgl] == t_latest].groupby('kab_clean')['sertel_clean'].sum()
+        grp_prev = df_sorted[df_sorted[col_tgl] == t_prev].groupby('kab_clean')['sertel_clean'].sum()
+        for k_name in df_latest['kab_clean']:
+            capaian_harian_map[k_name] = grp_latest.get(k_name, 0) - grp_prev.get(k_name, 0)
+    else:
+        for k_name in df_latest['kab_clean']:
+            capaian_harian_map[k_name] = 0
+
+    df_latest['capaian_harian'] = df_latest['kab_clean'].map(capaian_harian_map)
+
+    # Target Harian Menuju 70% (31 Des 2026)
+    today = datetime.now().date()
+    end_date = date(2026, 12, 31)
+    sisa_hari_kerja = np.busday_count(today, end_date + timedelta(days=1)) if today < end_date else 1
+    
+    df_latest['target_bt_70'] = df_latest['btvalid_clean'] * 0.70
+    df_latest['sisa_bt'] = (df_latest['target_bt_70'] - df_latest['sertel_clean']).apply(lambda x: max(0, x))
+    df_latest['target_harian'] = (df_latest['sisa_bt'] / sisa_hari_kerja).apply(np.ceil).astype(int)
+
+    # Urutkan berdasarkan % Saat Ini tertinggi ke terendah
+    df_latest_sorted = df_latest.sort_values(by='pct_saat_ini', ascending=False).reset_index(drop=True)
+
+    # CSS Khusus Container Card Abu-abu
+    st.markdown("""
+    <style>
+    .card-box {
+        border: 1.5px solid #CBD5E1;
+        border-radius: 8px;
+        padding: 8px 10px;
+        background-color: #FFFFFF;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        margin-bottom: 6px;
+    }
+    .card-title {
+        font-size: 0.82rem;
+        font-weight: 700;
+        color: #1E293B;
+        margin-bottom: 6px;
+    }
+    .mini-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.72rem;
+    }
+    .mini-table th {
+        background-color: #F1F5F9;
+        padding: 4px 6px;
+        text-align: center;
+        font-weight: 700;
+        border-bottom: 1px solid #CBD5E1;
+    }
+    .mini-table td {
+        padding: 3px 5px;
+        border-bottom: 1px solid #F8FAFC;
+        text-align: center;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # =========================================================================
+    # BARIS ATAS: KELOMPOK 1, KELOMPOK 2, KELOMPOK 3 (3 KOLOM SEJAJAR)
+    # =========================================================================
+    c1, c2, c3 = st.columns([1.1, 1.8, 1.8])
+
+    # -------------------------------------------------------------------------
+    # KELOMPOK 1: PETA + SKALA BAR CAPAIAN PRASERTEL
+    # -------------------------------------------------------------------------
+    with c1:
+        st.markdown("<div class='card-box'>", unsafe_allow_html=True)
+        st.markdown("<div class='card-title'>📍 Peta & Skala Capaian Prasertel</div>", unsafe_allow_html=True)
+        
+        # Peta lokal github sejajar skrip
+        img_path = "peta_sulteng.png"
+        if os.path.exists(img_path):
+            st.image(img_path, use_column_width=True)
+        else:
+            st.caption("Peta Sulteng (`peta_sulteng.png`)")
+
+        # Horizontal Bar Progress Prasertel (Sorted)
+        fig_bar_k1 = px.bar(
+            df_latest_sorted,
+            y='kab_clean',
+            x='pct_saat_ini',
+            orientation='h',
+            text=df_latest_sorted['pct_saat_ini'].apply(lambda x: f"{x:.1f}%"),
+            color_discrete_sequence=['#10B981']
+        )
+        fig_bar_k1.update_traces(
+            textposition='outside',
+            textfont=dict(size=9, color='#0F172A'),
+            marker_line_width=0
+        )
+        fig_bar_k1.update_layout(
+            height=230,
+            margin=dict(l=0, r=25, t=5, b=0),
+            xaxis=dict(showticklabels=False, showgrid=False, range=[0, max(df_latest_sorted['pct_saat_ini'].max()*1.18, 100)]),
+            yaxis=dict(title="", autorange="reverse", tickfont=dict(size=8.5)),
+            paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)'
+        )
+        st.plotly_chart(fig_bar_k1, use_container_width=True, config={'displayModeBar': False})
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    # -------------------------------------------------------------------------
+    # KELOMPOK 2: TABEL DETIL CAPAIAN PRASERTEL
+    # -------------------------------------------------------------------------
+    with c2:
+        st.markdown("<div class='card-box'>", unsafe_allow_html=True)
+        st.markdown("<div class='card-title'>📊 Detil Capaian Prasertel Kantah</div>", unsafe_allow_html=True)
+        
+        rows_detil = []
+        for _, r in df_latest_sorted.iterrows():
+            k_name = r['kab_clean']
+            sertel_fmt = f"{r['sertel_clean']:,.0f}".replace(',', '.')
+            bt_fmt = f"{r['btvalid_clean']:,.0f}".replace(',', '.')
+            
+            c_hr = r['capaian_harian']
+            c_hr_str = f"+{c_hr:,.0f}".replace(',', '.') if c_hr > 0 else (f"{c_hr:,.0f}".replace(',', '.') if c_hr < 0 else "0")
+            c_hr_color = "#10B981" if c_hr > 0 else ("#EF4444" if c_hr < 0 else "#6B7280")
+            
+            tgt_hr_str = f"{r['target_harian']:,.0f}".replace(',', '.')
+
+            rows_detil.append(
+                f"<tr>"
+                f"<td style='text-align:left; font-weight:600;'>{k_name}</td>"
+                f"<td>{sertel_fmt}</td>"
+                f"<td>{bt_fmt}</td>"
+                f"<td style='color:{c_hr_color}; font-weight:bold;'>{c_hr_str}</td>"
+                f"<td style='font-weight:bold; color:#1E3A8A;'>{tgt_hr_str}</td>"
+                f"</tr>"
+            )
+
+        html_detil = f"""
+        <div style='max-height: 310px; overflow-y: auto;'>
+        <table class='mini-table'>
+        <thead>
+            <tr>
+                <th style='text-align:left;'>Kabupaten / Kota</th>
+                <th>Prasertel</th>
+                <th>BT Valid</th>
+                <th>Capaian Harian</th>
+                <th>Target Harian</th>
+            </tr>
+        </thead>
+        <tbody>{"".join(rows_detil)}</tbody>
+        </table></div>"""
+        st.markdown(html_detil, unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    # -------------------------------------------------------------------------
+    # KELOMPOK 3: GRAFIK STACKED (% SAAT INI + POTENSI)
+    # -------------------------------------------------------------------------
+    with c3:
+        st.markdown("<div class='card-box'>", unsafe_allow_html=True)
+        st.markdown("<div class='card-title'>📈 Grafik Capaian Prasertel & Potensi</div>", unsafe_allow_html=True)
+        
+        fig_stack = bg.Figure()
+        # Stack 1: % Saat Ini (Hijau)
+        fig_stack.add_trace(bg.Bar(
+            x=df_latest_sorted['kab_clean'],
+            y=df_latest_sorted['pct_saat_ini'],
+            name='% Saat Ini',
+            marker_color='#10B981',
+            text=df_latest_sorted['pct_saat_ini'].apply(lambda x: f"{x:.0f}%"),
+            textposition='inside'
+        ))
+        # Stack 2: Potensi (Jingga)
+        fig_stack.add_trace(bg.Bar(
+            x=df_latest_sorted['kab_clean'],
+            y=df_latest_sorted['pct_potensi'],
+            name='Potensi',
+            marker_color='#F59E0B',
+            text=df_latest_sorted['pct_potensi'].apply(lambda x: f"{x:.0f}%" if x>0 else ""),
+            textposition='inside'
+        ))
+
+        fig_stack.update_layout(
+            barmode='stack',
+            height=295,
+            margin=dict(l=0, r=0, t=10, b=45),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(size=9)),
+            xaxis=dict(tickangle=-40, tickfont=dict(size=8)),
+            yaxis=dict(showgrid=True, gridcolor='#F1F5F9', ticksuffix='%', tickfont=dict(size=8)),
+            paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)'
+        )
+        st.plotly_chart(fig_stack, use_container_width=True, config={'displayModeBar': False})
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    # =========================================================================
+    # KELOMPOK 4: TREN CAPAIAN HARIAN PRASERTEL (PENUH)
+    # =========================================================================
+    st.markdown("<div class='card-box'>", unsafe_allow_html=True)
+    st.markdown("<div class='card-title'>📉 Tren Persentase Progress Prasertel</div>", unsafe_allow_html=True)
+
+    df_line = df_clean.copy()
+    df_line['tgl_short'] = df_line['tgl_dt'].dt.strftime('%d/%m')
+    
+    df_trend = df_line.groupby(['tgl_dt', 'tgl_short', 'kab_clean'], as_index=False).agg({
+        'sertel_clean': 'sum', 'btvalid_clean': 'sum'
+    })
+    df_trend['pct_prasertel'] = np.where(df_trend['btvalid_clean'] > 0, (df_trend['sertel_clean'] / df_trend['btvalid_clean']) * 100.0, 0.0)
+    df_trend = df_trend.sort_values(by='tgl_dt')
+
+    unique_short_dates = df_trend.drop_duplicates(subset=['tgl_dt'])['tgl_short'].tolist()
+    kab_order = df_latest_sorted['kab_clean'].tolist()
+
+    palet_warna_13_kab = [
+        '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', 
+        '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf',
+        '#34495e', '#e67e22', '#16a085'
+    ]
+
+    fig_line = px.line(
+        df_trend, x='tgl_short', y='pct_prasertel', color='kab_clean',
+        markers=True, category_orders={'tgl_short': unique_short_dates, 'kab_clean': kab_order},
+        color_discrete_sequence=palet_warna_13_kab
+    )
+    fig_line.update_traces(hovertemplate="<b>%{fullData.name}</b><br>Tgl: %{x}<br>Progress: <b>%{y:.2f}%</b><extra></extra>", marker=dict(size=5))
+    fig_line.update_layout(
+        height=210, margin=dict(l=10, r=10, t=10, b=40),
+        legend=dict(orientation="h", yanchor="top", y=-0.25, xanchor="center", x=0.5, font=dict(size=8.5), title_text=''),
+        yaxis=dict(gridcolor='#F1F5F9', ticksuffix='%', tickfont=dict(size=8)),
+        xaxis=dict(type='category', tickangle=-30, tickfont=dict(size=8.5)),
+        paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)'
+    )
+    st.plotly_chart(fig_line, use_container_width=True, config={'displayModeBar': False})
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    # =========================================================================
+    # KELOMPOK 5: 3 KANTAH CAPAIAN HARIAN TERTINGGI & TERENDAH
+    # =========================================================================
+    st.markdown("<div class='card-box'>", unsafe_allow_html=True)
+    st.markdown("<div class='card-title'>🏆 3 Kantah Capaian Harian Tertinggi & Terendah</div>", unsafe_allow_html=True)
+
+    # Sorting Capaian Harian
+    df_top_3 = df_latest.sort_values(by='capaian_harian', ascending=False).head(3)
+    df_bottom_3 = df_latest.sort_values(by='capaian_harian', ascending=True).head(3)
+
+    cols_g = st.columns(6)
+
+    # 3 Grafik Capaian Tertinggi (Warna Hijau #10B981)
+    for idx, (_, r) in enumerate(df_top_3.iterrows()):
+        with cols_g[idx]:
+            val_act = r['capaian_harian']
+            val_tgt = r['target_harian']
+            k_name = r['kab_clean']
+            
+            fig_g = bg.Figure(bg.Indicator(
+                mode = "gauge+number",
+                value = val_act,
+                title = {'text': f"<b style='font-size:10px; color:#10B981;'>{k_name}</b><br><span style='font-size:8px; color:#64748B;'>Target: {val_tgt:,.0f} BT</span>", 'font': {'size': 9}},
+                number = {'font': {'size': 14, 'color': '#10B981'}, 'suffix': " BT"},
+                gauge = {
+                    'axis': {'range': [0, max(val_tgt, val_act, 1)*1.2], 'tickwidth': 1, 'tickcolor': "#CBD5E1"},
+                    'bar': {'color': "#10B981"},
+                    'bgcolor': "#F1F5F9",
+                    'borderwidth': 0,
+                }
+            ))
+            fig_g.update_layout(height=110, margin=dict(l=10, r=10, t=25, b=5), paper_bgcolor='rgba(0,0,0,0)')
+            st.plotly_chart(fig_g, use_container_width=True, config={'displayModeBar': False})
+            st.markdown(f"<div style='text-align:center; font-size:0.68rem; margin-top:-15px; color:#334155;'><b>Target Actual</b>: {val_act:,.0f}</div>", unsafe_allow_html=True)
+
+    # 3 Grafik Capaian Terendah (Warna Jingga #F59E0B)
+    for idx, (_, r) in enumerate(df_bottom_3.iterrows()):
+        with cols_g[idx+3]:
+            val_act = r['capaian_harian']
+            val_tgt = r['target_harian']
+            k_name = r['kab_clean']
+            
+            fig_g = bg.Figure(bg.Indicator(
+                mode = "gauge+number",
+                value = val_act,
+                title = {'text': f"<b style='font-size:10px; color:#F59E0B;'>{k_name}</b><br><span style='font-size:8px; color:#64748B;'>Target: {val_tgt:,.0f} BT</span>", 'font': {'size': 9}},
+                number = {'font': {'size': 14, 'color': '#F59E0B'}, 'suffix': " BT"},
+                gauge = {
+                    'axis': {'range': [0, max(val_tgt, abs(val_act), 1)*1.2], 'tickwidth': 1, 'tickcolor': "#CBD5E1"},
+                    'bar': {'color': "#F59E0B"},
+                    'bgcolor': "#F1F5F9",
+                    'borderwidth': 0,
+                }
+            ))
+            fig_g.update_layout(height=110, margin=dict(l=10, r=10, t=25, b=5), paper_bgcolor='rgba(0,0,0,0)')
+            st.plotly_chart(fig_g, use_container_width=True, config={'displayModeBar': False})
+            st.markdown(f"<div style='text-align:center; font-size:0.68rem; margin-top:-15px; color:#334155;'><b>Target Actual</b>: {val_act:,.0f}</div>", unsafe_allow_html=True)
+
+    st.markdown("</div>", unsafe_allow_html=True)
     # =========================================================================
     # DASHBOARD 1: GRAFIK TREN PROGRESS PRASERTEL (DALAM PERSENTASE)
     # =========================================================================
