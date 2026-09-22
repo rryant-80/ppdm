@@ -1582,7 +1582,7 @@ def render_monitoring_kakanwil(df_kakanwil):
         try: return int(s)
         except ValueError: return 0
 
-    # Identifikasi Nama Kolom utama
+    # Identifikasi Nama Kolom Utama
     col_tgl = 'tgl_kab' if 'tgl_kab' in df.columns else next((c for c in df.columns if 'tgl' in c), 'tgl_kab')
     col_kab = 'kabupaten_kota' if 'kabupaten_kota' in df.columns else next((c for c in df.columns if 'kab' in c), 'kabupaten_kota')
     col_sertel = 'sertel_kab' if 'sertel_kab' in df.columns else next((c for c in df.columns if 'sertel' in c), 'sertel_kab')
@@ -1616,7 +1616,7 @@ def render_monitoring_kakanwil(df_kakanwil):
     # 1. Snapshot Tanggal Terakhir
     df_latest = df_sorted.groupby('kab_clean', as_index=False).last()
     
-    # Hitung Persentase & Potensi: ((btel - sertel_kab) / sertel_kab) * 100
+    # Hitung Persentase % Saat Ini & % Potensi: ((btel - sertel_kab) / sertel_kab) * 100
     df_latest['pct_saat_ini'] = np.where(df_latest['btvalid_clean'] > 0, (df_latest['sertel_clean'] / df_latest['btvalid_clean']) * 100.0, 0.0)
     df_latest['pct_potensi'] = np.where(df_latest['sertel_clean'] > 0, ((df_latest['btel_clean'] - df_latest['sertel_clean']) / df_latest['sertel_clean']) * 100.0, 0.0)
 
@@ -1806,7 +1806,7 @@ def render_monitoring_kakanwil(df_kakanwil):
             height=295,
             margin=dict(l=0, r=0, t=10, b=45),
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(size=9)),
-            xaxis=dict(tickangle=-40, tickfont=dict(size=8)),
+            xaxis=dict(tickangle=-40, tickfont=dict(size=8), categoryorder='array', categoryarray=df_latest_sorted['kab_clean'].tolist()),
             yaxis=dict(showgrid=True, gridcolor='#F1F5F9', ticksuffix='%', tickfont=dict(size=8)),
             paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)'
         )
