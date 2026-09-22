@@ -1850,7 +1850,6 @@ def render_monitoring_kakanwil(df_kakanwil):
             st.markdown("</div>", unsafe_allow_html=True)
 
         # KELOMPOK 4: TREN PERSENTASE PROGRESS PRASERTEL
-        st.markdown("<br><hr>", unsafe_allow_html=True)
         st.markdown("<div class='card-box'>", unsafe_allow_html=True)
         st.markdown("<div class='card-header-badge'>📉 Tren Persentase Progress Prasertel</div>", unsafe_allow_html=True)
 
@@ -1942,6 +1941,7 @@ def render_monitoring_kakanwil(df_kakanwil):
             
             # TEKS BAWAH: Nama Kabupaten/Kota
             st.markdown(f"<div style='text-align:center; font-size:0.75rem; font-weight:700; margin-top:-18px; color:#0F172A;'>{k_name}</div>", unsafe_allow_html=True)
+            st.markdown("<br><hr>", unsafe_allow_html=True)
 
     # Render 3 Capaian Harian Tertinggi
     for idx, (_, r) in enumerate(df_top_3.iterrows()):
