@@ -1850,6 +1850,7 @@ def render_monitoring_kakanwil(df_kakanwil):
             st.markdown("</div>", unsafe_allow_html=True)
 
         # KELOMPOK 4: TREN PERSENTASE PROGRESS PRASERTEL
+        st.markdown("<br><hr>", unsafe_allow_html=True)
         st.markdown("<div class='card-box'>", unsafe_allow_html=True)
         st.markdown("<div class='card-header-badge'>📉 Tren Persentase Progress Prasertel</div>", unsafe_allow_html=True)
 
