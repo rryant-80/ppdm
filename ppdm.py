@@ -1924,7 +1924,7 @@ def render_monitoring_kakanwil(df_kakanwil):
 
             # 💡 1. TEKS PERSENTASE (19,6%) DIPOSISIKAN TEPAT DI ATAS BUSUR GAUGE (GARIS MERAH)
             fig_g.add_annotation(
-                x=0.5, y=0.88,
+                x=0.5, y=1.00,
                 text=f"<b style='font-size:12px; color:{bar_color};'>{pct_str}</b>",
                 showarrow=False,
                 xref="paper", yref="paper"
