@@ -1723,12 +1723,27 @@ def render_monitoring_kakanwil(df_kakanwil):
         max_pct_val = float(df_latest_sorted['pct_saat_ini'].max()) if not df_latest_sorted.empty else 100.0
         x_limit = float(max(max_pct_val * 1.18, 100.0))
 
+        # Pastikan list kategori terbalik dengan aman untuk sumbu Y
+        kabs_reversed = df_latest_sorted['kab_clean'].tolist()[::-1]
+        
+        max_pct_val = float(df_latest_sorted['pct_saat_ini'].max()) if not df_latest_sorted.empty else 100.0
+        x_limit = float(max(max_pct_val * 1.2, 100.0))
+
         fig_bar_k1.update_layout(
             height=230,
-            margin=dict(l=0, r=25, t=5, b=0),
-            xaxis=dict(showticklabels=False, showgrid=False, range=[0.0, x_limit]),
-            yaxis=dict(title="", autorange="reverse", tickfont=dict(size=8.5)),
-            paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)'
+            margin=dict(l=0, r=30, t=5, b=0),
+            xaxis=dict(
+                visible=False,
+                range=[0.0, x_limit]
+            ),
+            yaxis=dict(
+                title="",
+                tickfont=dict(size=8.5),
+                categoryorder='array',
+                categoryarray=kabs_reversed
+            ),
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)'
         )
         st.plotly_chart(fig_bar_k1, use_container_width=True, config={'displayModeBar': False})
         st.markdown("</div>", unsafe_allow_html=True)
