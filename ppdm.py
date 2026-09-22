@@ -1648,7 +1648,7 @@ def render_monitoring_kakanwil(df_kakanwil):
     # Urutkan berdasarkan % Saat Ini tertinggi ke terendah
     df_latest_sorted = df_latest.sort_values(by='pct_saat_ini', ascending=False).reset_index(drop=True)
 
-    # 💡 SISTEM PEMETAAN WARNA KONSISTEN UTK 13 KABUPATEN
+    # PEMETAAN WARNA KONSISTEN UTK 13 KABUPATEN
     palet_13 = [
         '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', 
         '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf',
@@ -1681,14 +1681,14 @@ def render_monitoring_kakanwil(df_kakanwil):
     }
     .mini-table th {
         background-color: #F1F5F9;
-        padding: 4px 6px;
+        padding: 5px 6px;
         text-align: center;
         font-weight: 700;
         border-bottom: 1px solid #CBD5E1;
     }
     .mini-table td {
-        padding: 3px 5px;
-        border-bottom: 1px solid #F8FAFC;
+        padding: 4px 5px;
+        border-bottom: 1px solid #F1F5F9;
         text-align: center;
     }
     </style>
@@ -1700,7 +1700,7 @@ def render_monitoring_kakanwil(df_kakanwil):
     col_left, col_right = st.columns([1.1, 3.2])
 
     # -------------------------------------------------------------------------
-    # KELOMPOK 1: PETA + SKALA BAR CAPAIAN PRASERTEL (SINKRON WARNA TREN)
+    # KELOMPOK 1: PETA + SKALA BAR CAPAIAN PRASERTEL
     # -------------------------------------------------------------------------
     with col_left:
         st.markdown("<div class='card-box'>", unsafe_allow_html=True)
@@ -1712,7 +1712,6 @@ def render_monitoring_kakanwil(df_kakanwil):
         else:
             st.caption("Peta Sulteng (`peta_sulteng.png`)")
 
-        # Bar warna disesuaikan persis dengan garis grafik tren tiap kabupaten
         fig_bar_k1 = px.bar(
             df_latest_sorted,
             y='kab_clean',
@@ -1733,7 +1732,7 @@ def render_monitoring_kakanwil(df_kakanwil):
         x_limit = float(max(max_pct_val * 1.2, 100.0))
 
         fig_bar_k1.update_layout(
-            height=320,
+            height=390,
             showlegend=False,
             margin=dict(l=0, r=30, t=5, b=0),
             xaxis=dict(visible=False, range=[0.0, x_limit]),
@@ -1744,13 +1743,12 @@ def render_monitoring_kakanwil(df_kakanwil):
         st.markdown("</div>", unsafe_allow_html=True)
 
     # -------------------------------------------------------------------------
-    # AREA KANAN: KELOMPOK 2, 3, DAN KELOMPOK 4 (DI BAWAH TABEL & STACKED)
+    # AREA KANAN: KELOMPOK 2, 3, DAN KELOMPOK 4 (SEJAJAR KANAN)
     # -------------------------------------------------------------------------
     with col_right:
-        # Baris Atas Kanan: Kelompok 2 & Kelompok 3
-        c2, c3 = st.columns(2)
+        c2, c3 = st.columns([2.2, 1.8])
 
-        # KELOMPOK 2: TABEL DETIL CAPAIAN
+        # KELOMPOK 2: TABEL DETIL CAPAIAN (UTUH TANPA SCROLL)
         with c2:
             st.markdown("<div class='card-box'>", unsafe_allow_html=True)
             st.markdown("<div class='card-title'>📊 Detil Capaian Prasertel Kantah</div>", unsafe_allow_html=True)
@@ -1776,8 +1774,8 @@ def render_monitoring_kakanwil(df_kakanwil):
                     f"</tr>"
                 )
 
+            # 💡 UTUH TANPA SCROLLBAR
             html_detil = f"""
-            <div style='max-height: 220px; overflow-y: auto;'>
             <table class='mini-table'>
             <thead>
                 <tr>
@@ -1789,7 +1787,7 @@ def render_monitoring_kakanwil(df_kakanwil):
                 </tr>
             </thead>
             <tbody>{"".join(rows_detil)}</tbody>
-            </table></div>"""
+            </table>"""
             st.markdown(html_detil, unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
 
@@ -1818,7 +1816,7 @@ def render_monitoring_kakanwil(df_kakanwil):
 
             fig_stack.update_layout(
                 barmode='stack',
-                height=220,
+                height=385,
                 margin=dict(l=0, r=0, t=5, b=35),
                 legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(size=8.5)),
                 xaxis=dict(tickangle=-40, tickfont=dict(size=7.5), categoryorder='array', categoryarray=df_latest_sorted['kab_clean'].tolist()),
@@ -1829,7 +1827,7 @@ def render_monitoring_kakanwil(df_kakanwil):
             st.markdown("</div>", unsafe_allow_html=True)
 
         # -------------------------------------------------------------------------
-        # KELOMPOK 4: TREN PERSENTASE PROGRESS PRASERTEL (SEJAJAR DI BAWAH C2 & C3)
+        # KELOMPOK 4: TREN PERSENTASE PROGRESS PRASERTEL (DI BAWAH KELOMPOK 2 & 3)
         # -------------------------------------------------------------------------
         st.markdown("<div class='card-box'>", unsafe_allow_html=True)
         st.markdown("<div class='card-title'>📉 Tren Persentase Progress Prasertel</div>", unsafe_allow_html=True)
@@ -1852,7 +1850,7 @@ def render_monitoring_kakanwil(df_kakanwil):
         )
         fig_line.update_traces(hovertemplate="<b>%{fullData.name}</b><br>Tgl: %{x}<br>Progress: <b>%{y:.2f}%</b><extra></extra>", marker=dict(size=5))
         fig_line.update_layout(
-            height=200, margin=dict(l=10, r=10, t=5, b=35),
+            height=210, margin=dict(l=10, r=10, t=5, b=35),
             legend=dict(orientation="h", yanchor="top", y=-0.25, xanchor="center", x=0.5, font=dict(size=8), title_text=''),
             yaxis=dict(gridcolor='#F1F5F9', ticksuffix='%', tickfont=dict(size=8)),
             xaxis=dict(type='category', tickangle=-30, tickfont=dict(size=8)),
@@ -1862,7 +1860,7 @@ def render_monitoring_kakanwil(df_kakanwil):
         st.markdown("</div>", unsafe_allow_html=True)
 
     # =========================================================================
-    # KELOMPOK 5: 3 KANTAH CAPAIAN HARIAN TERTINGGI & TERENDAH
+    # KELOMPOK 5: 3 KANTAH CAPAIAN HARIAN TERTINGGI & TERENDAH (REVISI GAUGE)
     # =========================================================================
     st.markdown("<div class='card-box'>", unsafe_allow_html=True)
     st.markdown("<div class='card-title'>🏆 3 Kantah Capaian Harian Tertinggi & Terendah</div>", unsafe_allow_html=True)
@@ -1872,51 +1870,53 @@ def render_monitoring_kakanwil(df_kakanwil):
 
     cols_g = st.columns(6)
 
-    # 3 Grafik Capaian Tertinggi (Warna Hijau #10B981)
-    for idx, (_, r) in enumerate(df_top_3.iterrows()):
-        with cols_g[idx]:
-            val_act = r['capaian_harian']
-            val_tgt = r['target_harian']
-            k_name = r['kab_clean']
-            
-            fig_g = bg.Figure(bg.Indicator(
-                mode = "gauge+number",
-                value = val_act,
-                title = {'text': f"<b style='font-size:10px; color:#10B981;'>{k_name}</b><br><span style='font-size:8px; color:#64748B;'>Target Harian: {val_tgt:,.0f} BT</span>", 'font': {'size': 9}},
-                number = {'font': {'size': 13, 'color': '#10B981'}, 'suffix': " BT"},
-                gauge = {
-                    'axis': {'range': [0, max(val_tgt, val_act, 1)*1.2], 'tickwidth': 1, 'tickcolor': "#CBD5E1"},
-                    'bar': {'color': "#10B981"},
-                    'bgcolor': "#F1F5F9",
-                    'borderwidth': 0,
-                }
-            ))
-            fig_g.update_layout(height=110, margin=dict(l=8, r=8, t=25, b=5), paper_bgcolor='rgba(0,0,0,0)')
-            st.plotly_chart(fig_g, use_container_width=True, config={'displayModeBar': False})
-            st.markdown(f"<div style='text-align:center; font-size:0.68rem; margin-top:-15px; color:#334155;'><b>Actual</b>: {val_act:,.0f} BT</div>", unsafe_allow_html=True)
+    # Helper pembentukan Grafik Gauge Kategori 5
+    def render_k5_gauge(container, row_data, is_top=True):
+        with container:
+            k_name = row_data['kab_clean']
+            val_pct = row_data['pct_saat_ini']  # 💡 Visual setengah lingkaran = % Prasertel
+            val_capaian = row_data['capaian_harian'] # 💡 Capaian Harian
+            val_tgt_harian = row_data['target_harian'] # 💡 Target Harian
 
-    # 3 Grafik Capaian Terendah (Warna Jingga #F59E0B)
-    for idx, (_, r) in enumerate(df_bottom_3.iterrows()):
-        with cols_g[idx+3]:
-            val_act = r['capaian_harian']
-            val_tgt = r['target_harian']
-            k_name = r['kab_clean']
-            
+            bar_color = "#10B981" if is_top else "#F59E0B"
+            capaian_str = f"+{val_capaian:,.0f} BT" if val_capaian > 0 else f"{val_capaian:,.0f} BT"
+
             fig_g = bg.Figure(bg.Indicator(
-                mode = "gauge+number",
-                value = val_act,
-                title = {'text': f"<b style='font-size:10px; color:#F59E0B;'>{k_name}</b><br><span style='font-size:8px; color:#64748B;'>Target Harian: {val_tgt:,.0f} BT</span>", 'font': {'size': 9}},
-                number = {'font': {'size': 13, 'color': '#F59E0B'}, 'suffix': " BT"},
+                mode = "gauge",
+                value = val_pct,
+                title = {
+                    'text': f"<b style='font-size:10px; color:{bar_color};'>{k_name}</b><br><span style='font-size:8px; color:#64748B;'>Target Harian: {val_tgt_harian:,.0f} BT</span>", 
+                    'font': {'size': 9}
+                },
                 gauge = {
-                    'axis': {'range': [0, max(val_tgt, abs(val_act), 1)*1.2], 'tickwidth': 1, 'tickcolor': "#CBD5E1"},
-                    'bar': {'color': "#F59E0B"},
+                    'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "#CBD5E1", 'ticksuffix': "%"},
+                    'bar': {'color': bar_color},
                     'bgcolor': "#F1F5F9",
                     'borderwidth': 0,
                 }
             ))
-            fig_g.update_layout(height=110, margin=dict(l=8, r=8, t=25, b=5), paper_bgcolor='rgba(0,0,0,0)')
+
+            # Menambahkan teks tengah (Capaian Harian saat ini dalam BT)
+            fig_g.add_annotation(
+                x=0.5, y=0.22,
+                text=f"<b style='font-size:13px; color:{bar_color};'>{capaian_str}</b>",
+                showarrow=False,
+                xref="paper", yref="paper"
+            )
+
+            fig_g.update_layout(height=115, margin=dict(l=8, r=8, t=25, b=5), paper_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(fig_g, use_container_width=True, config={'displayModeBar': False})
-            st.markdown(f"<div style='text-align:center; font-size:0.68rem; margin-top:-15px; color:#334155;'><b>Actual</b>: {val_act:,.0f} BT</div>", unsafe_allow_html=True)
+            
+            # 💡 Teks Bawah: Actual Capaian Harian
+            st.markdown(f"<div style='text-align:center; font-size:0.68rem; margin-top:-18px; color:#334155;'><b>Actual</b>: {capaian_str}</div>", unsafe_allow_html=True)
+
+    # 3 Grafik Capaian Tertinggi (Hijau)
+    for idx, (_, r) in enumerate(df_top_3.iterrows()):
+        render_k5_gauge(cols_g[idx], r, is_top=True)
+
+    # 3 Grafik Capaian Terendah (Jingga)
+    for idx, (_, r) in enumerate(df_bottom_3.iterrows()):
+        render_k5_gauge(cols_g[idx+3], r, is_top=False)
 
     st.markdown("</div>", unsafe_allow_html=True)
     # =========================================================================
