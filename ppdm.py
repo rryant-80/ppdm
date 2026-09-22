@@ -1576,17 +1576,24 @@ def render_monitoring_kakanwil(df_kakanwil):
     def parse_num(val):
         if pd.isna(val) or val is None:
             return 0
+        if isinstance(val, (int, np.integer)):
+            return int(val)
+        if isinstance(val, (float, np.floating)):
+            return int(round(val))
+            
         s = str(val).strip()
         if not s or s.lower() in ['nan', 'none', 'null', '']:
             return 0
-        if isinstance(val, float):
-            s = f"{val:.3f}".replace('.', '')
-        else:
-            s = s.replace('.', '').replace(',', '').replace('Rp', '').replace('%', '').strip()
+            
+        s = s.replace('Rp', '').replace('%', '').strip()
+        s = s.replace('.', '').replace(',', '')
         try:
             return int(s)
         except ValueError:
-            return 0
+            try:
+                return int(float(s))
+            except ValueError:
+                return 0
 
     # Pastikan kolom-kolom utama ada dan dibersihkan
     col_tgl = 'tgl_kab' if 'tgl_kab' in df.columns else next((c for c in df.columns if 'tgl' in c), 'tgl_kab')
@@ -1614,7 +1621,7 @@ def render_monitoring_kakanwil(df_kakanwil):
     df_clean = df[~df['kab_clean'].str.contains('Total|Jumlah|Sulawesi Tengah', case=False, na=False)].copy()
 
     # =========================================================================
-    # DASHBOARD 1: GRAFIK TREN PROGRESS PRASERTEL (WARNA UNIK & KRONOLOGIS)
+    # DASHBOARD 1: GRAFIK TREN PROGRESS PRASERTEL (DALAM PERSENTASE)
     # =========================================================================
     df_line = df_clean.copy()
     
@@ -1628,14 +1635,36 @@ def render_monitoring_kakanwil(df_kakanwil):
     # 2. Buat Kolom Format Pendek dd/mm Untuk Label Sumbu X
     df_line['tgl_short'] = df_line['tgl_dt'].dt.strftime('%d/%m')
     
-    # Agregasi Data
-    df_trend = df_line.groupby(['tgl_dt', 'tgl_short', 'kab_clean'], as_index=False)['sertel_clean'].sum()
+    # Agregasi Data per Tanggal & Kabupaten
+    df_trend = df_line.groupby(['tgl_dt', 'tgl_short', 'kab_clean'], as_index=False).agg({
+        'sertel_clean': 'sum',
+        'btvalid_clean': 'sum'
+    })
+    
+    # 💡 Perhitungan Persentase Prasertel (sertel_kab / btvalid_kab * 100)
+    df_trend['pct_prasertel'] = np.where(
+        df_trend['btvalid_clean'] > 0, 
+        (df_trend['sertel_clean'] / df_trend['btvalid_clean']) * 100.0, 
+        0.0
+    )
+    
     df_trend = df_trend.sort_values(by='tgl_dt')
     
-    # Urutan Kategori Sumbu X Yang Benar Secara Kronologis
+    # Urutan Kategori Sumbu X Kronologis
     unique_short_dates = df_trend.drop_duplicates(subset=['tgl_dt'])['tgl_short'].tolist()
     
-    # 3. Palet Warna Kustom (13+ Warna Kontras Unik Tanpa Ada Warna Sama)
+    # 💡 Urutkan Kabupaten berdasarkan % Prasertel Tanggal Paling Terbaru
+    latest_dt = df_trend['tgl_dt'].max()
+    kab_order_by_pct = df_trend[df_trend['tgl_dt'] == latest_dt].sort_values(
+        by='pct_prasertel', ascending=False
+    )['kab_clean'].tolist()
+    
+    # Formatting Angka untuk Custom Hover Plotly
+    df_trend['sertel_fmt'] = df_trend['sertel_clean'].apply(lambda x: f"{x:,.0f}".replace(',', '.'))
+    df_trend['btvalid_fmt'] = df_trend['btvalid_clean'].apply(lambda x: f"{x:,.0f}".replace(',', '.'))
+    df_trend['pct_fmt'] = df_trend['pct_prasertel'].apply(lambda x: f"{x:.2f}".replace('.', ','))
+
+    # Palet Warna Kustom (13 Warna Kontras Unik)
     palet_warna_13_kab = [
         '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', 
         '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf',
@@ -1645,16 +1674,20 @@ def render_monitoring_kakanwil(df_kakanwil):
     fig_line = px.line(
         df_trend, 
         x='tgl_short', 
-        y='sertel_clean', 
+        y='pct_prasertel', 
         color='kab_clean',
         markers=True,
-        title="📈 Tren Progress Prasertel",
-        category_orders={'tgl_short': unique_short_dates},
-        color_discrete_sequence=palet_warna_13_kab  # Menerapkan palet warna unik
+        title="📈 Tren Persentase Progress Prasertel",
+        category_orders={
+            'tgl_short': unique_short_dates,
+            'kab_clean': kab_order_by_pct  # Kabupaten terurut berdasarkan % tertinggi ke terendah
+        },
+        color_discrete_sequence=palet_warna_13_kab,
+        custom_data=['sertel_fmt', 'btvalid_fmt', 'pct_fmt']
     )
 
     fig_line.update_traces(
-        hovertemplate="<b>Kab/Kota: %{fullData.name}</b><br>Tanggal: %{x}<br>Jml Prasertel: <b>%{y:,.0f} BT</b><extra></extra>",
+        hovertemplate="<b>Kab/Kota: %{fullData.name}</b><br>Tanggal: %{x}<br>Persentase: <b>%{customdata[2]}%</b><br>Prasertel: %{customdata[0]} BT / %{customdata[1]} BT<extra></extra>",
         marker=dict(size=7, line=dict(width=1, color='#000000'))
     )
 
@@ -1666,9 +1699,9 @@ def render_monitoring_kakanwil(df_kakanwil):
         plot_bgcolor='rgba(0,0,0,0)',
         margin=dict(l=15, r=15, t=60, b=80),
         separators=',.',
-        title=dict(text="📈 Tren Progress Prasertel", x=0, y=0.98, xanchor='left', yanchor='top', font=dict(size=15, color='#1e293b')),
+        title=dict(text="📈 Tren Persentase Progress Prasertel", x=0, y=0.98, xanchor='left', yanchor='top', font=dict(size=15, color='#1e293b')),
         legend=dict(orientation="h", yanchor="top", y=-0.2, xanchor="center", x=0.5, title_text='', font=dict(size=11)),
-        yaxis=dict(gridcolor='#f2f2f2'),
+        yaxis=dict(gridcolor='#f2f2f2', ticksuffix='%'),
         xaxis=dict(type='category', tickangle=-45)
     )
 
