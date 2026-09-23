@@ -1573,7 +1573,7 @@ def render_monitoring_kakanwil(df_kakanwil):
         <div style='margin-bottom: 14px;'>
             <h3 style='margin: 0; font-size: 1.2rem; font-weight: 700; color: #0F172A; display: inline-block; vertical-align: middle;'>
                 🛡️ Dashboard Monitoring Prasertel Sulawesi Tengah
-            </h3>
+            
             <span style='margin-left: 10px; font-size: 0.8rem; font-weight: 600; color: #405676; background-color: #DFE9F2; padding: 3px 10px; border-radius: 6px; border: 1px solid #405676; display: inline-block; vertical-align: middle;'>
                 📅 Tgl. {today_str}
             </span>
