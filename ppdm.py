@@ -1670,17 +1670,24 @@ def render_monitoring_kakanwil(df_kakanwil):
     all_kabs = df_latest_sorted['kab_clean'].tolist()
     color_map = {kab: palet_13[i % len(palet_13)] for i, kab in enumerate(all_kabs)}
 
-    # 💡 STYLING BORDER #445462 & BACKGROUND #dfe9f2 YANG PASTI MEMPAN
+    # 💡 STYLING PASTI MEMPAN UNTUK ST.CONTAINER(BORDER=TRUE)
     st.markdown("""
     <style>
-    /* Selector Luas & Tegas untuk Seluruh Container Ber-border */
-    div[data-testid="stVerticalBlockBorderWrapper"] > div,
-    div[data-testid="stElementContainer"] > div[style*="border"],
-    div[class*="st-"] > div[style*="border"] {
-        border: 5px solid #445462 !important;
+    /* 1. Target kelas wrapper utama border Streamlit */
+    div[data-testid="stVerticalBlockBorderWrapper"] {
+        border: 2px solid #405676 !important;
         border-radius: 12px !important;
         background-color: #DFE9F2 !important;
-        padding: 10px 12px !important;
+        padding: 4px !important;
+        margin-bottom: 12px !important;
+    }
+
+    /* 2. Target div bagian dalam agar background putih bawaan terhapus */
+    div[data-testid="stVerticalBlockBorderWrapper"] > div,
+    div[data-testid="stVerticalBlockBorderWrapper"] [data-testid="stVerticalBlock"] {
+        border: none !important;
+        background-color: #DFE9F2 !important;
+        border-radius: 10px !important;
     }
 
     .group-title {
@@ -1690,20 +1697,21 @@ def render_monitoring_kakanwil(df_kakanwil):
         margin-bottom: 8px;
     }
 
-    /* Tabel Detil dengan Background Putih Bersih */
+    /* 3. Tabel Detil diberi background putih agar kontras dengan latar #DFE9F2 */
     .mini-table {
         width: 100%;
         border-collapse: collapse;
         font-size: 0.72rem;
-        background-color: #FFFFFF;
+        background-color: #FFFFFF !important;
         border-radius: 6px;
+        overflow: hidden;
     }
     .mini-table th {
-        background-color: #F1F5F9;
+        background-color: #F1F5F9 !important;
         padding: 5px 6px;
         text-align: center;
         font-weight: 700;
-        border-bottom: 2px solid #445462;
+        border-bottom: 2px solid #405676;
         color: #1E293B;
     }
     .mini-table td {
