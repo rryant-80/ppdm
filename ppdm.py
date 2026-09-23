@@ -1847,8 +1847,8 @@ def render_monitoring_kakanwil(df_kakanwil):
                         <th style='text-align:left;'>Kabupaten / Kota</th>
                         <th>Prasertel</th>
                         <th>BT Valid</th>
-                        <th>Capaian Harian</th>
-                        <th>Target Harian</th>
+                        <th>Capaian Hari ini</th>
+                        <th>Target Hari ini</th>
                     </tr>
                 </thead>
                 <tbody>{"".join(rows_detil)}</tbody>
@@ -1911,7 +1911,7 @@ def render_monitoring_kakanwil(df_kakanwil):
         # KELOMPOK 4: TREN PERSENTASE PROGRESS PRASERTEL (DISEJAJARKAN KETINGGIANNYA)
         # -------------------------------------------------------------------------
         with st.container(border=True):
-            st.markdown("<div class='group-title'>📉 Tren Persentase Progress Prasertel</div>", unsafe_allow_html=True)
+            st.markdown("<div class='group-title'>📉 Tren Progress Prasertel</div>", unsafe_allow_html=True)
 
             df_line = df_clean.copy()
             df_line['tgl_short'] = df_line['tgl_dt'].dt.strftime('%d/%m')
@@ -1947,15 +1947,15 @@ def render_monitoring_kakanwil(df_kakanwil):
     # KELOMPOK 5: 3 KANTAH CAPAIAN HARIAN TERTINGGI & TERENDAH
     # =========================================================================
     with st.container(border=True):
-        st.markdown("<div class='group-title'>🏆 3 Kantah Capaian Harian Tertinggi & Terendah</div>", unsafe_allow_html=True)
+        st.markdown("<div class='group-title'>🏆 Tiga Kantor Pertanahan Capaian Tertinggi & Terendah Hari ini</div>", unsafe_allow_html=True)
 
         df_top_3 = df_latest.sort_values(by='capaian_harian', ascending=False).head(3)
         df_bottom_3 = df_latest.sort_values(by='capaian_harian', ascending=True).head(3)
 
-        cols_g = st.columns(6)
+        col_left_g, col_divider, col_right_g = st.columns([1, 0.02, 1])
 
-        def render_k5_gauge(container, row_data):
-            with container:
+        def render_gauge_item(col_target, row_data):
+            with col_target:
                 k_name = row_data['kab_clean']
                 val_pct = row_data['pct_saat_ini'] 
                 val_capaian = row_data['capaian_harian'] 
@@ -1969,28 +1969,27 @@ def render_monitoring_kakanwil(df_kakanwil):
                     value = val_pct,
                     title = {'text': "", 'font': {'size': 1}},
                     gauge = {
+                        # 💡 1. HILANGKAN TEKS SUMBU AWAL & AKHIR GAUGE (0% & 100%)
                         'axis': {
                             'range': [0, 100], 
-                            'tickwidth': 1, 
-                            'tickcolor': "#CBD5E1", 
-                            'tickvals': [0, 100],
-                            'ticktext': ['0%', '100%']
+                            'visible': False,
+                            'showticklabels': False
                         },
                         'bar': {'color': bar_color},
-                        'bgcolor': "#F1F5F9",
+                        'bgcolor': "#FFFFFF",
                         'borderwidth': 0,
                     }
                 ))
 
-                # Teks % Persentase di Atas Puncak Gauge
+                # 💡 2. TEKS PERSENTASE DIUBAH MENJADI WARNA HITAM (#0F172A)
                 fig_g.add_annotation(
-                    x=0.5, y=1.10,
-                    text=f"<b style='font-size:12px; color:{bar_color};'>{pct_str}</b>",
+                    x=0.5, y=1.11,
+                    text=f"<b style='font-size:12px; color:#0F172A;'>{pct_str}</b>",
                     showarrow=False,
                     xref="paper", yref="paper"
                 )
 
-                # Teks Capaian Harian di Dalam Arc
+                # TEKS CAPAIAN HARIAN (+1.014 BT) TETAP SESUAI WARNA GAUGE
                 fig_g.add_annotation(
                     x=0.5, y=0.18,
                     text=f"<b style='font-size:13px; color:{bar_color};'>{capaian_str}</b>",
@@ -1998,16 +1997,32 @@ def render_monitoring_kakanwil(df_kakanwil):
                     xref="paper", yref="paper"
                 )
 
-                fig_g.update_layout(height=115, margin=dict(l=8, r=8, t=10, b=5), paper_bgcolor='rgba(0,0,0,0)')
+                fig_g.update_layout(height=115, margin=dict(l=5, r=5, t=10, b=5), paper_bgcolor='rgba(0,0,0,0)')
                 st.plotly_chart(fig_g, use_container_width=True, config={'displayModeBar': False})
                 
-                # Teks Bawah: Nama Kabupaten/Kota
+                # Nama Kabupaten/Kota
                 st.markdown(f"<div style='text-align:center; font-size:0.75rem; font-weight:700; margin-top:-18px; color:#0F172A;'>{k_name}</div>", unsafe_allow_html=True)
-        for idx, (_, r) in enumerate(df_top_3.iterrows()):
-            render_k5_gauge(cols_g[idx], r)
 
-        for idx, (_, r) in enumerate(df_bottom_3.iterrows()):
-            render_k5_gauge(cols_g[idx+3], r)
+        # Render 3 Gauge Kiri (Tertinggi)
+        with col_left_g:
+            cols_top = st.columns(3)
+            for idx, (_, r) in enumerate(df_top_3.iterrows()):
+                render_gauge_item(cols_top[idx], r)
+
+        # 💡 3. GARIS PEMISAH VERTIKAL DI TENGAH
+        with col_divider:
+            st.markdown(
+                """
+                <div style='border-left: 2px solid #CBD5E1; height: 120px; margin: 0 auto; width: 1px;'></div>
+                """, 
+                unsafe_allow_html=True
+            )
+
+        # Render 3 Gauge Kanan (Terendah)
+        with col_right_g:
+            cols_bot = st.columns(3)
+            for idx, (_, r) in enumerate(df_bottom_3.iterrows()):
+                render_gauge_item(cols_bot[idx], r)
 
     st.markdown("</div>", unsafe_allow_html=True)
     # =========================================================================
