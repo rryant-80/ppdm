@@ -1670,24 +1670,25 @@ def render_monitoring_kakanwil(df_kakanwil):
     all_kabs = df_latest_sorted['kab_clean'].tolist()
     color_map = {kab: palet_13[i % len(palet_13)] for i, kab in enumerate(all_kabs)}
 
-    # 💡 STYLING PASTI MEMPAN UNTUK ST.CONTAINER(BORDER=TRUE)
+    # 💡 CSS PEMBOBOL BORDER NATIVE STREAMLIT
+    # Menggunakan selector gabungan agar BORDER #405676 & BACKGROUND #DFE9F2 TERAPLIKASI 100%
     st.markdown("""
     <style>
-    /* 1. Target kelas wrapper utama border Streamlit */
-    div[data-testid="stVerticalBlockBorderWrapper"] {
-        border: 2px solid #405676 !important;
+    div[data-testid="stVerticalBlockBorderWrapper"],
+    div[data-testid="stVerticalBlockBorderWrapper"] > div,
+    .st-emotion-cache-1r6slb0,
+    .st-emotion-cache-12w0q32,
+    div[class*="stVerticalBlockBorderWrapper"] {
+        border: 2.5px solid #405676 !important;
         border-radius: 12px !important;
         background-color: #DFE9F2 !important;
-        padding: 4px !important;
+        padding: 12px !important;
         margin-bottom: 12px !important;
     }
 
-    /* 2. Target div bagian dalam agar background putih bawaan terhapus */
-    div[data-testid="stVerticalBlockBorderWrapper"] > div,
+    /* Memastikan elemen internal tidak tertutup putih */
     div[data-testid="stVerticalBlockBorderWrapper"] [data-testid="stVerticalBlock"] {
-        border: none !important;
-        background-color: #DFE9F2 !important;
-        border-radius: 10px !important;
+        background-color: transparent !important;
     }
 
     .group-title {
@@ -1697,7 +1698,6 @@ def render_monitoring_kakanwil(df_kakanwil):
         margin-bottom: 8px;
     }
 
-    /* 3. Tabel Detil diberi background putih agar kontras dengan latar #DFE9F2 */
     .mini-table {
         width: 100%;
         border-collapse: collapse;
@@ -1733,7 +1733,7 @@ def render_monitoring_kakanwil(df_kakanwil):
     # -------------------------------------------------------------------------
     with col_left:
         with st.container(border=True):
-            st.markdown("<div class='group-title'>📍</div>", unsafe_allow_html=True)
+            st.markdown("<div class='group-title'>📍 Peta & Skala Capaian Prasertel</div>", unsafe_allow_html=True)
             
             img_path = "peta_sulteng.png"
             if os.path.exists(img_path):
@@ -1746,7 +1746,7 @@ def render_monitoring_kakanwil(df_kakanwil):
                 f"""
                 <div style='text-align: center; margin: 8px 0 6px 0;'>
                     <div style='font-size: 1.05rem; font-weight: 700; color: #000000; line-height: 1.2;'>
-                        Peringkat Nasional Prasertel
+                        Peringkat Prasertel<br>Nasional
                     </div>
                     <div style='margin-top: 4px;'>
                         <span style='font-size: 1.8rem; font-weight: 900; color: #000000;'>{rank_num_val}</span>
@@ -1879,9 +1879,7 @@ def render_monitoring_kakanwil(df_kakanwil):
                 )
                 st.plotly_chart(fig_stack, use_container_width=True, config={'displayModeBar': False})
 
-        # -------------------------------------------------------------------------
-        # KELOMPOK 4: TREN PERSENTASE PROGRESS PRASERTEL (DISEJAJARKAN KETINGGIANNYA)
-        # -------------------------------------------------------------------------
+        # KELOMPOK 4: TREN PERSENTASE PROGRESS PRASERTEL
         with st.container(border=True):
             st.markdown("<div class='group-title'>📉 Tren Persentase Progress Prasertel</div>", unsafe_allow_html=True)
 
@@ -1904,13 +1902,12 @@ def render_monitoring_kakanwil(df_kakanwil):
             )
             fig_line.update_traces(hovertemplate="<b>%{fullData.name}</b><br>Tgl: %{x}<br>Progress: <b>%{y:.2f}%</b><extra></extra>", marker=dict(size=5))
             
-            # 💡 DIGANTI HEIGHT=270 UNTUK MENYESUAIKAN SEJAJAR DENGAN KELOMPOK 1 & LEGEND DIHILANGKAN
             fig_line.update_layout(
                 height=270, 
                 showlegend=False,
                 margin=dict(l=10, r=10, t=10, b=25),
-                yaxis=dict(gridcolor='#E2E8F0', ticksuffix='%', tickfont=dict(size=8.5, color='#000000'), title_text=""),
-                xaxis=dict(type='category', showticklabels=True, tickangle=-30, tickfont=dict(size=8.5, color='#000000'), title_text=""),
+                yaxis=dict(gridcolor='#E2E8F0', ticksuffix='%', tickfont=dict(size=8.5, color='#1E293B'), title_text=""),
+                xaxis=dict(type='category', showticklabels=True, tickangle=-30, tickfont=dict(size=8.5, color='#1E293B'), title_text=""),
                 paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)'
             )
             st.plotly_chart(fig_line, use_container_width=True, config={'displayModeBar': False})
@@ -1949,14 +1946,14 @@ def render_monitoring_kakanwil(df_kakanwil):
                             'ticktext': ['0%', '100%']
                         },
                         'bar': {'color': bar_color},
-                        'bgcolor': "#F1F5F9",
+                        'bgcolor': "#FFFFFF",
                         'borderwidth': 0,
                     }
                 ))
 
                 # Teks % Persentase di Atas Puncak Gauge
                 fig_g.add_annotation(
-                    x=0.5, y=1.10,
+                    x=0.5, y=0.88,
                     text=f"<b style='font-size:12px; color:{bar_color};'>{pct_str}</b>",
                     showarrow=False,
                     xref="paper", yref="paper"
@@ -1975,6 +1972,7 @@ def render_monitoring_kakanwil(df_kakanwil):
                 
                 # Teks Bawah: Nama Kabupaten/Kota
                 st.markdown(f"<div style='text-align:center; font-size:0.75rem; font-weight:700; margin-top:-18px; color:#0F172A;'>{k_name}</div>", unsafe_allow_html=True)
+
         for idx, (_, r) in enumerate(df_top_3.iterrows()):
             render_k5_gauge(cols_g[idx], r)
 
