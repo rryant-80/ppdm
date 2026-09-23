@@ -1987,7 +1987,7 @@ def render_monitoring_kakanwil(df_kakanwil):
                 # Teks % Persentase di Atas Puncak Gauge
                 fig_g.add_annotation(
                     x=0.5, y=1.12,
-                    text=f"<b style='font-size:12px; color:#4c4c4c;'>{pct_str}</b>",
+                    text=f"<b style='font-size:12px; color:#818181;'>{pct_str}</b>",
                     showarrow=False,
                     xref="paper", yref="paper"
                 )
