@@ -1670,33 +1670,44 @@ def render_monitoring_kakanwil(df_kakanwil):
     all_kabs = df_latest_sorted['kab_clean'].tolist()
     color_map = {kab: palet_13[i % len(palet_13)] for i, kab in enumerate(all_kabs)}
 
-    # 💡 STYLING BORDER #405676 & BACKGROUND LEMBUT #F8FAFC
+    # 💡 STYLING BORDER #445462 & BACKGROUND #dfe9f2 YANG PASTI MEMPAN
     st.markdown("""
     <style>
-    div[data-testid="stVerticalBlockBorderWrapper"] {
-        border: 4px solid #000000 !important;
+    /* Target seluruh Container bawaan Streamlit (st.container(border=True)) */
+    div[data-testid="stVerticalBlockBorderWrapper"] > div {
+        border: 2px solid #445462 !important;
         border-radius: 12px !important;
-        padding: 10px 14px !important;
         background-color: #dfe9f2 !important;
-        margin-bottom: 12px !important;
+        padding: 12px 14px !important;
     }
+
+    /* Target elemen internal container agar background tidak tertutup warna putih bawaan */
+    div[data-testid="stVerticalBlockBorderWrapper"] [data-testid="stVerticalBlock"] {
+        background-color: transparent !important;
+    }
+
     .group-title {
         font-size: 0.95rem;
         font-weight: 700;
         color: #0F172A;
         margin-bottom: 8px;
     }
+
+    /* Tabel Detil dengan Latar Transparan/Putih Bersih */
     .mini-table {
         width: 100%;
         border-collapse: collapse;
         font-size: 0.72rem;
+        background-color: #FFFFFF;
+        border-radius: 6px;
+        overflow: hidden;
     }
     .mini-table th {
-        background-color: #FFFFFF;
-        padding: 5px 6px;
+        background-color: #F1F5F9;
+        padding: 6px 6px;
         text-align: center;
         font-weight: 700;
-        border-bottom: 1.5px solid #000000;
+        border-bottom: 2px solid #445462;
         color: #0F172A;
     }
     .mini-table td {
