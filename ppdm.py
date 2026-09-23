@@ -1571,14 +1571,6 @@ import plotly.graph_objects as bg
 import os
 from datetime import datetime, date, timedelta
 
-import streamlit as st
-import pandas as pd
-import numpy as np
-import plotly.express as px
-import plotly.graph_objects as bg
-import os
-from datetime import datetime, date, timedelta
-
 def render_monitoring_kakanwil(df_kakanwil):
     st.markdown("<h2 style='margin-bottom:10px;'>🛡️ Monitoring Prasertel & KW456</h2>", unsafe_allow_html=True)
 
@@ -1677,15 +1669,14 @@ def render_monitoring_kakanwil(df_kakanwil):
     all_kabs = df_latest_sorted['kab_clean'].tolist()
     color_map = {kab: palet_13[i % len(palet_13)] for i, kab in enumerate(all_kabs)}
 
-    # 💡 STYLING NATIVE CONTAINER UNTUK MENGATUR OUTLINE ABU-ABU BORDER
+    # 💡 STYLING BORDER #405676 & BACKGROUND LEMBUT #F8FAFC
     st.markdown("""
     <style>
-    /* Kustomisasi Border Container Native Streamlit */
     div[data-testid="stVerticalBlockBorderWrapper"] {
-        border: 1.5px solid #405676 !important;
+        border: 2px solid #405676 !important;
         border-radius: 12px !important;
         padding: 10px 14px !important;
-        background-color: #FFFFFF !important;
+        background-color: #F8FAFC !important;
         margin-bottom: 12px !important;
     }
     .group-title {
@@ -1700,7 +1691,7 @@ def render_monitoring_kakanwil(df_kakanwil):
         font-size: 0.72rem;
     }
     .mini-table th {
-        background-color: #F8FAFC;
+        background-color: #FFFFFF;
         padding: 5px 6px;
         text-align: center;
         font-weight: 700;
@@ -1709,7 +1700,7 @@ def render_monitoring_kakanwil(df_kakanwil):
     }
     .mini-table td {
         padding: 4px 5px;
-        border-bottom: 1px solid #F1F5F9;
+        border-bottom: 1px solid #E2E8F0;
         text-align: center;
     }
     </style>
@@ -1773,7 +1764,13 @@ def render_monitoring_kakanwil(df_kakanwil):
                 showlegend=False,
                 margin=dict(l=0, r=30, t=5, b=0),
                 xaxis=dict(visible=False, range=[0.0, x_limit]),
-                yaxis=dict(title="", tickfont=dict(size=8.5), categoryorder='array', categoryarray=kabs_reversed),
+                # 💡 TEKS KABUPATEN DIBUAT HITAM TEGAS
+                yaxis=dict(
+                    title="", 
+                    tickfont=dict(size=8.5, color='#000000', family='Arial Black'), 
+                    categoryorder='array', 
+                    categoryarray=kabs_reversed
+                ),
                 paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)'
             )
             st.plotly_chart(fig_bar_k1, use_container_width=True, config={'displayModeBar': False})
@@ -1853,20 +1850,23 @@ def render_monitoring_kakanwil(df_kakanwil):
                     height=385,
                     margin=dict(l=0, r=0, t=5, b=45),
                     legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(size=8.5)),
+                    # 💡 LABEL NAMA KABUPATEN HITAM TEGAS
                     xaxis=dict(
                         showticklabels=True, 
                         tickangle=-40, 
-                        tickfont=dict(size=7.5), 
+                        tickfont=dict(size=8, color='#000000', family='Arial Black'), 
                         title_text="", 
                         categoryorder='array', 
                         categoryarray=df_latest_sorted['kab_clean'].tolist()
                     ),
-                    yaxis=dict(showgrid=True, gridcolor='#F1F5F9', ticksuffix='%', tickfont=dict(size=8), title_text=""),
+                    yaxis=dict(showgrid=True, gridcolor='#E2E8F0', ticksuffix='%', tickfont=dict(size=8), title_text=""),
                     paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)'
                 )
                 st.plotly_chart(fig_stack, use_container_width=True, config={'displayModeBar': False})
 
-        # KELOMPOK 4: TREN PERSENTASE PROGRESS PRASERTEL
+        # -------------------------------------------------------------------------
+        # KELOMPOK 4: TREN PERSENTASE PROGRESS PRASERTEL (DISEJAJARKAN KETINGGIANNYA)
+        # -------------------------------------------------------------------------
         with st.container(border=True):
             st.markdown("<div class='group-title'>📉 Tren Persentase Progress Prasertel</div>", unsafe_allow_html=True)
 
@@ -1888,11 +1888,14 @@ def render_monitoring_kakanwil(df_kakanwil):
                 labels={'tgl_short': '', 'pct_prasertel': '', 'kab_clean': ''}
             )
             fig_line.update_traces(hovertemplate="<b>%{fullData.name}</b><br>Tgl: %{x}<br>Progress: <b>%{y:.2f}%</b><extra></extra>", marker=dict(size=5))
+            
+            # 💡 DIGANTI HEIGHT=270 UNTUK MENYESUAIKAN SEJAJAR DENGAN KELOMPOK 1 & LEGEND DIHILANGKAN
             fig_line.update_layout(
-                height=210, margin=dict(l=10, r=10, t=5, b=35),
-                legend=dict(orientation="h", yanchor="top", y=-0.25, xanchor="center", x=0.5, font=dict(size=8), title_text=''),
-                yaxis=dict(gridcolor='#F1F5F9', ticksuffix='%', tickfont=dict(size=8), title_text=""),
-                xaxis=dict(type='category', showticklabels=True, tickangle=-30, tickfont=dict(size=8), title_text=""),
+                height=270, 
+                showlegend=False,
+                margin=dict(l=10, r=10, t=10, b=25),
+                yaxis=dict(gridcolor='#E2E8F0', ticksuffix='%', tickfont=dict(size=8.5, color='#000000'), title_text=""),
+                xaxis=dict(type='category', showticklabels=True, tickangle=-30, tickfont=dict(size=8.5, color='#000000'), title_text=""),
                 paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)'
             )
             st.plotly_chart(fig_line, use_container_width=True, config={'displayModeBar': False})
@@ -1931,7 +1934,7 @@ def render_monitoring_kakanwil(df_kakanwil):
                             'ticktext': ['0%', '100%']
                         },
                         'bar': {'color': bar_color},
-                        'bgcolor': "#F1F5F9",
+                        'bgcolor': "#FFFFFF",
                         'borderwidth': 0,
                     }
                 ))
