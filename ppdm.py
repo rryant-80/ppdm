@@ -1935,7 +1935,7 @@ def render_monitoring_kakanwil(df_kakanwil):
                             'ticktext': ['0%', '100%']
                         },
                         'bar': {'color': bar_color},
-                        'bgcolor': "#FFFFFF",
+                        'bgcolor': "#F1F5F9",
                         'borderwidth': 0,
                     }
                 ))
@@ -1961,7 +1961,6 @@ def render_monitoring_kakanwil(df_kakanwil):
                 
                 # Teks Bawah: Nama Kabupaten/Kota
                 st.markdown(f"<div style='text-align:center; font-size:0.75rem; font-weight:700; margin-top:-18px; color:#0F172A;'>{k_name}</div>", unsafe_allow_html=True)
-
         for idx, (_, r) in enumerate(df_top_3.iterrows()):
             render_k5_gauge(cols_g[idx], r)
 
