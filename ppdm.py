@@ -1565,7 +1565,13 @@ def render_isu_strategis(df_isu):
         st.markdown("<br>", unsafe_allow_html=True)
 
 def render_monitoring_kakanwil(df_kakanwil):
-    st.markdown("<h2 style='margin-bottom:10px;'>🛡️ Monitoring Prasertel & KW456</h2>", unsafe_allow_html=True)
+    today_str = datetime.now().strftime('%d/%m/%Y')  # Hasil: Misal "23/09/2026"
+
+    # 2. Gunakan f-string (tambahkan f sebelum tanda kutip pembuka)
+    st.markdown(
+        f"<h2 style='margin-bottom:10px;'>🛡️ Dashboard Monitoring Prasertel Sulawesi Tengah, Tgl. {today_str}</h2>", 
+        unsafe_allow_html=True
+    )
 
     if df_kakanwil is None or df_kakanwil.empty:
         st.warning("Data Monitoring Kakanwil (GID 806976086) tidak ditemukan atau kosong.")
