@@ -1284,10 +1284,10 @@ def render_pertanahan_elektronik(df_elektronik, df_progress=None, df_peringkat=N
         separators=',.',
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, title_text=''),
         yaxis=dict(
-            gridcolor='#f2f2f2',
-            range=[0, max(df_merged['Persentase'].max() * 1.15, 100)],
-            tickvals=[0, 50, 100],
-            ticktext=['0%', '50%', '100%']
+            title="", 
+            tickfont=dict(size=8.5, color='#1E293B'),
+            categoryorder='array', 
+            categoryarray=kabs_reversed
         ),
         xaxis=dict(
             tickangle=-30 # (Opsional) Memiringkan label jika nama kabupaten terlalu panjang
@@ -1863,7 +1863,7 @@ def render_monitoring_kakanwil(df_kakanwil):
                     xaxis=dict(
                         showticklabels=True, 
                         tickangle=-40, 
-                        tickfont=dict(size=8, color='#1E293B', font=dict(weight='normal')), # Warna disamakan dg tabel
+                        tickfont=dict(size=8, color='#1E293B'),
                         title_text="", 
                         categoryorder='array', 
                         categoryarray=df_latest_sorted['kab_clean'].tolist()
