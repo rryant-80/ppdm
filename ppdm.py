@@ -1669,22 +1669,22 @@ def render_monitoring_kakanwil(df_kakanwil):
     all_kabs = df_latest_sorted['kab_clean'].tolist()
     color_map = {kab: palet_13[i % len(palet_13)] for i, kab in enumerate(all_kabs)}
 
-    # 💡 STYLING NATIVE CONTAINER UNTUK MENGATUR OUTLINE ABU-ABU BORDER
+    # 💡 CSS Khusus: OUTLINE ABU-ABU TIPIS MEMBUNGKUS SETIAP KELOMPOK
     st.markdown("""
     <style>
-    /* Kustomisasi Border Container Native Streamlit */
-    div[data-testid="stVerticalBlockBorderWrapper"] {
+    .card-box {
         border: 1.5px solid #64748B !important;
-        border-radius: 12px !important;
-        padding: 10px 14px !important;
+        border-radius: 10px !important;
+        padding: 10px 12px !important;
         background-color: #FFFFFF !important;
-        margin-bottom: 12px !important;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.03) !important;
+        margin-bottom: 10px !important;
     }
-    .group-title {
-        font-size: 0.95rem;
-        font-weight: 700;
-        color: #0F172A;
-        margin-bottom: 8px;
+    .card-title {
+        font-size: 0.9rem !important;
+        font-weight: 700 !important;
+        color: #0F172A !important;
+        margin-bottom: 8px !important;
     }
     .mini-table {
         width: 100%;
@@ -1716,59 +1716,60 @@ def render_monitoring_kakanwil(df_kakanwil):
     # KELOMPOK 1: PETA & SKALA CAPAIAN PRASERTEL
     # -------------------------------------------------------------------------
     with col_left:
-        with st.container(border=True):
-            st.markdown("<div class='group-title'>📍 Peta & Skala Capaian Prasertel</div>", unsafe_allow_html=True)
-            
-            img_path = "peta_sulteng.png"
-            if os.path.exists(img_path):
-                st.image(img_path, use_container_width=True)
-            else:
-                st.caption("Peta Sulteng (`peta_sulteng.png`)")
+        st.markdown("<div class='card-box'>", unsafe_allow_html=True)
+        st.markdown("<div class='card-title'>📍 Peta & Skala Capaian Prasertel</div>", unsafe_allow_html=True)
+        
+        img_path = "peta_sulteng.png"
+        if os.path.exists(img_path):
+            st.image(img_path, use_container_width=True)
+        else:
+            st.caption("Peta Sulteng (`peta_sulteng.png`)")
 
-            pct_prov_str = f"{pct_prasertel_prov:.2f}".replace('.', ',')
-            st.markdown(
-                f"""
-                <div style='text-align: center; margin: 8px 0 6px 0;'>
-                    <div style='font-size: 1.05rem; font-weight: 700; color: #000000; line-height: 1.2;'>
-                        Peringkat Prasertel<br>Nasional
-                    </div>
-                    <div style='margin-top: 4px;'>
-                        <span style='font-size: 1.8rem; font-weight: 900; color: #000000;'>{rank_num_val}</span>
-                        <span style='font-size: 1.1rem; font-weight: 800; color: #000000; margin-left: 4px;'>({pct_prov_str}%)</span>
-                    </div>
+        pct_prov_str = f"{pct_prasertel_prov:.2f}".replace('.', ',')
+        st.markdown(
+            f"""
+            <div style='text-align: center; margin: 8px 0 6px 0;'>
+                <div style='font-size: 1.05rem; font-weight: 700; color: #000000; line-height: 1.2;'>
+                    Peringkat Prasertel<br>Nasional
                 </div>
-                """,
-                unsafe_allow_html=True
-            )
+                <div style='margin-top: 4px;'>
+                    <span style='font-size: 1.8rem; font-weight: 900; color: #000000;'>{rank_num_val}</span>
+                    <span style='font-size: 1.1rem; font-weight: 800; color: #000000; margin-left: 4px;'>({pct_prov_str}%)</span>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
-            fig_bar_k1 = px.bar(
-                df_latest_sorted,
-                y='kab_clean',
-                x='pct_saat_ini',
-                color='kab_clean',
-                color_discrete_map=color_map,
-                orientation='h',
-                text=df_latest_sorted['pct_saat_ini'].apply(lambda x: f"{x:.1f}%")
-            )
-            fig_bar_k1.update_traces(
-                textposition='outside',
-                textfont=dict(size=9, color='#0F172A'),
-                marker_line_width=0
-            )
+        fig_bar_k1 = px.bar(
+            df_latest_sorted,
+            y='kab_clean',
+            x='pct_saat_ini',
+            color='kab_clean',
+            color_discrete_map=color_map,
+            orientation='h',
+            text=df_latest_sorted['pct_saat_ini'].apply(lambda x: f"{x:.1f}%")
+        )
+        fig_bar_k1.update_traces(
+            textposition='outside',
+            textfont=dict(size=9, color='#0F172A'),
+            marker_line_width=0
+        )
 
-            kabs_reversed = df_latest_sorted['kab_clean'].tolist()[::-1]
-            max_pct_val = float(df_latest_sorted['pct_saat_ini'].max()) if not df_latest_sorted.empty else 100.0
-            x_limit = float(max(max_pct_val * 1.2, 100.0))
+        kabs_reversed = df_latest_sorted['kab_clean'].tolist()[::-1]
+        max_pct_val = float(df_latest_sorted['pct_saat_ini'].max()) if not df_latest_sorted.empty else 100.0
+        x_limit = float(max(max_pct_val * 1.2, 100.0))
 
-            fig_bar_k1.update_layout(
-                height=320,
-                showlegend=False,
-                margin=dict(l=0, r=30, t=5, b=0),
-                xaxis=dict(visible=False, range=[0.0, x_limit]),
-                yaxis=dict(title="", tickfont=dict(size=8.5), categoryorder='array', categoryarray=kabs_reversed),
-                paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)'
-            )
-            st.plotly_chart(fig_bar_k1, use_container_width=True, config={'displayModeBar': False})
+        fig_bar_k1.update_layout(
+            height=320,
+            showlegend=False,
+            margin=dict(l=0, r=30, t=5, b=0),
+            xaxis=dict(visible=False, range=[0.0, x_limit]),
+            yaxis=dict(title="", tickfont=dict(size=8.5), categoryorder='array', categoryarray=kabs_reversed),
+            paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)'
+        )
+        st.plotly_chart(fig_bar_k1, use_container_width=True, config={'displayModeBar': False})
+        st.markdown("</div>", unsafe_allow_html=True)
 
     # -------------------------------------------------------------------------
     # AREA KANAN: KELOMPOK 2, 3, DAN KELOMPOK 4
@@ -1778,183 +1779,188 @@ def render_monitoring_kakanwil(df_kakanwil):
 
         # KELOMPOK 2: TABEL DETIL CAPAIAN
         with c2:
-            with st.container(border=True):
-                st.markdown("<div class='group-title'>📊 Detil Capaian Prasertel Kantah</div>", unsafe_allow_html=True)
+            st.markdown("<div class='card-box'>", unsafe_allow_html=True)
+            st.markdown("<div class='card-title'>📊 Detil Capaian Prasertel Kantah</div>", unsafe_allow_html=True)
+            
+            rows_detil = []
+            for _, r in df_latest_sorted.iterrows():
+                k_name = r['kab_clean']
+                sertel_fmt = f"{r['sertel_clean']:,.0f}".replace(',', '.')
+                bt_fmt = f"{r['btvalid_clean']:,.0f}".replace(',', '.')
                 
-                rows_detil = []
-                for _, r in df_latest_sorted.iterrows():
-                    k_name = r['kab_clean']
-                    sertel_fmt = f"{r['sertel_clean']:,.0f}".replace(',', '.')
-                    bt_fmt = f"{r['btvalid_clean']:,.0f}".replace(',', '.')
-                    
-                    c_hr = r['capaian_harian']
-                    c_hr_str = f"+{c_hr:,.0f}".replace(',', '.') if c_hr > 0 else (f"{c_hr:,.0f}".replace(',', '.') if c_hr < 0 else "0")
-                    c_hr_color = "#10B981" if c_hr > 0 else ("#EF4444" if c_hr < 0 else "#6B7280")
-                    tgt_hr_str = f"{r['target_harian']:,.0f}".replace(',', '.')
+                c_hr = r['capaian_harian']
+                c_hr_str = f"+{c_hr:,.0f}".replace(',', '.') if c_hr > 0 else (f"{c_hr:,.0f}".replace(',', '.') if c_hr < 0 else "0")
+                c_hr_color = "#10B981" if c_hr > 0 else ("#EF4444" if c_hr < 0 else "#6B7280")
+                tgt_hr_str = f"{r['target_harian']:,.0f}".replace(',', '.')
 
-                    rows_detil.append(
-                        f"<tr>"
-                        f"<td style='text-align:left; font-weight:600;'>{k_name}</td>"
-                        f"<td>{sertel_fmt}</td>"
-                        f"<td>{bt_fmt}</td>"
-                        f"<td style='color:{c_hr_color}; font-weight:bold;'>{c_hr_str}</td>"
-                        f"<td style='font-weight:bold; color:#1E3A8A;'>{tgt_hr_str}</td>"
-                        f"</tr>"
-                    )
+                rows_detil.append(
+                    f"<tr>"
+                    f"<td style='text-align:left; font-weight:600;'>{k_name}</td>"
+                    f"<td>{sertel_fmt}</td>"
+                    f"<td>{bt_fmt}</td>"
+                    f"<td style='color:{c_hr_color}; font-weight:bold;'>{c_hr_str}</td>"
+                    f"<td style='font-weight:bold; color:#1E3A8A;'>{tgt_hr_str}</td>"
+                    f"</tr>"
+                )
 
-                html_detil = f"""
-                <table class='mini-table'>
-                <thead>
-                    <tr>
-                        <th style='text-align:left;'>Kabupaten / Kota</th>
-                        <th>Prasertel</th>
-                        <th>BT Valid</th>
-                        <th>Capaian Harian</th>
-                        <th>Target Harian</th>
-                    </tr>
-                </thead>
-                <tbody>{"".join(rows_detil)}</tbody>
-                </table>"""
-                st.markdown(html_detil, unsafe_allow_html=True)
+            html_detil = f"""
+            <table class='mini-table'>
+            <thead>
+                <tr>
+                    <th style='text-align:left;'>Kabupaten / Kota</th>
+                    <th>Prasertel</th>
+                    <th>BT Valid</th>
+                    <th>Capaian Harian</th>
+                    <th>Target Harian</th>
+                </tr>
+            </thead>
+            <tbody>{"".join(rows_detil)}</tbody>
+            </table>"""
+            st.markdown(html_detil, unsafe_allow_html=True)
+            st.markdown("</div>", unsafe_allow_html=True)
 
         # KELOMPOK 3: GRAFIK STACKED
         with c3:
-            with st.container(border=True):
-                st.markdown("<div class='group-title'>📈 Grafik Capaian Prasertel & Potensi</div>", unsafe_allow_html=True)
-                
-                fig_stack = bg.Figure()
-                fig_stack.add_trace(bg.Bar(
-                    x=df_latest_sorted['kab_clean'],
-                    y=df_latest_sorted['pct_saat_ini'],
-                    name='% Saat Ini',
-                    marker_color='#10B981',
-                    text=df_latest_sorted['pct_saat_ini'].apply(lambda x: f"{x:.0f}%"),
-                    textposition='inside'
-                ))
-                fig_stack.add_trace(bg.Bar(
-                    x=df_latest_sorted['kab_clean'],
-                    y=df_latest_sorted['pct_potensi'],
-                    name='Potensi',
-                    marker_color='#F59E0B',
-                    text=df_latest_sorted['pct_potensi'].apply(lambda x: f"{x:.0f}%" if x>0 else ""),
-                    textposition='inside'
-                ))
-
-                fig_stack.update_layout(
-                    barmode='stack',
-                    height=385,
-                    margin=dict(l=0, r=0, t=5, b=45),
-                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(size=8.5)),
-                    xaxis=dict(
-                        showticklabels=True, 
-                        tickangle=-40, 
-                        tickfont=dict(size=7.5), 
-                        title_text="", 
-                        categoryorder='array', 
-                        categoryarray=df_latest_sorted['kab_clean'].tolist()
-                    ),
-                    yaxis=dict(showgrid=True, gridcolor='#F1F5F9', ticksuffix='%', tickfont=dict(size=8), title_text=""),
-                    paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)'
-                )
-                st.plotly_chart(fig_stack, use_container_width=True, config={'displayModeBar': False})
-
-        # KELOMPOK 4: TREN PERSENTASE PROGRESS PRASERTEL
-        with st.container(border=True):
-            st.markdown("<div class='group-title'>📉 Tren Persentase Progress Prasertel</div>", unsafe_allow_html=True)
-
-            df_line = df_clean.copy()
-            df_line['tgl_short'] = df_line['tgl_dt'].dt.strftime('%d/%m')
+            st.markdown("<div class='card-box'>", unsafe_allow_html=True)
+            st.markdown("<div class='card-title'>📈 Grafik Capaian Prasertel & Potensi</div>", unsafe_allow_html=True)
             
-            df_trend = df_line.groupby(['tgl_dt', 'tgl_short', 'kab_clean'], as_index=False).agg({
-                'sertel_clean': 'sum', 'btvalid_clean': 'sum'
-            })
-            df_trend['pct_prasertel'] = np.where(df_trend['btvalid_clean'] > 0, (df_trend['sertel_clean'] / df_trend['btvalid_clean']) * 100.0, 0.0)
-            df_trend = df_trend.sort_values(by='tgl_dt')
+            fig_stack = bg.Figure()
+            fig_stack.add_trace(bg.Bar(
+                x=df_latest_sorted['kab_clean'],
+                y=df_latest_sorted['pct_saat_ini'],
+                name='% Saat Ini',
+                marker_color='#10B981',
+                text=df_latest_sorted['pct_saat_ini'].apply(lambda x: f"{x:.0f}%"),
+                textposition='inside'
+            ))
+            fig_stack.add_trace(bg.Bar(
+                x=df_latest_sorted['kab_clean'],
+                y=df_latest_sorted['pct_potensi'],
+                name='Potensi',
+                marker_color='#F59E0B',
+                text=df_latest_sorted['pct_potensi'].apply(lambda x: f"{x:.0f}%" if x>0 else ""),
+                textposition='inside'
+            ))
 
-            unique_short_dates = df_trend.drop_duplicates(subset=['tgl_dt'])['tgl_short'].tolist()
-
-            fig_line = px.line(
-                df_trend, x='tgl_short', y='pct_prasertel', color='kab_clean',
-                markers=True, category_orders={'tgl_short': unique_short_dates, 'kab_clean': all_kabs},
-                color_discrete_map=color_map,
-                labels={'tgl_short': '', 'pct_prasertel': '', 'kab_clean': ''}
-            )
-            fig_line.update_traces(hovertemplate="<b>%{fullData.name}</b><br>Tgl: %{x}<br>Progress: <b>%{y:.2f}%</b><extra></extra>", marker=dict(size=5))
-            fig_line.update_layout(
-                height=210, margin=dict(l=10, r=10, t=5, b=35),
-                legend=dict(orientation="h", yanchor="top", y=-0.25, xanchor="center", x=0.5, font=dict(size=8), title_text=''),
-                yaxis=dict(gridcolor='#F1F5F9', ticksuffix='%', tickfont=dict(size=8), title_text=""),
-                xaxis=dict(type='category', showticklabels=True, tickangle=-30, tickfont=dict(size=8), title_text=""),
+            fig_stack.update_layout(
+                barmode='stack',
+                height=385,
+                margin=dict(l=0, r=0, t=5, b=45),
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(size=8.5)),
+                xaxis=dict(
+                    showticklabels=True, 
+                    tickangle=-40, 
+                    tickfont=dict(size=7.5), 
+                    title_text="", 
+                    categoryorder='array', 
+                    categoryarray=df_latest_sorted['kab_clean'].tolist()
+                ),
+                yaxis=dict(showgrid=True, gridcolor='#F1F5F9', ticksuffix='%', tickfont=dict(size=8), title_text=""),
                 paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)'
             )
-            st.plotly_chart(fig_line, use_container_width=True, config={'displayModeBar': False})
+            st.plotly_chart(fig_stack, use_container_width=True, config={'displayModeBar': False})
+            st.markdown("</div>", unsafe_allow_html=True)
+
+        # KELOMPOK 4: TREN PERSENTASE PROGRESS PRASERTEL
+        st.markdown("<div class='card-box'>", unsafe_allow_html=True)
+        st.markdown("<div class='card-title'>📉 Tren Persentase Progress Prasertel</div>", unsafe_allow_html=True)
+
+        df_line = df_clean.copy()
+        df_line['tgl_short'] = df_line['tgl_dt'].dt.strftime('%d/%m')
+        
+        df_trend = df_line.groupby(['tgl_dt', 'tgl_short', 'kab_clean'], as_index=False).agg({
+            'sertel_clean': 'sum', 'btvalid_clean': 'sum'
+        })
+        df_trend['pct_prasertel'] = np.where(df_trend['btvalid_clean'] > 0, (df_trend['sertel_clean'] / df_trend['btvalid_clean']) * 100.0, 0.0)
+        df_trend = df_trend.sort_values(by='tgl_dt')
+
+        unique_short_dates = df_trend.drop_duplicates(subset=['tgl_dt'])['tgl_short'].tolist()
+
+        fig_line = px.line(
+            df_trend, x='tgl_short', y='pct_prasertel', color='kab_clean',
+            markers=True, category_orders={'tgl_short': unique_short_dates, 'kab_clean': all_kabs},
+            color_discrete_map=color_map,
+            labels={'tgl_short': '', 'pct_prasertel': '', 'kab_clean': ''}
+        )
+        fig_line.update_traces(hovertemplate="<b>%{fullData.name}</b><br>Tgl: %{x}<br>Progress: <b>%{y:.2f}%</b><extra></extra>", marker=dict(size=5))
+        fig_line.update_layout(
+            height=210, margin=dict(l=10, r=10, t=5, b=35),
+            legend=dict(orientation="h", yanchor="top", y=-0.25, xanchor="center", x=0.5, font=dict(size=8), title_text=''),
+            yaxis=dict(gridcolor='#F1F5F9', ticksuffix='%', tickfont=dict(size=8), title_text=""),
+            xaxis=dict(type='category', showticklabels=True, tickangle=-30, tickfont=dict(size=8), title_text=""),
+            paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)'
+        )
+        st.plotly_chart(fig_line, use_container_width=True, config={'displayModeBar': False})
+        st.markdown("</div>", unsafe_allow_html=True)
 
     # =========================================================================
     # KELOMPOK 5: 3 KANTAH CAPAIAN HARIAN TERTINGGI & TERENDAH
     # =========================================================================
-    with st.container(border=True):
-        st.markdown("<div class='group-title'>🏆 3 Kantah Capaian Harian Tertinggi & Terendah</div>", unsafe_allow_html=True)
+    st.markdown("<div class='card-box'>", unsafe_allow_html=True)
+    st.markdown("<div class='card-title'>🏆 3 Kantah Capaian Harian Tertinggi & Terendah</div>", unsafe_allow_html=True)
 
-        df_top_3 = df_latest.sort_values(by='capaian_harian', ascending=False).head(3)
-        df_bottom_3 = df_latest.sort_values(by='capaian_harian', ascending=True).head(3)
+    df_top_3 = df_latest.sort_values(by='capaian_harian', ascending=False).head(3)
+    df_bottom_3 = df_latest.sort_values(by='capaian_harian', ascending=True).head(3)
 
-        cols_g = st.columns(6)
+    cols_g = st.columns(6)
 
-        def render_k5_gauge(container, row_data):
-            with container:
-                k_name = row_data['kab_clean']
-                val_pct = row_data['pct_saat_ini'] 
-                val_capaian = row_data['capaian_harian'] 
+    def render_k5_gauge(container, row_data):
+        with container:
+            k_name = row_data['kab_clean']
+            val_pct = row_data['pct_saat_ini'] 
+            val_capaian = row_data['capaian_harian'] 
 
-                bar_color = "#10B981" if val_pct > 70.0 else "#F59E0B"
-                capaian_str = f"+{val_capaian:,.0f} BT" if val_capaian > 0 else f"{val_capaian:,.0f} BT"
-                pct_str = f"{val_pct:.1f}%".replace('.', ',')
+            bar_color = "#10B981" if val_pct > 70.0 else "#F59E0B"
+            capaian_str = f"+{val_capaian:,.0f} BT" if val_capaian > 0 else f"{val_capaian:,.0f} BT"
+            pct_str = f"{val_pct:.1f}%".replace('.', ',')
 
-                fig_g = bg.Figure(bg.Indicator(
-                    mode = "gauge",
-                    value = val_pct,
-                    title = {'text': "", 'font': {'size': 1}},
-                    gauge = {
-                        'axis': {
-                            'range': [0, 100], 
-                            'tickwidth': 1, 
-                            'tickcolor': "#CBD5E1", 
-                            'tickvals': [0, 100],
-                            'ticktext': ['0%', '100%']
-                        },
-                        'bar': {'color': bar_color},
-                        'bgcolor': "#F1F5F9",
-                        'borderwidth': 0,
-                    }
-                ))
+            fig_g = bg.Figure(bg.Indicator(
+                mode = "gauge",
+                value = val_pct,
+                title = {'text': "", 'font': {'size': 1}},
+                gauge = {
+                    'axis': {
+                        'range': [0, 100], 
+                        'tickwidth': 1, 
+                        'tickcolor': "#CBD5E1", 
+                        'tickvals': [0, 100],
+                        'ticktext': ['0%', '100%']
+                    },
+                    'bar': {'color': bar_color},
+                    'bgcolor': "#F1F5F9",
+                    'borderwidth': 0,
+                }
+            ))
 
-                # Teks % Persentase di Atas Puncak Gauge
-                fig_g.add_annotation(
-                    x=0.5, y=0.88,
-                    text=f"<b style='font-size:12px; color:{bar_color};'>{pct_str}</b>",
-                    showarrow=False,
-                    xref="paper", yref="paper"
-                )
+            # 💡 Teks % Persentase di Atas Puncak Gauge (Garis Abu/Merah)
+            fig_g.add_annotation(
+                x=0.5, y=0.88,
+                text=f"<b style='font-size:12px; color:{bar_color};'>{pct_str}</b>",
+                showarrow=False,
+                xref="paper", yref="paper"
+            )
 
-                # Teks Capaian Harian di Dalam Arc
-                fig_g.add_annotation(
-                    x=0.5, y=0.18,
-                    text=f"<b style='font-size:13px; color:{bar_color};'>{capaian_str}</b>",
-                    showarrow=False,
-                    xref="paper", yref="paper"
-                )
+            # 💡 Teks Capaian Harian (+915 BT) di Dalam Arc
+            fig_g.add_annotation(
+                x=0.5, y=0.18,
+                text=f"<b style='font-size:13px; color:{bar_color};'>{capaian_str}</b>",
+                showarrow=False,
+                xref="paper", yref="paper"
+            )
 
-                fig_g.update_layout(height=115, margin=dict(l=8, r=8, t=10, b=5), paper_bgcolor='rgba(0,0,0,0)')
-                st.plotly_chart(fig_g, use_container_width=True, config={'displayModeBar': False})
-                
-                # Teks Bawah: Nama Kabupaten/Kota
-                st.markdown(f"<div style='text-align:center; font-size:0.75rem; font-weight:700; margin-top:-18px; color:#0F172A;'>{k_name}</div>", unsafe_allow_html=True)
+            fig_g.update_layout(height=115, margin=dict(l=8, r=8, t=10, b=5), paper_bgcolor='rgba(0,0,0,0)')
+            st.plotly_chart(fig_g, use_container_width=True, config={'displayModeBar': False})
+            
+            # Teks Bawah: Nama Kabupaten/Kota
+            st.markdown(f"<div style='text-align:center; font-size:0.75rem; font-weight:700; margin-top:-18px; color:#0F172A;'>{k_name}</div>", unsafe_allow_html=True)
 
-        for idx, (_, r) in enumerate(df_top_3.iterrows()):
-            render_k5_gauge(cols_g[idx], r)
+    for idx, (_, r) in enumerate(df_top_3.iterrows()):
+        render_k5_gauge(cols_g[idx], r)
 
-        for idx, (_, r) in enumerate(df_bottom_3.iterrows()):
-            render_k5_gauge(cols_g[idx+3], r)
+    for idx, (_, r) in enumerate(df_bottom_3.iterrows()):
+        render_k5_gauge(cols_g[idx+3], r)
+
+    st.markdown("</div>", unsafe_allow_html=True)
     # =========================================================================
     # DASHBOARD 1: GRAFIK TREN PROGRESS PRASERTEL (DALAM PERSENTASE)
     # =========================================================================
