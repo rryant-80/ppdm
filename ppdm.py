@@ -1837,7 +1837,7 @@ def render_monitoring_kakanwil(df_kakanwil):
                 
                 fig_stack = bg.Figure()
             
-                # 💡 Grafik Hijau (% Saat Ini): Hilangkan label teks internal
+                # Grafik Hijau (% Saat Ini): Tanpa label teks
                 fig_stack.add_trace(bg.Bar(
                     x=df_latest_sorted['kab_clean'],
                     y=df_latest_sorted['pct_saat_ini'],
@@ -1846,21 +1846,21 @@ def render_monitoring_kakanwil(df_kakanwil):
                     showlegend=True
                 ))
                 
-                # 💡 Grafik Jingga (Potensi): Tampilkan label persentase % Saat Ini di atas bar (textposition='outside')
+                # 💡 Grafik Jingga (Potensi): Label di puncak menampilkan nilai % Potensi (pct_potensi)
                 fig_stack.add_trace(bg.Bar(
                     x=df_latest_sorted['kab_clean'],
                     y=df_latest_sorted['pct_potensi'],
                     name='Potensi',
                     marker_color='#F59E0B',
-                    text=df_latest_sorted['pct_saat_ini'].apply(lambda x: f"{x:.0f}%"),
-                    textposition='outside'
+                    text=df_latest_sorted['pct_potensi'].apply(lambda x: f"{x:.0f}%" if x > 0 else ""),
+                    textposition='outside',
+                    textfont=dict(size=9, color='#475569')
                 ))
     
                 fig_stack.update_layout(
                     barmode='stack',
                     height=385,
-                    margin=dict(l=0, r=0, t=5, b=45),
-                    # 💡 Memperbesar font legenda menjadi size 11
+                    margin=dict(l=0, r=0, t=15, b=45),
                     legend=dict(
                         orientation="h", 
                         yanchor="bottom", 
