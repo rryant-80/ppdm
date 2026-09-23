@@ -1669,23 +1669,32 @@ def render_monitoring_kakanwil(df_kakanwil):
     all_kabs = df_latest_sorted['kab_clean'].tolist()
     color_map = {kab: palet_13[i % len(palet_13)] for i, kab in enumerate(all_kabs)}
 
-    # 💡 CSS Khusus: OUTLINE ABU-ABU TIPIS MEMBUNGKUS SETIAP KELOMPOK
+    # 💡 CSS KHUSUS: OUTLINE BINGKAI ABU-ABU TEGAS MEMBUNGKUS JUDUL & GRAFIK
     st.markdown("""
     <style>
+    /* Bingkai Luar Kelompok */
+    div[data-testid="stColumn"] > div > div > .card-box,
     .card-box {
-        border: 1.5px solid #64748B !important;
-        border-radius: 10px !important;
-        padding: 10px 12px !important;
+        border: 2px solid #475569 !important; /* Warna Abu-abu Gelap Tegas */
+        border-radius: 12px !important;
+        padding: 12px 14px !important;
         background-color: #FFFFFF !important;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.03) !important;
-        margin-bottom: 10px !important;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05) !important;
+        margin-bottom: 12px !important;
+        display: block !important;
     }
-    .card-title {
-        font-size: 0.9rem !important;
+    
+    /* Judul di Dalam Bingkai */
+    .card-title-inside {
+        font-size: 0.92rem !important;
         font-weight: 700 !important;
         color: #0F172A !important;
-        margin-bottom: 8px !important;
+        margin-bottom: 10px !important;
+        padding-bottom: 4px !important;
+        display: flex !important;
+        align-items: center !important;
     }
+
     .mini-table {
         width: 100%;
         border-collapse: collapse;
