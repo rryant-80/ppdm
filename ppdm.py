@@ -1792,18 +1792,51 @@ def render_monitoring_kakanwil(df_kakanwil):
         # KELOMPOK 2: TABEL DETIL CAPAIAN
         with c2:
             with st.container(border=True):
-                st.markdown("<div class='group-title'>📊 Detil Capaian Prasertel Kantah</div>", unsafe_allow_html=True)
+                # Hitung sisa hari kerja menuju 31 Des 2026 (Sabtu & Minggu tidak dihitung)
+                today_dt = datetime.now().date()
+                target_dt = date(2026, 12, 31)
+                sisa_hari_kerja = np.busday_count(today_dt, target_dt + timedelta(days=1)) if today_dt < target_dt else 0
+
+                st.markdown(
+                    f"""
+                    <div style='margin-bottom: 6px;'>
+                        <div class='group-title' style='margin-bottom: 2px;'>📊 Detil Capaian Prasertel Kantah</div>
+                        <div style='font-size: 0.75rem; color: #64748B; font-weight: 600;'>
+                            ⏳ Sisa H-<b>{sisa_hari_kerja}</b> Hari Kerja menuju 31 Des 2026
+                        </div>
+                    </div>
+                    """, 
+                    unsafe_allow_html=True
+                )
                 
+                # Mengambil daftar 3 Kabupaten/Kota dengan capaian % tertinggi
+                top3_kabs = df_latest_sorted.head(3)['kab_clean'].tolist()
+
                 rows_detil = []
                 for _, r in df_latest_sorted.iterrows():
                     k_name = r['kab_clean']
                     sertel_fmt = f"{r['sertel_clean']:,.0f}".replace(',', '.')
                     bt_fmt = f"{r['btvalid_clean']:,.0f}".replace(',', '.')
                     
+                    # Capaian Harian
                     c_hr = r['capaian_harian']
                     c_hr_str = f"+{c_hr:,.0f}".replace(',', '.') if c_hr > 0 else (f"{c_hr:,.0f}".replace(',', '.') if c_hr < 0 else "0")
                     c_hr_color = "#10B981" if c_hr > 0 else ("#EF4444" if c_hr < 0 else "#6B7280")
-                    tgt_hr_str = f"{r['target_harian']:,.0f}".replace(',', '.')
+                    
+                    # Target Harian & Aturan Warna
+                    tgt_val = r['target_harian']
+                    tgt_hr_str = f"{tgt_val:,.0f}".replace(',', '.')
+                    
+                    # Logika Pewarnaan Target Harian:
+                    # 1. 3 Kabupaten Tertinggi -> HIJAU BOLD (#10B981)
+                    # 2. Nilai 0 -> MERAH BOLD (#EF4444)
+                    # 3. Lainnya -> WARNA TEKS BIASA (#1E293B)
+                    if k_name in top3_kabs:
+                        tgt_style = "color: #10B981; font-weight: bold;"
+                    elif tgt_val == 0:
+                        tgt_style = "color: #EF4444; font-weight: bold;"
+                    else:
+                        tgt_style = "color: #1E293B; font-weight: normal;"
 
                     rows_detil.append(
                         f"<tr>"
@@ -1811,7 +1844,7 @@ def render_monitoring_kakanwil(df_kakanwil):
                         f"<td>{sertel_fmt}</td>"
                         f"<td>{bt_fmt}</td>"
                         f"<td style='color:{c_hr_color}; font-weight:bold;'>{c_hr_str}</td>"
-                        f"<td style='font-weight:bold; color:#1E3A8A;'>{tgt_hr_str}</td>"
+                        f"<td style='{tgt_style}'>{tgt_hr_str}</td>"
                         f"</tr>"
                     )
 
@@ -1854,7 +1887,7 @@ def render_monitoring_kakanwil(df_kakanwil):
                     marker_color='#F59E0B',
                     text=df_latest_sorted['pct_potensi'].apply(lambda x: f"{x:.0f}%" if x > 0 else ""),
                     textposition='outside',
-                    textfont=dict(size=11, color='#a8560b')
+                    textfont=dict(size=11, color='#623207')
                 ))
     
                 fig_stack.update_layout(
