@@ -1717,7 +1717,7 @@ def render_monitoring_kakanwil(df_kakanwil):
     # -------------------------------------------------------------------------
     with col_left:
         with st.container(border=True):
-            st.markdown("<div class='group-title'>📍 Peta & Skala Capaian Prasertel</div>", unsafe_allow_html=True)
+            st.markdown("<div class='group-title'>📍</div>", unsafe_allow_html=True)
             
             img_path = "peta_sulteng.png"
             if os.path.exists(img_path):
@@ -1730,7 +1730,7 @@ def render_monitoring_kakanwil(df_kakanwil):
                 f"""
                 <div style='text-align: center; margin: 8px 0 6px 0;'>
                     <div style='font-size: 1.05rem; font-weight: 700; color: #000000; line-height: 1.2;'>
-                        Peringkat Prasertel<br>Nasional
+                        Peringkat Nasional Prasertel
                     </div>
                     <div style='margin-top: 4px;'>
                         <span style='font-size: 1.8rem; font-weight: 900; color: #000000;'>{rank_num_val}</span>
@@ -1942,7 +1942,7 @@ def render_monitoring_kakanwil(df_kakanwil):
 
                 # Teks % Persentase di Atas Puncak Gauge
                 fig_g.add_annotation(
-                    x=0.5, y=0.88,
+                    x=0.5, y=1.10,
                     text=f"<b style='font-size:12px; color:{bar_color};'>{pct_str}</b>",
                     showarrow=False,
                     xref="paper", yref="paper"
