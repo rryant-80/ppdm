@@ -1776,7 +1776,7 @@ def render_monitoring_kakanwil(df_kakanwil):
                 # 💡 TEKS KABUPATEN DIBUAT HITAM TEGAS
                 yaxis=dict(
                     title="", 
-                    tickfont=dict(size=8.5, color='#1E293B', family='Arial Black'), 
+                    tickfont=dict(size=8.5, color='#1E293B', font=dict(weight='normal')), # Warna disamakan dg tabel
                     categoryorder='array', 
                     categoryarray=kabs_reversed
                 ),
@@ -1863,7 +1863,7 @@ def render_monitoring_kakanwil(df_kakanwil):
                     xaxis=dict(
                         showticklabels=True, 
                         tickangle=-40, 
-                        tickfont=dict(size=8, color='#1E293B', family='Arial Black'), 
+                        tickfont=dict(size=8, color='#1E293B', font=dict(weight='normal')), # Warna disamakan dg tabel
                         title_text="", 
                         categoryorder='array', 
                         categoryarray=df_latest_sorted['kab_clean'].tolist()
