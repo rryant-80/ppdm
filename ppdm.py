@@ -1673,17 +1673,14 @@ def render_monitoring_kakanwil(df_kakanwil):
     # 💡 STYLING BORDER #445462 & BACKGROUND #dfe9f2 YANG PASTI MEMPAN
     st.markdown("""
     <style>
-    /* Target seluruh Container bawaan Streamlit (st.container(border=True)) */
-    div[data-testid="stVerticalBlockBorderWrapper"] > div {
-        border: 2px solid #445462 !important;
+    /* Selector Luas & Tegas untuk Seluruh Container Ber-border */
+    div[data-testid="stVerticalBlockBorderWrapper"] > div,
+    div[data-testid="stElementContainer"] > div[style*="border"],
+    div[class*="st-"] > div[style*="border"] {
+        border: 3px solid #445462 !important;
         border-radius: 12px !important;
-        background-color: #dfe9f2 !important;
-        padding: 12px 14px !important;
-    }
-
-    /* Target elemen internal container agar background tidak tertutup warna putih bawaan */
-    div[data-testid="stVerticalBlockBorderWrapper"] [data-testid="stVerticalBlock"] {
-        background-color: transparent !important;
+        background-color: #DFE9F2 !important;
+        padding: 10px 12px !important;
     }
 
     .group-title {
@@ -1693,27 +1690,27 @@ def render_monitoring_kakanwil(df_kakanwil):
         margin-bottom: 8px;
     }
 
-    /* Tabel Detil dengan Latar Transparan/Putih Bersih */
+    /* Tabel Detil dengan Background Putih Bersih */
     .mini-table {
         width: 100%;
         border-collapse: collapse;
         font-size: 0.72rem;
         background-color: #FFFFFF;
         border-radius: 6px;
-        overflow: hidden;
     }
     .mini-table th {
         background-color: #F1F5F9;
-        padding: 6px 6px;
+        padding: 5px 6px;
         text-align: center;
         font-weight: 700;
         border-bottom: 2px solid #445462;
-        color: #0F172A;
+        color: #1E293B;
     }
     .mini-table td {
         padding: 4px 5px;
         border-bottom: 1px solid #E2E8F0;
         text-align: center;
+        color: #1E293B;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -1779,7 +1776,7 @@ def render_monitoring_kakanwil(df_kakanwil):
                 # 💡 TEKS KABUPATEN DIBUAT HITAM TEGAS
                 yaxis=dict(
                     title="", 
-                    tickfont=dict(size=8.5, color='#000000', family='Arial Black'), 
+                    tickfont=dict(size=8.5, color='#1E293B', family='Arial Black'), 
                     categoryorder='array', 
                     categoryarray=kabs_reversed
                 ),
@@ -1866,7 +1863,7 @@ def render_monitoring_kakanwil(df_kakanwil):
                     xaxis=dict(
                         showticklabels=True, 
                         tickangle=-40, 
-                        tickfont=dict(size=8, color='#000000', family='Arial Black'), 
+                        tickfont=dict(size=8, color='#1E293B', family='Arial Black'), 
                         title_text="", 
                         categoryorder='array', 
                         categoryarray=df_latest_sorted['kab_clean'].tolist()
