@@ -1563,6 +1563,14 @@ def render_isu_strategis(df_isu):
                         except Exception as e:
                             st.error(f"❌ Gagal mengirim tanggapan: {e}")
         st.markdown("<br>", unsafe_allow_html=True)
+import streamlit as st
+import pandas as pd
+import numpy as np
+import plotly.express as px
+import plotly.graph_objects as bg
+import os
+from datetime import datetime, date, timedelta
+
 def render_monitoring_kakanwil(df_kakanwil):
     st.markdown("<h2 style='margin-bottom:10px;'>🛡️ Monitoring Prasertel & KW456</h2>", unsafe_allow_html=True)
 
@@ -1661,25 +1669,22 @@ def render_monitoring_kakanwil(df_kakanwil):
     all_kabs = df_latest_sorted['kab_clean'].tolist()
     color_map = {kab: palet_13[i % len(palet_13)] for i, kab in enumerate(all_kabs)}
 
-    # 💡 CSS Khusus: OUTLINE BINGKAI TUNGGAL MEMBUNGKUS SETIAP KELOMPOK
+    # 💡 CSS Khusus: OUTLINE ABU-ABU TIPIS MEMBUNGKUS SETIAP KELOMPOK
     st.markdown("""
     <style>
     .card-box {
-        border: 1.5px solid #CBD5E1 !important;
-        border-radius: 12px !important;
-        padding: 12px 14px !important;
+        border: 1.5px solid #64748B !important;
+        border-radius: 10px !important;
+        padding: 10px 12px !important;
         background-color: #FFFFFF !important;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.04) !important;
-        margin-bottom: 12px !important;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.03) !important;
+        margin-bottom: 10px !important;
     }
     .card-title {
-        font-size: 0.95rem !important;
+        font-size: 0.9rem !important;
         font-weight: 700 !important;
         color: #0F172A !important;
-        margin-bottom: 12px !important;
-        display: flex !important;
-        align-items: center !important;
-        gap: 6px !important;
+        margin-bottom: 8px !important;
     }
     .mini-table {
         width: 100%;
@@ -1688,14 +1693,14 @@ def render_monitoring_kakanwil(df_kakanwil):
     }
     .mini-table th {
         background-color: #F8FAFC;
-        padding: 6px 6px;
+        padding: 5px 6px;
         text-align: center;
         font-weight: 700;
         border-bottom: 1.5px solid #000000;
         color: #0F172A;
     }
     .mini-table td {
-        padding: 5px 5px;
+        padding: 4px 5px;
         border-bottom: 1px solid #F1F5F9;
         text-align: center;
     }
@@ -1712,7 +1717,7 @@ def render_monitoring_kakanwil(df_kakanwil):
     # -------------------------------------------------------------------------
     with col_left:
         st.markdown("<div class='card-box'>", unsafe_allow_html=True)
-        st.markdown("<div class='card-header-badge'>📍 Peta & Skala Capaian Prasertel</div>", unsafe_allow_html=True)
+        st.markdown("<div class='card-title'>📍 Peta & Skala Capaian Prasertel</div>", unsafe_allow_html=True)
         
         img_path = "peta_sulteng.png"
         if os.path.exists(img_path):
@@ -1772,9 +1777,7 @@ def render_monitoring_kakanwil(df_kakanwil):
     with col_right:
         c2, c3 = st.columns([2.2, 1.8])
 
-        # -------------------------------------------------------------------------
-        # KELOMPOK 2: TABEL DETIL CAPAIAN (SEJAJAR & LEBIH RAPAT)
-        # -------------------------------------------------------------------------
+        # KELOMPOK 2: TABEL DETIL CAPAIAN
         with c2:
             st.markdown("<div class='card-box'>", unsafe_allow_html=True)
             st.markdown("<div class='card-title'>📊 Detil Capaian Prasertel Kantah</div>", unsafe_allow_html=True)
@@ -1800,9 +1803,8 @@ def render_monitoring_kakanwil(df_kakanwil):
                     f"</tr>"
                 )
 
-            # Table CSS diperrapat (padding 3px 4px) agar presisi sejajar
             html_detil = f"""
-            <table class='mini-table' style='margin-top: 2px;'>
+            <table class='mini-table'>
             <thead>
                 <tr>
                     <th style='text-align:left;'>Kabupaten / Kota</th>
@@ -1817,12 +1819,10 @@ def render_monitoring_kakanwil(df_kakanwil):
             st.markdown(html_detil, unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
 
-        # -------------------------------------------------------------------------
-        # KELOMPOK 3: GRAFIK STACKED (LABEL KABUPATEN DI TAMPILKAN KEMBALI)
-        # -------------------------------------------------------------------------
+        # KELOMPOK 3: GRAFIK STACKED
         with c3:
             st.markdown("<div class='card-box'>", unsafe_allow_html=True)
-            st.markdown("<div class='card-header-badge'>📈 Grafik Capaian Prasertel & Potensi</div>", unsafe_allow_html=True)
+            st.markdown("<div class='card-title'>📈 Grafik Capaian Prasertel & Potensi</div>", unsafe_allow_html=True)
             
             fig_stack = bg.Figure()
             fig_stack.add_trace(bg.Bar(
@@ -1847,7 +1847,6 @@ def render_monitoring_kakanwil(df_kakanwil):
                 height=385,
                 margin=dict(l=0, r=0, t=5, b=45),
                 legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(size=8.5)),
-                # 💡 LABEL NAMA KABUPATEN PADA SUMBU X DITAMPILKAN KEMBALI
                 xaxis=dict(
                     showticklabels=True, 
                     tickangle=-40, 
@@ -1862,11 +1861,9 @@ def render_monitoring_kakanwil(df_kakanwil):
             st.plotly_chart(fig_stack, use_container_width=True, config={'displayModeBar': False})
             st.markdown("</div>", unsafe_allow_html=True)
 
-        # -------------------------------------------------------------------------
-        # KELOMPOK 4: TREN PERSENTASE (JUDUL HILANG, TANGGAL & % TETAP TAMPIL)
-        # -------------------------------------------------------------------------
+        # KELOMPOK 4: TREN PERSENTASE PROGRESS PRASERTEL
         st.markdown("<div class='card-box'>", unsafe_allow_html=True)
-        st.markdown("<div class='card-header-badge'>📉 Tren Persentase Progress Prasertel</div>", unsafe_allow_html=True)
+        st.markdown("<div class='card-title'>📉 Tren Persentase Progress Prasertel</div>", unsafe_allow_html=True)
 
         df_line = df_clean.copy()
         df_line['tgl_short'] = df_line['tgl_dt'].dt.strftime('%d/%m')
@@ -1886,14 +1883,10 @@ def render_monitoring_kakanwil(df_kakanwil):
             labels={'tgl_short': '', 'pct_prasertel': '', 'kab_clean': ''}
         )
         fig_line.update_traces(hovertemplate="<b>%{fullData.name}</b><br>Tgl: %{x}<br>Progress: <b>%{y:.2f}%</b><extra></extra>", marker=dict(size=5))
-        
         fig_line.update_layout(
-            height=210, 
-            margin=dict(l=10, r=10, t=5, b=35),
+            height=210, margin=dict(l=10, r=10, t=5, b=35),
             legend=dict(orientation="h", yanchor="top", y=-0.25, xanchor="center", x=0.5, font=dict(size=8), title_text=''),
-            # 💡 HILANGKAN TULISAN JUDUL "pct_prasertel" TAPI ANGKA PERSENTASE TETAP TAMPIL
             yaxis=dict(gridcolor='#F1F5F9', ticksuffix='%', tickfont=dict(size=8), title_text=""),
-            # 💡 HILANGKAN TULISAN JUDUL "tgl_short" TAPI LABEL TANGGAL TETAP TAMPIL
             xaxis=dict(type='category', showticklabels=True, tickangle=-30, tickfont=dict(size=8), title_text=""),
             paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)'
         )
@@ -1901,10 +1894,10 @@ def render_monitoring_kakanwil(df_kakanwil):
         st.markdown("</div>", unsafe_allow_html=True)
 
     # =========================================================================
-    # KELOMPOK 5: 3 KANTAH CAPAIAN HARIAN TERTINGGI & TERENDAH (REVISI GAUGE)
+    # KELOMPOK 5: 3 KANTAH CAPAIAN HARIAN TERTINGGI & TERENDAH
     # =========================================================================
     st.markdown("<div class='card-box'>", unsafe_allow_html=True)
-    st.markdown("<div class='card-header-badge'>🏆 3 Kantah Capaian Harian Tertinggi & Terendah</div>", unsafe_allow_html=True)
+    st.markdown("<div class='card-title'>🏆 3 Kantah Capaian Harian Tertinggi & Terendah</div>", unsafe_allow_html=True)
 
     df_top_3 = df_latest.sort_values(by='capaian_harian', ascending=False).head(3)
     df_bottom_3 = df_latest.sort_values(by='capaian_harian', ascending=True).head(3)
@@ -1917,7 +1910,6 @@ def render_monitoring_kakanwil(df_kakanwil):
             val_pct = row_data['pct_saat_ini'] 
             val_capaian = row_data['capaian_harian'] 
 
-            # WARNA GAUGE: Hijau jika > 70%, Jingga jika <= 70%
             bar_color = "#10B981" if val_pct > 70.0 else "#F59E0B"
             capaian_str = f"+{val_capaian:,.0f} BT" if val_capaian > 0 else f"{val_capaian:,.0f} BT"
             pct_str = f"{val_pct:.1f}%".replace('.', ',')
@@ -1940,15 +1932,15 @@ def render_monitoring_kakanwil(df_kakanwil):
                 }
             ))
 
-            # 💡 1. TEKS PERSENTASE (19,6%) DIPOSISIKAN TEPAT DI ATAS BUSUR GAUGE (GARIS MERAH)
+            # 💡 Teks % Persentase di Atas Puncak Gauge (Garis Abu/Merah)
             fig_g.add_annotation(
-                x=0.5, y=1.10,
+                x=0.5, y=0.88,
                 text=f"<b style='font-size:12px; color:{bar_color};'>{pct_str}</b>",
                 showarrow=False,
                 xref="paper", yref="paper"
             )
 
-            # 💡 2. TEKS CAPAIAN HARIAN (+915 BT) DIPOSISIKAN DI DALAM AREA GAUGE
+            # 💡 Teks Capaian Harian (+915 BT) di Dalam Arc
             fig_g.add_annotation(
                 x=0.5, y=0.18,
                 text=f"<b style='font-size:13px; color:{bar_color};'>{capaian_str}</b>",
@@ -1959,15 +1951,12 @@ def render_monitoring_kakanwil(df_kakanwil):
             fig_g.update_layout(height=115, margin=dict(l=8, r=8, t=10, b=5), paper_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(fig_g, use_container_width=True, config={'displayModeBar': False})
             
-            # TEKS BAWAH: Nama Kabupaten/Kota
+            # Teks Bawah: Nama Kabupaten/Kota
             st.markdown(f"<div style='text-align:center; font-size:0.75rem; font-weight:700; margin-top:-18px; color:#0F172A;'>{k_name}</div>", unsafe_allow_html=True)
-            st.markdown("<br><hr>", unsafe_allow_html=True)
 
-    # Render 3 Capaian Harian Tertinggi
     for idx, (_, r) in enumerate(df_top_3.iterrows()):
         render_k5_gauge(cols_g[idx], r)
 
-    # Render 3 Capaian Harian Terendah
     for idx, (_, r) in enumerate(df_bottom_3.iterrows()):
         render_k5_gauge(cols_g[idx+3], r)
 
