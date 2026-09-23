@@ -1948,31 +1948,31 @@ def render_monitoring_kakanwil(df_kakanwil):
     # =========================================================================
     with st.container(border=True):
         st.markdown("<div class='group-title'>🏆 Tiga Kantor Pertanahan Capaian Tertinggi & Terendah Hari ini</div>", unsafe_allow_html=True)
-
+    
         df_top_3 = df_latest.sort_values(by='capaian_harian', ascending=False).head(3)
         df_bottom_3 = df_latest.sort_values(by='capaian_harian', ascending=True).head(3)
-
+    
+        # 💡 Layout dibagi menjadi 2 sisi (Kiri & Kanan) dengan 1 kolom pemisah vertikal di tengah
         col_left_g, col_divider, col_right_g = st.columns([1, 0.02, 1])
-
-        def render_gauge_item(col_target, row_data):
-            with col_target:
+    
+        def render_k5_gauge(container, row_data):
+            with container:
                 k_name = row_data['kab_clean']
                 val_pct = row_data['pct_saat_ini'] 
                 val_capaian = row_data['capaian_harian'] 
-
+    
                 bar_color = "#10B981" if val_pct > 70.0 else "#F59E0B"
                 capaian_str = f"+{val_capaian:,.0f} BT" if val_capaian > 0 else f"{val_capaian:,.0f} BT"
                 pct_str = f"{val_pct:.1f}%".replace('.', ',')
-
+    
                 fig_g = bg.Figure(bg.Indicator(
                     mode = "gauge",
                     value = val_pct,
                     title = {'text': "", 'font': {'size': 1}},
                     gauge = {
-                        # 💡 1. HILANGKAN TEKS SUMBU AWAL & AKHIR GAUGE (0% & 100%)
                         'axis': {
                             'range': [0, 100], 
-                            'visible': False,
+                            'visible': False,        # 💡 Menghilangkan label 0% dan 100% di kaki gauge
                             'showticklabels': False
                         },
                         'bar': {'color': bar_color},
@@ -1980,49 +1980,50 @@ def render_monitoring_kakanwil(df_kakanwil):
                         'borderwidth': 0,
                     }
                 ))
-
-                # 💡 2. TEKS PERSENTASE DIUBAH MENJADI WARNA HITAM (#0F172A)
+    
+                # 💡 Teks % Persentase di Atas Puncak Gauge BERWARNA HITAM (#0F172A)
                 fig_g.add_annotation(
-                    x=0.5, y=1.11,
+                    x=0.5, y=0.88,
                     text=f"<b style='font-size:12px; color:#0F172A;'>{pct_str}</b>",
                     showarrow=False,
                     xref="paper", yref="paper"
                 )
-
-                # TEKS CAPAIAN HARIAN (+1.014 BT) TETAP SESUAI WARNA GAUGE
+    
+                # Teks Capaian Harian di Dalam Arc
                 fig_g.add_annotation(
                     x=0.5, y=0.18,
                     text=f"<b style='font-size:13px; color:{bar_color};'>{capaian_str}</b>",
                     showarrow=False,
                     xref="paper", yref="paper"
                 )
-
+    
                 fig_g.update_layout(height=115, margin=dict(l=5, r=5, t=10, b=5), paper_bgcolor='rgba(0,0,0,0)')
                 st.plotly_chart(fig_g, use_container_width=True, config={'displayModeBar': False})
                 
-                # Nama Kabupaten/Kota
+                # Teks Bawah: Nama Kabupaten/Kota
                 st.markdown(f"<div style='text-align:center; font-size:0.75rem; font-weight:700; margin-top:-18px; color:#0F172A;'>{k_name}</div>", unsafe_allow_html=True)
-
-        # Render 3 Gauge Kiri (Tertinggi)
+    
+        # 💡 Render 3 Gauge Kiri (Tertinggi)
         with col_left_g:
             cols_top = st.columns(3)
             for idx, (_, r) in enumerate(df_top_3.iterrows()):
-                render_gauge_item(cols_top[idx], r)
-
-        # 💡 3. GARIS PEMISAH VERTIKAL DI TENGAH
+                render_k5_gauge(cols_top[idx], r)
+    
+        # 💡 Garis Pemisah Vertikal Abu-abu di Tengah
         with col_divider:
             st.markdown(
                 """
-                <div style='border-left: 2px solid #CBD5E1; height: 120px; margin: 0 auto; width: 1px;'></div>
+                <div style='border-left: 2px solid #405676; height: 120px; margin: 0 auto; width: 1px;'></div>
                 """, 
                 unsafe_allow_html=True
             )
-
-        # Render 3 Gauge Kanan (Terendah)
+    
+        # 💡 Render 3 Gauge Kanan (Terendah)
         with col_right_g:
             cols_bot = st.columns(3)
             for idx, (_, r) in enumerate(df_bottom_3.iterrows()):
-                render_gauge_item(cols_bot[idx], r)
+                render_k5_gauge(cols_bot[idx], r)
+    
 
     st.markdown("</div>", unsafe_allow_html=True)
     # =========================================================================
