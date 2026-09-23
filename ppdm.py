@@ -1732,8 +1732,7 @@ def render_monitoring_kakanwil(df_kakanwil):
     # KELOMPOK 1: PETA & SKALA CAPAIAN PRASERTEL
     # -------------------------------------------------------------------------
     with col_left:
-        with st.container():
-            st.markdown('<div style="border: 2px solid #405676; border-radius: 12px; background-color: #DFE9F2; padding: 12px; margin-bottom: 12px;">', unsafe_allow_html=True)
+        with st.container(border=True):
             st.markdown("<div class='group-title'>📍</div>", unsafe_allow_html=True)
             
             img_path = "peta_sulteng.png"
