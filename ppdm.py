@@ -1726,7 +1726,7 @@ def render_monitoring_kakanwil(df_kakanwil):
     # -------------------------------------------------------------------------
     with col_left:
         st.markdown("<div class='card-box'>", unsafe_allow_html=True)
-        st.markdown("<div class='card-title'>📍 Peta & Skala Capaian Prasertel</div>", unsafe_allow_html=True)
+        st.markdown("<div class='card-title-inside'>📍 Peta & Skala Capaian Prasertel</div>", unsafe_allow_html=True)
         
         img_path = "peta_sulteng.png"
         if os.path.exists(img_path):
