@@ -1787,7 +1787,7 @@ def render_monitoring_kakanwil(df_kakanwil):
     # AREA KANAN: KELOMPOK 2, 3, DAN KELOMPOK 4
     # -------------------------------------------------------------------------
     with col_right:
-        c2, c3 = st.columns([1.8, 2.2])
+        c2, c3 = st.columns([2.0, 2.0])
 
         # KELOMPOK 2: TABEL DETIL CAPAIAN
         with c2:
