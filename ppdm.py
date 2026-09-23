@@ -1773,10 +1773,9 @@ def render_monitoring_kakanwil(df_kakanwil):
                 showlegend=False,
                 margin=dict(l=0, r=30, t=5, b=0),
                 xaxis=dict(visible=False, range=[0.0, x_limit]),
-                # 💡 TEKS KABUPATEN DIBUAT HITAM TEGAS
                 yaxis=dict(
                     title="", 
-                    tickfont=dict(size=8.5, color='#1E293B', font=dict(weight='normal')), # Warna disamakan dg tabel
+                    tickfont=dict(size=8.5, color='#1E293B'), 
                     categoryorder='array', 
                     categoryarray=kabs_reversed
                 ),
@@ -1859,11 +1858,10 @@ def render_monitoring_kakanwil(df_kakanwil):
                     height=385,
                     margin=dict(l=0, r=0, t=5, b=45),
                     legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(size=8.5)),
-                    # 💡 LABEL NAMA KABUPATEN HITAM TEGAS
                     xaxis=dict(
                         showticklabels=True, 
                         tickangle=-40, 
-                        tickfont=dict(size=8, color='#1E293B'),
+                        tickfont=dict(size=8, color='#1E293B'), 
                         title_text="", 
                         categoryorder='array', 
                         categoryarray=df_latest_sorted['kab_clean'].tolist()
