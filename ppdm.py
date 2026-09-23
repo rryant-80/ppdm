@@ -1800,10 +1800,7 @@ def render_monitoring_kakanwil(df_kakanwil):
                 st.markdown(
                     f"""
                     <div style='margin-bottom: 6px;'>
-                        <div class='group-title' style='margin-bottom: 2px;'>📊 Detil Capaian Prasertel Kantah</div>
-                        <div style='font-size: 0.75rem; color: #64748B; font-weight: 600;'>
-                            ⏳ Sisa H-<b>{sisa_hari_kerja}</b> Hari Kerja menuju 31 Des 2026
-                        </div>
+                        <div class='group-title' style='margin-bottom: 2px;'>📊 Detil Capaian Prasertel Kantah, ⏳ H-<b>{sisa_hari_kerja}</b> Hari Kerja menuju 31/12/2026</div>                        
                     </div>
                     """, 
                     unsafe_allow_html=True
