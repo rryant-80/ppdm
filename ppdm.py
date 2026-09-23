@@ -1787,7 +1787,7 @@ def render_monitoring_kakanwil(df_kakanwil):
     # AREA KANAN: KELOMPOK 2, 3, DAN KELOMPOK 4
     # -------------------------------------------------------------------------
     with col_right:
-        c2, c3 = st.columns([2.2, 1.8])
+        c2, c3 = st.columns([1.8, 2.2])
 
         # KELOMPOK 2: TABEL DETIL CAPAIAN
         with c2:
@@ -1836,28 +1836,39 @@ def render_monitoring_kakanwil(df_kakanwil):
                 st.markdown("<div class='group-title'>📈 Grafik Capaian Prasertel & Potensi</div>", unsafe_allow_html=True)
                 
                 fig_stack = bg.Figure()
+            
+                # 💡 Grafik Hijau (% Saat Ini): Hilangkan label teks internal
                 fig_stack.add_trace(bg.Bar(
                     x=df_latest_sorted['kab_clean'],
                     y=df_latest_sorted['pct_saat_ini'],
                     name='% Saat Ini',
                     marker_color='#10B981',
-                    text=df_latest_sorted['pct_saat_ini'].apply(lambda x: f"{x:.0f}%"),
-                    textposition='inside'
+                    showlegend=True
                 ))
+                
+                # 💡 Grafik Jingga (Potensi): Tampilkan label persentase % Saat Ini di atas bar (textposition='outside')
                 fig_stack.add_trace(bg.Bar(
                     x=df_latest_sorted['kab_clean'],
                     y=df_latest_sorted['pct_potensi'],
                     name='Potensi',
                     marker_color='#F59E0B',
-                    text=df_latest_sorted['pct_potensi'].apply(lambda x: f"{x:.0f}%" if x>0 else ""),
-                    textposition='inside'
+                    text=df_latest_sorted['pct_saat_ini'].apply(lambda x: f"{x:.0f}%"),
+                    textposition='outside'
                 ))
-
+    
                 fig_stack.update_layout(
                     barmode='stack',
                     height=385,
                     margin=dict(l=0, r=0, t=5, b=45),
-                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(size=8.5)),
+                    # 💡 Memperbesar font legenda menjadi size 11
+                    legend=dict(
+                        orientation="h", 
+                        yanchor="bottom", 
+                        y=1.02, 
+                        xanchor="right", 
+                        x=1, 
+                        font=dict(size=11, color='#0F172A')
+                    ),
                     xaxis=dict(
                         showticklabels=True, 
                         tickangle=-40, 
