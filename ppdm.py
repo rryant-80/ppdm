@@ -1854,7 +1854,7 @@ def render_monitoring_kakanwil(df_kakanwil):
                     marker_color='#F59E0B',
                     text=df_latest_sorted['pct_potensi'].apply(lambda x: f"{x:.0f}%" if x > 0 else ""),
                     textposition='outside',
-                    textfont=dict(size=10, color='#475569')
+                    textfont=dict(size=11, color='#a8560b')
                 ))
     
                 fig_stack.update_layout(
