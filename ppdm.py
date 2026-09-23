@@ -1674,7 +1674,7 @@ def render_monitoring_kakanwil(df_kakanwil):
     st.markdown("""
     <style>
     div[data-testid="stVerticalBlockBorderWrapper"] {
-        border: 4px solid #405676 !important;
+        border: 4px solid #000000 !important;
         border-radius: 12px !important;
         padding: 10px 14px !important;
         background-color: #dfe9f2 !important;
