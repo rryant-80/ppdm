@@ -1972,7 +1972,7 @@ def render_monitoring_kakanwil(df_kakanwil):
                         'axis': {
                             'range': [0, 100], 
                             'visible': False,        # 💡 Menghilangkan label 0% dan 100% di kaki gauge
-                            'showticklabels': False
+                            'showticklabels': False,
                             'tickwidth': 1, 
                             'tickcolor': "#CBD5E1", 
                             'tickvals': [0, 100],
