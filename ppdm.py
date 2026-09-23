@@ -1571,14 +1571,6 @@ import plotly.graph_objects as bg
 import os
 from datetime import datetime, date, timedelta
 
-import streamlit as st
-import pandas as pd
-import numpy as np
-import plotly.express as px
-import plotly.graph_objects as bg
-import os
-from datetime import datetime, date, timedelta
-
 def render_monitoring_kakanwil(df_kakanwil):
     st.markdown("<h2 style='margin-bottom:10px;'>🛡️ Monitoring Prasertel & KW456</h2>", unsafe_allow_html=True)
 
@@ -1682,7 +1674,7 @@ def render_monitoring_kakanwil(df_kakanwil):
     <style>
     /* Kustomisasi Border Container Native Streamlit */
     div[data-testid="stVerticalBlockBorderWrapper"] {
-        border: 1.5px solid #405676 !important;
+        border: 1.5px solid #64748B !important;
         border-radius: 12px !important;
         padding: 10px 14px !important;
         background-color: #FFFFFF !important;
@@ -1963,8 +1955,6 @@ def render_monitoring_kakanwil(df_kakanwil):
 
         for idx, (_, r) in enumerate(df_bottom_3.iterrows()):
             render_k5_gauge(cols_g[idx+3], r)
-
-    st.markdown("</div>", unsafe_allow_html=True)
     # =========================================================================
     # DASHBOARD 1: GRAFIK TREN PROGRESS PRASERTEL (DALAM PERSENTASE)
     # =========================================================================
