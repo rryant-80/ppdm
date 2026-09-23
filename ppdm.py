@@ -1971,6 +1971,8 @@ def render_monitoring_kakanwil(df_kakanwil):
                     gauge = {
                         'axis': {
                             'range': [0, 100], 
+                            'visible': False,        # 💡 Menghilangkan label 0% dan 100% di kaki gauge
+                            'showticklabels': False
                             'tickwidth': 1, 
                             'tickcolor': "#CBD5E1", 
                             'tickvals': [0, 100],
@@ -1985,7 +1987,7 @@ def render_monitoring_kakanwil(df_kakanwil):
                 # Teks % Persentase di Atas Puncak Gauge
                 fig_g.add_annotation(
                     x=0.5, y=1.12,
-                    text=f"<b style='font-size:12px; color:{bar_color};'>{pct_str}</b>",
+                    text=f"<b style='font-size:12px; color:#4c4c4c;'>{pct_str}</b>",
                     showarrow=False,
                     xref="paper", yref="paper"
                 )
