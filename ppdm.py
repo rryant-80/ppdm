@@ -1565,16 +1565,15 @@ def render_isu_strategis(df_isu):
         st.markdown("<br>", unsafe_allow_html=True)
 
 def render_monitoring_kakanwil(df_kakanwil):
-    today_str = datetime.now().strftime('%d/%m/%Y')  # Hasil: Misal "23/09/2026"
+    today_str = datetime.now().strftime('%d/%m/%Y')
 
-    # 2. Gunakan f-string (tambahkan f sebelum tanda kutip pembuka)
     st.markdown(
         f"""
-        <div style='margin-bottom: 14px;'>
-            style='margin: 0; font-size: 1.2rem; font-weight: 700; color: #0F172A; display: inline-block; vertical-align: middle;'>
+        <div style='display: flex; align-items: center; margin-bottom: 12px; gap: 10px;'>
+            <h3 style='margin: 0; font-size: 1.25rem; font-weight: 700; color: #0F172A;'>
                 🛡️ Dashboard Monitoring Prasertel Sulawesi Tengah
-            
-            <span style='margin-left: 10px; font-size: 0.8rem; font-weight: 600; color: #405676; background-color: #DFE9F2; padding: 3px 10px; border-radius: 6px; border: 1px solid #405676; display: inline-block; vertical-align: middle;'>
+            </h3>
+            <span style='font-size: 0.8rem; font-weight: 600; color: #405676; background-color: #DFE9F2; padding: 3px 10px; border-radius: 6px; border: 1.5px solid #405676; white-space: nowrap;'>
                 📅 Tgl. {today_str}
             </span>
         </div>
