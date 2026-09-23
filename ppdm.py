@@ -1677,7 +1677,7 @@ def render_monitoring_kakanwil(df_kakanwil):
     div[data-testid="stVerticalBlockBorderWrapper"] > div,
     div[data-testid="stElementContainer"] > div[style*="border"],
     div[class*="st-"] > div[style*="border"] {
-        border: 3px solid #445462 !important;
+        border: 5px solid #445462 !important;
         border-radius: 12px !important;
         background-color: #DFE9F2 !important;
         padding: 10px 12px !important;
