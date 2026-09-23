@@ -1788,8 +1788,8 @@ def render_monitoring_kakanwil(df_kakanwil):
 
         # KELOMPOK 2: TABEL DETIL CAPAIAN
         with c2:
-            st.markdown("<div class='card-box'>", unsafe_allow_html=True)
-            st.markdown("<div class='card-title'>📊 Detil Capaian Prasertel Kantah</div>", unsafe_allow_html=True)
+            
+            st.markdown("<div class='card-title-inside'>📊 Detil Capaian Prasertel Kantah</div>", unsafe_allow_html=True)
             
             rows_detil = []
             for _, r in df_latest_sorted.iterrows():
