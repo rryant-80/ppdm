@@ -1682,7 +1682,7 @@ def render_monitoring_kakanwil(df_kakanwil):
     <style>
     /* Kustomisasi Border Container Native Streamlit */
     div[data-testid="stVerticalBlockBorderWrapper"] {
-        border: 1.5px solid #64748B !important;
+        border: 1.5px solid #405676 !important;
         border-radius: 12px !important;
         padding: 10px 14px !important;
         background-color: #FFFFFF !important;
