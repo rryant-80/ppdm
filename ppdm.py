@@ -758,9 +758,9 @@ def render_psn_2026(df_filtered_psn):
         # 💡 FIX: Kolom Siap Diserahkan sekarang juga berwarna merah jika < Target SHAT
         str_srh = fmt_shat_cell(v_serah, tgt_shat)
 
-        # 💡 THRESHOLD WARNA BADGE BARU: Hijau > 80%, Kuning 70-80%, Merah < 70%
-        badge_pbt_cls = "badge-green" if pct_pbt > 80.0 else ("badge-yellow" if pct_pbt >= 70.0 else "badge-red")
-        badge_shat_cls = "badge-green" if pct_shat > 80.0 else ("badge-yellow" if pct_shat >= 70.0 else "badge-red")
+        # 💡 THRESHOLD WARNA BADGE BARU: Hijau > 100%, Kuning 80-99%, Merah < 80%
+        badge_pbt_cls = "badge-green" if pct_pbt > 100.0 else ("badge-yellow" if pct_pbt >= 80.0 else "badge-red")
+        badge_shat_cls = "badge-green" if pct_shat > 100.0 else ("badge-yellow" if pct_shat >= 80.0 else "badge-red")
 
         rows_ptsl_html.append(
             f"<tr>"
